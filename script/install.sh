@@ -211,16 +211,13 @@ apt_install libncurses-dev mariadb-server htop sngrep firewalld fail2ban cron rs
 
 configure_pjsip_dns
 
-mkdir -p /var/www/html/mbilling
+rm -rf /var/www/html/mbilling
+if ! git clone -b main https://github.com/Josuearv/magnusbilling8.git /var/www/html/mbilling; then
+    echo "Unable to clone MagnusBilling from https://github.com/Josuearv/magnusbilling8.git (branch main)"
+    exit 1
+fi
+git config --global --add safe.directory /var/www/html/mbilling 2>/dev/null || true
 cd /var/www/html/mbilling
-if ! wget -O MagnusBilling8-current.tar.gz https://magnusbilling.org/download/MagnusBilling8-current.tar.gz; then
-    echo "Unable to download MagnusBilling."
-    exit 1
-fi
-if ! tar xzf MagnusBilling8-current.tar.gz; then
-    echo "Unable to extract MagnusBilling."
-    exit 1
-fi
 
 
 echo
@@ -267,6 +264,10 @@ AddType application/octet-stream .csv
     DirectoryIndex index.htm index.html index.php index.php3 default.html index.cgi
 </Directory>
 
+
+<Directory "/var/www/html/mbilling/script">
+    deny from all
+</Directory>
 
 <Directory "/var/www/html/mbilling/protected">
     deny from all
@@ -597,7 +598,7 @@ if ! printf '[general]\ndbhost = 127.0.0.1\ndbname = mbilling\ndbuser = mbilling
   exit 1
 fi
 
-rm -rf /var/www/html/mbilling/script
+# rm -rf /var/www/html/mbilling/script (preservado para git clone)
 
 echo '[directories](!)
 astetcdir => /etc/asterisk

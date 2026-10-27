@@ -3,7 +3,7 @@ clear
 echo
 echo
 echo
-echo "=======================WWW.MAGNUSBILLING.COM===========================";
+echo "==================== JOSUEARV MAGNUSBILLING 8 ========================";
 echo "_      _                               ______ _ _ _ _  			     ";
 echo "|\    /|                               | ___ (_) | (_) 			     ";
 echo "| \  / | ___  ____ _ __  _   _   _____ | |_/ /_| | |_ _ __   __ _ 	 ";
@@ -19,12 +19,10 @@ echo
 set -euo pipefail
 
 MBILLING_DIR="/var/www/html/mbilling"
-PACKAGE_NAME="MagnusBilling8-current.tar.gz"
-PACKAGE_URL="https://magnusbilling.org/download/$PACKAGE_NAME"
 UPDATE_COMMAND="$MBILLING_DIR/protected/commands/updateCommand.sh"
 LOCK_FILE="/run/lock/magnusbilling-update.lock"
 
-# Impede atualizações simultâneas
+# Evitar actualizaciones simultaneas
 exec 9>"$LOCK_FILE"
 flock -n 9 || {
     echo "Another MagnusBilling update is already running."
@@ -38,20 +36,15 @@ fi
 
 cd "$MBILLING_DIR"
 
-rm -f -- "$PACKAGE_NAME"
+# Configurar directorio seguro para Git
+git config --global --add safe.directory "$MBILLING_DIR" 2>/dev/null || true
 
-wget \
-    --https-only \
-    --output-document="$PACKAGE_NAME" \
-    "$PACKAGE_URL"
-
-# Confirma que o download é um arquivo TAR válido
-tar tzf "$PACKAGE_NAME" >/dev/null
-
-tar xzf "$PACKAGE_NAME"
+echo "Fetching updates from Git repository (Josuearv/magnusbilling8 - branch main)..."
+git fetch origin main
+git reset --hard origin/main
 
 if [[ ! -f "$UPDATE_COMMAND" ]]; then
-    echo "ERROR: updateCommand.sh was not found in the package."
+    echo "ERROR: updateCommand.sh was not found."
     exit 1
 fi
 
@@ -61,4 +54,4 @@ if [[ -e "$MBILLING_DIR/protected/commands/update3.sh" ]]; then
     bash "$MBILLING_DIR/protected/commands/update3.sh"
 fi
 
-echo "MagnusBilling updated successfully."
+echo "MagnusBilling updated successfully from Josuearv/magnusbilling8."

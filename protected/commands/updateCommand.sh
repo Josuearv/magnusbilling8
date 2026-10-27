@@ -25,7 +25,7 @@ cd /var/www/html/mbilling
 
 ## remove unnecessary directories
 rm -rf /var/www/html/mbilling/doc
-rm -rf /var/www/html/mbilling/script
+# rm -rf /var/www/html/mbilling/script (preservado para git clone)
 rm -rf /var/www/html/mbilling/assets/*
 /var/www/html/mbilling/protected/commands/clear_memory
 
