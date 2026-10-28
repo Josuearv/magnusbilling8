@@ -211,9 +211,10 @@ apt_install libncurses-dev mariadb-server htop sngrep firewalld fail2ban cron rs
 
 configure_pjsip_dns
 
+MB_BRANCH="${1:-${MB_BRANCH:-main}}"
 rm -rf /var/www/html/mbilling
-if ! git clone -b main https://github.com/Josuearv/magnusbilling8.git /var/www/html/mbilling; then
-    echo "Unable to clone MagnusBilling from https://github.com/Josuearv/magnusbilling8.git (branch main)"
+if ! git clone -b "$MB_BRANCH" https://github.com/Josuearv/magnusbilling8.git /var/www/html/mbilling; then
+    echo "Unable to clone MagnusBilling from https://github.com/Josuearv/magnusbilling8.git (branch $MB_BRANCH)"
     exit 1
 fi
 git config --global --add safe.directory /var/www/html/mbilling 2>/dev/null || true
