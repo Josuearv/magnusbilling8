@@ -49,6 +49,25 @@ class PhoneBooksReprocessCommand extends ConsoleCommand
             $criteria = new CDbCriteria;
             $criteria->addInCondition('id_phonebook', $ids_phone_books);
             $criteria->addCondition('status = 2');
+
+            // Coordinación con Campaign Optimizer: excluir números suspendidos o con cupo agotado
+            if (class_exists('CampaignOptimizerConfig')) {
+                $optConfig = CampaignOptimizerConfig::model()->find('id_campaign = :c AND activated = 1', [':c' => (int) $campaign->id]);
+                if ($optConfig && $optConfig->mode === 'ACTIVE') {
+                    $excludedSubquery = "SELECT id_phonenumber FROM pkg_campaign_optimizer_state 
+                                         WHERE id_campaign = " . (int) $campaign->id . " 
+                                           AND policy_status != 'ELIGIBLE' 
+                                           AND (suspension_expires_at IS NULL OR suspension_expires_at > NOW())";
+                    $criteria->addCondition("t.id NOT IN ($excludedSubquery)");
+
+                    $canonicalOwnerDailyExhausted = "SELECT canonical_number FROM pkg_campaign_optimizer_daily 
+                                                     WHERE id_user_owner = " . (int) $campaign->id_user . " 
+                                                       AND local_date = CURDATE() 
+                                                       AND (reserved_count + initiated_count) >= " . (int) $optConfig->max_daily_attempts;
+                    $criteria->addCondition("t.number NOT IN ($canonicalOwnerDailyExhausted)");
+                }
+            }
+
             PhoneNumber::model()->updateAll(['status' => 1, 'try' => 0], $criteria);
         }
     }
