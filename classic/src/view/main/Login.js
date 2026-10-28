@@ -6,7 +6,7 @@
  */
 Ext.define('MBilling.view.main.Login', {
     extend: 'Ext.window.Window',
-    requires: ['MBilling.view.main.ForgetPassword', 'MBilling.view.main.Signup'],
+    requires: ['MBilling.view.main.ForgetPassword', 'MBilling.view.main.Signup', 'MBilling.view.main.LoginController'],
     xtype: 'login',
     controller: 'login',
     cls: window.isMac ? 'auth-locked-window mb-mac-login-window' : (window.isDesktop === true ? 'auth-locked-window mb-windows-login-window' : 'auth-locked-window'),
