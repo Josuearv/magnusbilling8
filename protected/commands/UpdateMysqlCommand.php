@@ -824,5 +824,18 @@ class UpdateMysqlCommand extends CConsoleCommand
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
             );
         }
+
+        $sql = "INSERT INTO pkg_module (text,module,icon_cls,id_module,priority)
+            SELECT 't(\'Campaign Optimizer\')','campaignoptimizerconfig','x-fa fa-sliders',13,20
+            WHERE NOT EXISTS (SELECT 1 FROM pkg_module WHERE module='campaignoptimizerconfig');";
+        $this->executeDB($sql);
+
+        $sql = "INSERT INTO pkg_group_module (id_group,id_module,action,show_menu,createShortCut,createQuickStart)
+            SELECT 1,m.id,'crud',1,0,0 FROM pkg_module m
+            WHERE m.module='campaignoptimizerconfig'
+            AND NOT EXISTS (
+                SELECT 1 FROM pkg_group_module gm WHERE gm.id_group=1 AND gm.id_module=m.id
+            );";
+        $this->executeDB($sql);
     }
 }
