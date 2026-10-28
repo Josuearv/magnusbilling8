@@ -56,7 +56,7 @@ Utilizar formato [Conventional Commits](https://www.conventionalcommits.org/):
 
 ```text
 magnusbilling8/
-├── agent.md                        # ESTE DOCUMENTO (Guía maestra del agente)
+├── AGENTS.md                       # ESTE DOCUMENTO (Guía maestra para agentes y desarrolladores)
 ├── ARCHITECTURE.md                 # Arquitectura de alto nivel del sistema
 ├── PROJECT.md                      # Alcance del producto y prioridades de ingeniería
 ├── CALL_FAILED_DIAGNOSTIC_CORRELATION.md # Diagnóstico de fallos CDR y uniqueid
