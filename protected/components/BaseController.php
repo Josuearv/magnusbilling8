@@ -198,7 +198,9 @@ class BaseController extends CController
         ) {
             Yii::app()->session->clear();
             Yii::app()->session->destroy();
-            $this->sendError('Access denied.');
+            if (! $this->authorizedNoSession($this->addAuthorizedNoSession)) {
+                $this->sendError('Access denied.');
+            }
         }
 
         if (isset($_GET['display_errors'])) {

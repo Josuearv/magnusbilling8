@@ -24,7 +24,7 @@
             window.document.title = window.agentTitle;
         }
 
-        if (window.reCaptchaKey.length > 15) {
+        if (window.reCaptchaKey && window.reCaptchaKey.length > 15) {
             document.write('<script async="" defer="" src="https://www.google.com/recaptcha/api.js?render=' + window.reCaptchaKey + '"> <\/script>');
         }
     </script>
@@ -56,30 +56,31 @@
     }
 
 
-    document.getElementById('loading-mask').style.backgroundColor = window.backgroundColor;
-    window.theme = window.theme || 'blue-dark';
+    document.getElementById('loading-mask').style.backgroundColor = window.backgroundColor || '#1b1e23';
+    window.theme = window.theme || 'black-neptune';
     window.themeApp = window.theme;
+    window.theme_color = window.theme_color || 'black';
     window.isThemeNeptune = window.theme.indexOf('neptune') !== -1;
     window.isThemeCrisp = window.theme.indexOf('crisp') !== -1;
     window.isThemeTriton = window.theme.indexOf('triton') !== -1;
     window.isThemeDark = window.theme.indexOf('dark') !== -1;
-    window.layout = 1;
+    window.layout = typeof window.layout !== 'undefined' ? window.layout : 1;
 </script>
 <script type="text/javascript">
 
     if (window.agentTitle) {
         document.getElementById('name-system').innerHTML = window.agentTitle;
     } else {
-        document.getElementById('name-system').innerHTML = t('MagnusBilling System');
+        document.getElementById('name-system').innerHTML = typeof t === 'function' ? t('MagnusBilling System') : 'MagnusBilling System';
     }
 
     document.getElementById('text-msg').innerHTML = 'Voip System';
-    document.getElementById('loading-msg').innerHTML = t('Starting...');
+    document.getElementById('loading-msg').innerHTML = typeof t === 'function' ? t('Starting...') : 'Starting...';
 </script>
 <script type="text/javascript">
     var defaultLang = localStorage.getItem('lang') && localStorage.getItem('lang') != 'undefined'
         ? localStorage.getItem('lang')
-        : localStorage.lang = window.lang;
+        : (localStorage.lang = window.lang || 'en');
 
     var lang = defaultLang,
         localeApp = 'resources/locale/' + lang + '.js';
@@ -89,12 +90,13 @@
 <script type="text/javascript">
     var Ext = Ext || {}; // Ext namespace won't be defined yet...
     Ext.repoDevMode = true;
+    window.wallpaper = window.wallpaper || 'Azul';
     window.wallpapers = 'resources/images/wallpapers/' + window.wallpaper + '.jpg';
-    window.colorMenu = window.colorMenu;
+    window.colorMenu = window.colorMenu || '';
 
     Ext.beforeLoad = function (tags) {
         window.isTablet = !tags.desktop;
-        var theme = window.isTablet ? window.theme_color + '-triton' : window.theme;
+        var theme = window.isTablet ? (window.theme_color || 'black') + '-triton' : window.theme;
 
         Ext.microloaderTags = tags; Ext.Boot.platformTags = Ext.platformTags || {};
 
