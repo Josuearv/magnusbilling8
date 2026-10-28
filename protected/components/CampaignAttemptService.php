@@ -193,7 +193,7 @@ class CampaignAttemptService
     }
 
     /**
-     * Marca un intento con su estado terminal definitivo y actualiza cuotas.
+     * Marca un intento con su estado terminal definitivo y actualiza cuotas y analítica.
      *
      * @param int $attemptId
      * @param string $status
@@ -217,9 +217,20 @@ class CampaignAttemptService
                     $status
                 );
 
-                // Si es un fallo terminal, evaluar si alcanza el límite de 5 fallos en el día
+                // Si es un fallo terminal, evaluar suspensión y registrar en pkg_campaign_failed_analytics
                 if (in_array($status, ['BUSY', 'NOANSWER', 'FAILED', 'CONGESTION'], true)) {
-                    self::checkAndApplyFailureSuspension($attempt);
+                    $isSuspended = self::checkAndApplyFailureSuspension($attempt);
+                    if (class_exists('CampaignAnalyticsService')) {
+                        CampaignAnalyticsService::recordFailedAttempt(
+                            (int) $attempt->id_campaign,
+                            $attempt->canonical_number,
+                            $localDate,
+                            $status,
+                            $hangupcause,
+                            $sipCode,
+                            $isSuspended
+                        );
+                    }
                 }
             }
 
@@ -247,10 +258,10 @@ class CampaignAttemptService
     }
 
     /**
-     * Evalúa si un contacto ha alcanzado el límite de 5 fallos en el día local para aplicar suspensión.
+     * Evalúa si un contacto ha alcanzado el límite de fallos en el día local para aplicar suspensión.
      *
      * @param CampaignOptimizerAttempt $attempt
-     * @return void
+     * @return bool True si se aplicó suspensión, false de lo contrario
      */
     private static function checkAndApplyFailureSuspension($attempt)
     {
@@ -274,15 +285,17 @@ class CampaignAttemptService
             ])->queryScalar();
 
             if ($failCount !== false && (int) $failCount >= $maxFailed) {
-                CampaignRestrictionService::applyTemporarySuspension(
+                return (bool) CampaignRestrictionService::applyTemporarySuspension(
                     (int) $attempt->id_campaign,
                     (int) $attempt->id_phonenumber,
                     'MAX_FAILURES_REACHED (' . (int) $failCount . ' fails)',
                     $timezone
                 );
             }
+            return false;
         } catch (Exception $e) {
             Yii::log('Error checking failure suspension: ' . $e->getMessage(), CLogger::LEVEL_WARNING);
+            return false;
         }
     }
 }
