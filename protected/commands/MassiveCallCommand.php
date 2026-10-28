@@ -318,12 +318,17 @@ class MassiveCallCommand extends ConsoleCommand
                 $attemptUuid = "";
                 if (class_exists("CampaignAttemptService")) {
                     try {
+                        $audioVersionId = null;
+                        if (class_exists("CampaignAudioService")) {
+                            $audioVersionId = CampaignAudioService::getActiveAudioVersionId((int) $campaign->id);
+                        }
                         $attempt = CampaignAttemptService::reserveAttempt(
                             (int) $campaign->id,
                             (int) $phone->id,
                             (int) $id_user,
                             (string) $destination,
-                            (int) $idTrunk
+                            (int) $idTrunk,
+                            $audioVersionId
                         );
                         if ($attempt) {
                             $attemptId = (int) $attempt->id;
