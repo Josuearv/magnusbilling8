@@ -313,14 +313,34 @@ class MassiveCallCommand extends ConsoleCommand
 
                 $dialstr = "$providertech/$destination@$trunkcode";
 
-                $call = AsteriskAccess::buildCallFile([
-                    'Channel'   => $dialstr,
-                    'Callerid'  => $campaign->callerid,
-                    'Account'   => 'MC!' . $campaign->name . '!' . $phone->id,
-                    'Context'   => 'billing',
-                    'Extension' => $extension,
-                    'Priority'  => 1,
-                ], [
+                $attempt = null;
+                $attemptId = 0;
+                $attemptUuid = "";
+                if (class_exists("CampaignAttemptService")) {
+                    try {
+                        $attempt = CampaignAttemptService::reserveAttempt(
+                            (int) $campaign->id,
+                            (int) $phone->id,
+                            (int) $id_user,
+                            (string) $destination,
+                            (int) $idTrunk
+                        );
+                        if ($attempt) {
+                            $attemptId = (int) $attempt->id;
+                            $attemptUuid = (string) $attempt->attempt_uuid;
+                        }
+                    } catch (Exception $e) {
+                        if ($this->debug >= 1) {
+                            echo "CampaignAttemptService reservation error: " . $e->getMessage() . "\n";
+                        }
+                    }
+                }
+
+                $accountCode = $attemptId > 0
+                    ? "MC!" . $campaign->id . "!" . $phone->id . "!" . $attemptId
+                    : "MC!" . $campaign->name . "!" . $phone->id;
+
+                $callVariables = [
                     'CALLED'           => $extension,
                     'USERNAME'         => $username,
                     'IDUSER'           => $id_user,
@@ -332,16 +352,41 @@ class MassiveCallCommand extends ConsoleCommand
                     'AGENT_ID'         => $id_agent,
                     'AGENT_ID_PLAN'    => $id_plan_agent,
                     'SIPDOMAIN'        => $config['global']['ip_servers'],
-                ]);
+                ];
+                if ($attemptId > 0) {
+                    $callVariables['ATTEMPT_ID'] = (string) $attemptId;
+                    $callVariables['ATTEMPT_UUID'] = (string) $attemptUuid;
+                }
+
+                $call = AsteriskAccess::buildCallFile([
+                    'Channel'   => $dialstr,
+                    'Callerid'  => $campaign->callerid,
+                    'Account'   => $accountCode,
+                    'Context'   => 'billing',
+                    'Extension' => $extension,
+                    'Priority'  => 1,
+                ], $callVariables);
 
                 if ($this->debug > 1) {
                     echo $call . "\n\n";
                 }
                 $reportValues .= '(' . $campaign->id . ', ' . $phone->id . ', ' . $id_user . ', ' . $idTrunk . ' , ' . time() . '),';
 
-                AsteriskAccess::generateCallFile($call, $sleepNext);
-                $callsQueued++;
-
+                try {
+                    AsteriskAccess::generateCallFile($call, $sleepNext);
+                    $callsQueued++;
+                    if ($attemptId > 0 && class_exists("CampaignAttemptService")) {
+                        CampaignAttemptService::markDispatched($attemptId);
+                    }
+                } catch (Exception $e) {
+                    if ($attemptId > 0 && class_exists("CampaignAttemptService")) {
+                        CampaignAttemptService::markCancelled($attemptId, $e->getMessage());
+                    }
+                    if ($this->debug >= 1) {
+                        echo "Error generating call file: " . $e->getMessage() . "\n";
+                    }
+                    continue;
+                }
                 if ($campaign->frequency <= 60) {
                     $sleepNext += $sleep;
                 } else {

@@ -40,6 +40,14 @@ class MassiveCall
 
         $agi->answer();
 
+        $attemptId = (int) $agi->get_variable("ATTEMPT_ID", true);
+        if ($attemptId > 0) {
+            $sqlAttempt = "UPDATE pkg_campaign_optimizer_attempt 
+                           SET status = 'ANSWERED', uniqueid = '" . $MAGNUS->uniqueid . "', finalized_at = NOW() 
+                           WHERE id = " . $attemptId . " LIMIT 1";
+            $agi->exec($sqlAttempt);
+        }
+
         $sql = "UPDATE pkg_campaign_report SET status = 3 WHERE id_phonenumber = $idPhonenumber AND id_campaign = $idCampaign ORDER BY id DESC LIMIT 1";
         $agi->verbose($sql, 25);
         $agi->exec($sql);
@@ -82,6 +90,14 @@ class MassiveCall
             $sql = "UPDATE pkg_phonenumber SET status = 5, info = '" . $agi->get_variable("AMDCAUSE", true) . "' WHERE id = $idPhonenumber LIMIT 1";
             $agi->verbose($sql, 25);
             $agi->exec($sql);
+
+            if ($attemptId > 0) {
+                $amdCause = $agi->get_variable("AMDCAUSE", true);
+                $sqlAttempt = "UPDATE pkg_campaign_optimizer_attempt 
+                               SET status = 'BUSY', sip_code = 'AMD', evidence_source = '" . addslashes($amdCause) . "' 
+                               WHERE id = " . $attemptId . " LIMIT 1";
+                $agi->exec($sqlAttempt);
+            }
         } else {
 
             $sql = "UPDATE pkg_phonenumber SET status = 3 WHERE id = $idPhonenumber LIMIT 1";
