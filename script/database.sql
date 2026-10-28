@@ -3639,6 +3639,234 @@ LOCK TABLES `pkg_voucher` WRITE;
 UNLOCK TABLES;
 
 --
+-- Table structure for table `pkg_campaign_optimizer_config`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_optimizer_config`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_optimizer_config` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_campaign` int NOT NULL,
+  `activated` tinyint(1) NOT NULL DEFAULT '1',
+  `mode` enum('OBSERVATION','ACTIVE') NOT NULL DEFAULT 'OBSERVATION',
+  `timezone` varchar(50) NOT NULL DEFAULT 'America/Mexico_City',
+  `max_daily_attempts` int NOT NULL DEFAULT '6',
+  `max_failed_attempts` int NOT NULL DEFAULT '5',
+  `enable_schedule_jitter` tinyint(1) NOT NULL DEFAULT '1',
+  `jitter_max_minutes` int NOT NULL DEFAULT '30',
+  `weekday_start_time` time NOT NULL DEFAULT '07:00:00',
+  `weekday_stop_time` time NOT NULL DEFAULT '21:00:00',
+  `saturday_start_time` time NOT NULL DEFAULT '07:00:00',
+  `saturday_stop_time` time NOT NULL DEFAULT '14:00:00',
+  `sunday_start_time` time NOT NULL DEFAULT '09:00:00',
+  `sunday_stop_time` time NOT NULL DEFAULT '14:00:00',
+  `weekday_frequency` int NOT NULL DEFAULT '80',
+  `weekday_max_frequency` int NOT NULL DEFAULT '100',
+  `weekend_frequency` int NOT NULL DEFAULT '20',
+  `weekend_max_frequency` int NOT NULL DEFAULT '50',
+  `enable_audio_rotation` tinyint(1) NOT NULL DEFAULT '1',
+  `audio_rotation_interval_min` int NOT NULL DEFAULT '37',
+  `audio_source_path` varchar(255) NOT NULL DEFAULT '/opt/',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_campaign_opt_config` (`id_campaign`),
+  CONSTRAINT `fk_opt_config_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pkg_campaign_optimizer_schedule`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_optimizer_schedule`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_optimizer_schedule` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `id_campaign` int NOT NULL,
+  `schedule_date` date NOT NULL,
+  `start_time_base` time NOT NULL,
+  `stop_time_base` time NOT NULL,
+  `jitter_minutes_applied` int NOT NULL DEFAULT '0',
+  `effective_start_time` time NOT NULL,
+  `effective_stop_time` time NOT NULL,
+  `target_frequency` int NOT NULL,
+  `max_frequency` int NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_campaign_date_schedule` (`id_campaign`,`schedule_date`),
+  KEY `ix_schedule_date` (`schedule_date`),
+  CONSTRAINT `fk_opt_schedule_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pkg_campaign_optimizer_state`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_optimizer_state`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_optimizer_state` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `id_campaign` int NOT NULL,
+  `id_phonenumber` int NOT NULL,
+  `policy_status` enum('ELIGIBLE','TEMP_SUSPENDED','ADMIN_RESTRICTED') NOT NULL DEFAULT 'ELIGIBLE',
+  `suspension_reason` varchar(100) DEFAULT NULL,
+  `suspension_expires_at` timestamp NULL DEFAULT NULL,
+  `last_attempt_id` bigint DEFAULT NULL,
+  `updated_by` varchar(50) NOT NULL DEFAULT 'SYSTEM',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_campaign_phonenumber_state` (`id_campaign`,`id_phonenumber`),
+  KEY `ix_policy_status_expiry` (`policy_status`,`suspension_expires_at`),
+  CONSTRAINT `fk_opt_state_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_opt_state_phonenumber` FOREIGN KEY (`id_phonenumber`) REFERENCES `pkg_phonenumber` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pkg_campaign_optimizer_attempt`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_optimizer_attempt`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_optimizer_attempt` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `attempt_uuid` char(36) NOT NULL,
+  `id_campaign` int NOT NULL,
+  `id_phonenumber` int NOT NULL,
+  `id_user_owner` int NOT NULL,
+  `original_number` varchar(30) NOT NULL,
+  `canonical_number` varchar(30) NOT NULL,
+  `id_server` int DEFAULT NULL,
+  `uniqueid` varchar(40) DEFAULT NULL,
+  `id_trunk` int DEFAULT NULL,
+  `status` enum('RESERVED','DISPATCHED','ANSWERED','NOANSWER','BUSY','FAILED','CANCEL','CONGESTION','UNKNOWN','TIMED_OUT') NOT NULL DEFAULT 'RESERVED',
+  `hangupcause` int DEFAULT NULL,
+  `sip_code` varchar(20) DEFAULT NULL,
+  `evidence_source` varchar(50) DEFAULT NULL,
+  `audio_version_id` int DEFAULT NULL,
+  `reserved_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `dispatched_at` timestamp NULL DEFAULT NULL,
+  `finalized_at` timestamp NULL DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_attempt_uuid` (`attempt_uuid`),
+  KEY `ix_attempt_uniqueid_server` (`uniqueid`,`id_server`),
+  KEY `ix_attempt_canonical_date` (`canonical_number`,`reserved_at`),
+  KEY `ix_attempt_status_dispatched` (`status`,`dispatched_at`),
+  CONSTRAINT `fk_opt_attempt_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_opt_attempt_user` FOREIGN KEY (`id_user_owner`) REFERENCES `pkg_user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pkg_campaign_optimizer_daily`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_optimizer_daily`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_optimizer_daily` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `id_user_owner` int NOT NULL,
+  `canonical_number` varchar(30) NOT NULL,
+  `local_date` date NOT NULL,
+  `reserved_count` int NOT NULL DEFAULT '0',
+  `initiated_count` int NOT NULL DEFAULT '0',
+  `failed_count` int NOT NULL DEFAULT '0',
+  `answered_count` int NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_owner_dest_date` (`id_user_owner`,`canonical_number`,`local_date`),
+  KEY `ix_daily_date` (`local_date`),
+  CONSTRAINT `fk_opt_daily_user` FOREIGN KEY (`id_user_owner`) REFERENCES `pkg_user` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pkg_campaign_failed_analytics`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_failed_analytics`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_failed_analytics` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `id_campaign` int NOT NULL,
+  `canonical_number` varchar(30) NOT NULL,
+  `local_date` date NOT NULL,
+  `total_fails` int NOT NULL DEFAULT '0',
+  `fails_noanswer` int NOT NULL DEFAULT '0',
+  `fails_busy` int NOT NULL DEFAULT '0',
+  `fails_failed` int NOT NULL DEFAULT '0',
+  `fails_congestion` int NOT NULL DEFAULT '0',
+  `last_hangupcause` int DEFAULT NULL,
+  `last_sip_code` varchar(20) DEFAULT NULL,
+  `last_attempt_at` timestamp NOT NULL,
+  `status_cache` enum('TEMP_SUSPENDED','ACTIVE','ADMIN_RESTRICTED') NOT NULL DEFAULT 'TEMP_SUSPENDED',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_campaign_dest_date_analytics` (`id_campaign`,`canonical_number`,`local_date`),
+  KEY `ix_analytics_lookup` (`canonical_number`,`last_attempt_at`),
+  CONSTRAINT `fk_opt_analytics_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pkg_campaign_optimizer_audio`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_optimizer_audio`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_optimizer_audio` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `id_campaign` int NOT NULL,
+  `version_tag` varchar(50) NOT NULL,
+  `file_path` varchar(255) NOT NULL,
+  `sha256_checksum` char(64) NOT NULL,
+  `file_size_bytes` bigint NOT NULL,
+  `format` varchar(10) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT '0',
+  `validated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `ix_audio_campaign_active` (`id_campaign`,`is_active`),
+  CONSTRAINT `fk_opt_audio_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pkg_campaign_optimizer_log`
+--
+
+DROP TABLE IF EXISTS `pkg_campaign_optimizer_log`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pkg_campaign_optimizer_log` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `execution_type` enum('CRON','MANUAL_REQUEST') NOT NULL DEFAULT 'CRON',
+  `requested_by` varchar(50) NOT NULL DEFAULT 'SYSTEM',
+  `status` enum('PENDING','RUNNING','COMPLETED','FAILED') NOT NULL DEFAULT 'COMPLETED',
+  `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `duration_seconds` decimal(6,3) NOT NULL DEFAULT '0.000',
+  `attempts_reserved` int NOT NULL DEFAULT '0',
+  `attempts_reconciled` int NOT NULL DEFAULT '0',
+  `suspensions_applied` int NOT NULL DEFAULT '0',
+  `suspensions_expired` int NOT NULL DEFAULT '0',
+  `schedules_updated` int NOT NULL DEFAULT '0',
+  `audios_rotated` int NOT NULL DEFAULT '0',
+  `error_details` text,
+  PRIMARY KEY (`id`),
+  KEY `ix_log_start_time` (`start_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
 -- Final view structure for view `pkg_voicemail_users`
 --
 

@@ -448,6 +448,14 @@ class UpdateMysqlCommand extends CConsoleCommand
             $this->update($version);
         }
 
+        //2026-10-28 Campaign Optimizer tables
+        if ($version == '8.0.0.15') {
+            $this->logMessage('Applying database migration 8.0.0.15 -> 8.0.0.16 (Campaign Optimizer).');
+            $this->ensureCampaignOptimizerTables();
+            $version = '8.0.0.16';
+            $this->update($version);
+        }
+
     }
 
     private function tableExists($table)
@@ -617,5 +625,204 @@ class UpdateMysqlCommand extends CConsoleCommand
     {
         $stream = $error ? STDERR : STDOUT;
         fwrite($stream, '[UpdateMysql] ' . $message . PHP_EOL);
+    }
+
+    private function ensureCampaignOptimizerTables()
+    {
+        if (! $this->tableExists('pkg_campaign_optimizer_config')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_optimizer_config` (
+                    `id` INT NOT NULL AUTO_INCREMENT,
+                    `id_campaign` INT NOT NULL,
+                    `activated` TINYINT(1) NOT NULL DEFAULT 1,
+                    `mode` ENUM('OBSERVATION', 'ACTIVE') NOT NULL DEFAULT 'OBSERVATION',
+                    `timezone` VARCHAR(50) NOT NULL DEFAULT 'America/Mexico_City',
+                    `max_daily_attempts` INT NOT NULL DEFAULT 6,
+                    `max_failed_attempts` INT NOT NULL DEFAULT 5,
+                    `enable_schedule_jitter` TINYINT(1) NOT NULL DEFAULT 1,
+                    `jitter_max_minutes` INT NOT NULL DEFAULT 30,
+                    `weekday_start_time` TIME NOT NULL DEFAULT '07:00:00',
+                    `weekday_stop_time` TIME NOT NULL DEFAULT '21:00:00',
+                    `saturday_start_time` TIME NOT NULL DEFAULT '07:00:00',
+                    `saturday_stop_time` TIME NOT NULL DEFAULT '14:00:00',
+                    `sunday_start_time` TIME NOT NULL DEFAULT '09:00:00',
+                    `sunday_stop_time` TIME NOT NULL DEFAULT '14:00:00',
+                    `weekday_frequency` INT NOT NULL DEFAULT 80,
+                    `weekday_max_frequency` INT NOT NULL DEFAULT 100,
+                    `weekend_frequency` INT NOT NULL DEFAULT 20,
+                    `weekend_max_frequency` INT NOT NULL DEFAULT 50,
+                    `enable_audio_rotation` TINYINT(1) NOT NULL DEFAULT 1,
+                    `audio_rotation_interval_min` INT NOT NULL DEFAULT 37,
+                    `audio_source_path` VARCHAR(255) NOT NULL DEFAULT '/opt/',
+                    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_campaign_opt_config` (`id_campaign`),
+                    CONSTRAINT `fk_opt_config_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_campaign_optimizer_schedule')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_optimizer_schedule` (
+                    `id` BIGINT NOT NULL AUTO_INCREMENT,
+                    `id_campaign` INT NOT NULL,
+                    `schedule_date` DATE NOT NULL,
+                    `start_time_base` TIME NOT NULL,
+                    `stop_time_base` TIME NOT NULL,
+                    `jitter_minutes_applied` INT NOT NULL DEFAULT 0,
+                    `effective_start_time` TIME NOT NULL,
+                    `effective_stop_time` TIME NOT NULL,
+                    `target_frequency` INT NOT NULL,
+                    `max_frequency` INT NOT NULL,
+                    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_campaign_date_schedule` (`id_campaign`, `schedule_date`),
+                    KEY `ix_schedule_date` (`schedule_date`),
+                    CONSTRAINT `fk_opt_schedule_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_campaign_optimizer_state')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_optimizer_state` (
+                    `id` BIGINT NOT NULL AUTO_INCREMENT,
+                    `id_campaign` INT NOT NULL,
+                    `id_phonenumber` INT NOT NULL,
+                    `policy_status` ENUM('ELIGIBLE', 'TEMP_SUSPENDED', 'ADMIN_RESTRICTED') NOT NULL DEFAULT 'ELIGIBLE',
+                    `suspension_reason` VARCHAR(100) NULL,
+                    `suspension_expires_at` TIMESTAMP NULL,
+                    `last_attempt_id` BIGINT NULL,
+                    `updated_by` VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+                    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_campaign_phonenumber_state` (`id_campaign`, `id_phonenumber`),
+                    KEY `ix_policy_status_expiry` (`policy_status`, `suspension_expires_at`),
+                    CONSTRAINT `fk_opt_state_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE,
+                    CONSTRAINT `fk_opt_state_phonenumber` FOREIGN KEY (`id_phonenumber`) REFERENCES `pkg_phonenumber` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_campaign_optimizer_attempt')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_optimizer_attempt` (
+                    `id` BIGINT NOT NULL AUTO_INCREMENT,
+                    `attempt_uuid` CHAR(36) NOT NULL,
+                    `id_campaign` INT NOT NULL,
+                    `id_phonenumber` INT NOT NULL,
+                    `id_user_owner` INT NOT NULL,
+                    `original_number` VARCHAR(30) NOT NULL,
+                    `canonical_number` VARCHAR(30) NOT NULL,
+                    `id_server` INT NULL,
+                    `uniqueid` VARCHAR(40) NULL,
+                    `id_trunk` INT NULL,
+                    `status` ENUM('RESERVED', 'DISPATCHED', 'ANSWERED', 'NOANSWER', 'BUSY', 'FAILED', 'CANCEL', 'CONGESTION', 'UNKNOWN', 'TIMED_OUT') NOT NULL DEFAULT 'RESERVED',
+                    `hangupcause` INT NULL,
+                    `sip_code` VARCHAR(20) NULL,
+                    `evidence_source` VARCHAR(50) NULL,
+                    `audio_version_id` INT NULL,
+                    `reserved_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `dispatched_at` TIMESTAMP NULL,
+                    `finalized_at` TIMESTAMP NULL,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_attempt_uuid` (`attempt_uuid`),
+                    KEY `ix_attempt_uniqueid_server` (`uniqueid`, `id_server`),
+                    KEY `ix_attempt_canonical_date` (`canonical_number`, `reserved_at`),
+                    KEY `ix_attempt_status_dispatched` (`status`, `dispatched_at`),
+                    CONSTRAINT `fk_opt_attempt_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE,
+                    CONSTRAINT `fk_opt_attempt_user` FOREIGN KEY (`id_user_owner`) REFERENCES `pkg_user` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_campaign_optimizer_daily')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_optimizer_daily` (
+                    `id` BIGINT NOT NULL AUTO_INCREMENT,
+                    `id_user_owner` INT NOT NULL,
+                    `canonical_number` VARCHAR(30) NOT NULL,
+                    `local_date` DATE NOT NULL,
+                    `reserved_count` INT NOT NULL DEFAULT 0,
+                    `initiated_count` INT NOT NULL DEFAULT 0,
+                    `failed_count` INT NOT NULL DEFAULT 0,
+                    `answered_count` INT NOT NULL DEFAULT 0,
+                    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_owner_dest_date` (`id_user_owner`, `canonical_number`, `local_date`),
+                    KEY `ix_daily_date` (`local_date`),
+                    CONSTRAINT `fk_opt_daily_user` FOREIGN KEY (`id_user_owner`) REFERENCES `pkg_user` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_campaign_failed_analytics')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_failed_analytics` (
+                    `id` BIGINT NOT NULL AUTO_INCREMENT,
+                    `id_campaign` INT NOT NULL,
+                    `canonical_number` VARCHAR(30) NOT NULL,
+                    `local_date` DATE NOT NULL,
+                    `total_fails` INT NOT NULL DEFAULT 0,
+                    `fails_noanswer` INT NOT NULL DEFAULT 0,
+                    `fails_busy` INT NOT NULL DEFAULT 0,
+                    `fails_failed` INT NOT NULL DEFAULT 0,
+                    `fails_congestion` INT NOT NULL DEFAULT 0,
+                    `last_hangupcause` INT NULL,
+                    `last_sip_code` VARCHAR(20) NULL,
+                    `last_attempt_at` TIMESTAMP NOT NULL,
+                    `status_cache` ENUM('TEMP_SUSPENDED', 'ACTIVE', 'ADMIN_RESTRICTED') NOT NULL DEFAULT 'TEMP_SUSPENDED',
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_campaign_dest_date_analytics` (`id_campaign`, `canonical_number`, `local_date`),
+                    KEY `ix_analytics_lookup` (`canonical_number`, `last_attempt_at`),
+                    CONSTRAINT `fk_opt_analytics_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_campaign_optimizer_audio')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_optimizer_audio` (
+                    `id` INT NOT NULL AUTO_INCREMENT,
+                    `id_campaign` INT NOT NULL,
+                    `version_tag` VARCHAR(50) NOT NULL,
+                    `file_path` VARCHAR(255) NOT NULL,
+                    `sha256_checksum` CHAR(64) NOT NULL,
+                    `file_size_bytes` BIGINT NOT NULL,
+                    `format` VARCHAR(10) NOT NULL,
+                    `is_active` TINYINT(1) NOT NULL DEFAULT 0,
+                    `validated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (`id`),
+                    KEY `ix_audio_campaign_active` (`id_campaign`, `is_active`),
+                    CONSTRAINT `fk_opt_audio_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_campaign_optimizer_log')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_campaign_optimizer_log` (
+                    `id` BIGINT NOT NULL AUTO_INCREMENT,
+                    `execution_type` ENUM('CRON', 'MANUAL_REQUEST') NOT NULL DEFAULT 'CRON',
+                    `requested_by` VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+                    `status` ENUM('PENDING', 'RUNNING', 'COMPLETED', 'FAILED') NOT NULL DEFAULT 'COMPLETED',
+                    `start_time` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `duration_seconds` DECIMAL(6,3) NOT NULL DEFAULT 0.000,
+                    `attempts_reserved` INT NOT NULL DEFAULT 0,
+                    `attempts_reconciled` INT NOT NULL DEFAULT 0,
+                    `suspensions_applied` INT NOT NULL DEFAULT 0,
+                    `suspensions_expired` INT NOT NULL DEFAULT 0,
+                    `schedules_updated` INT NOT NULL DEFAULT 0,
+                    `audios_rotated` INT NOT NULL DEFAULT 0,
+                    `error_details` TEXT NULL,
+                    PRIMARY KEY (`id`),
+                    KEY `ix_log_start_time` (`start_time`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
     }
 }
