@@ -674,6 +674,7 @@ CRONPATH='/var/spool/cron/crontabs/root'
 
 echo "
 * * * * * php /var/www/html/mbilling/cron.php massivecall
+* * * * * flock -n /tmp/CampaignOptimizer.lock php /var/www/html/mbilling/cron.php CampaignOptimizer
 8 8 * * * php /var/www/html/mbilling/cron.php servicescheck
 * * * * * php /var/www/html/mbilling/cron.php callchart
 1 * * * * php /var/www/html/mbilling/cron.php NotifyClient
