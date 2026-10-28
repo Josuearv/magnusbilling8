@@ -58,6 +58,12 @@ Utilizar formato [Conventional Commits](https://www.conventionalcommits.org/):
 magnusbilling8/
 ├── agent.md                        # ESTE DOCUMENTO (Guía maestra del agente)
 ├── ARCHITECTURE.md                 # Arquitectura de alto nivel del sistema
+├── PROJECT.md                      # Alcance del producto y prioridades de ingeniería
+├── CALL_FAILED_DIAGNOSTIC_CORRELATION.md # Diagnóstico de fallos CDR y uniqueid
+├── ia-docs/                        # Base de conocimiento nativa para Agentes e IA
+│   ├── domains/                    # Lógica técnica por dominio (billing, massive calls, PJSIP)
+│   ├── playbooks/                  # Guías de solución y creación (create_new_module)
+│   └── sources/                    # Inventario de tablas de BD y catálogo de módulos
 ├── cron.php                        # Punto de entrada para comandos CLI y cron
 ├── index.php                       # Punto de entrada web (Yii Framework)
 ├── app/                            # Frontend: Modelos y Stores globales ExtJS
@@ -85,6 +91,29 @@ magnusbilling8/
 │   └── install.sh                  # Instalador bash optimizado para VPS
 └── lib/                            # Integraciones externas (pasarelas de pago, auth)
 ```
+
+### Base de Conocimiento y Documentación Integrada
+
+El repositorio cuenta con documentación técnica preexistente de altísimo valor que los agentes deben consultar antes de reinventar la rueda:
+
+1. **`ARCHITECTURE.md`**: Define la arquitectura global, límites de confianza (Asterisk AMI/AGI vs PHP vs Apache), supuestos de despliegue y áreas de alto riesgo (facturación, esquemas de BD, PJSIP).
+2. **`PROJECT.md`**: Define el alcance oficial de MagnusBilling 8, la línea base en Asterisk 20 PJSIP, y prioridades de ingeniería (corrección en facturación > estabilidad telefónica > seguridad > mantenibilidad).
+3. **`CALL_FAILED_DIAGNOSTIC_CORRELATION.md`**: Manual técnico exhaustivo que explica la correlación de llamadas fallidas entre MariaDB (`pkg_cdr_failed`), Asterisk 20 y `uniqueid`.
+4. **`ia-docs/` (Base de Conocimiento RAG para IA)**:
+   * **`ia-docs/domains/`**: Desglosa las reglas de negocio por subsistema:
+     * `campaigns_and_massive_calls.md`: Explicación del motor de llamadas masivas y spooler.
+     * `call_flow_and_billing.md`: Lógica de AGI, cobro en tiempo real y cálculo de CDR.
+     * `mbilling8_platform_changes.md`: Inventario de cambios y diferencias entre Magnus 7 y 8.
+     * `rates_and_provider_costs.md`: Algoritmos de cálculo de rutas y costos.
+     * `sip_and_iax_accounts.md`: Gestión de cuentas SIP y PJSIP endpoints.
+     * `payments_and_refill.md`: Pasarelas de pago y recargas.
+   * **`ia-docs/playbooks/`**: Guías de acción técnica:
+     * `create_new_module_pkg_example.md`: Plantilla de referencia para nuevos módulos `pkg_*`.
+     * `troubleshooting_flows.md`: Árboles de decisión para resolución de problemas.
+     * `known_issues_fix_patterns.md`: Patrones de parches probados.
+   * **`ia-docs/sources/`**:
+     * `database_table_index.md`: Índice y descripción de todas las tablas `pkg_*`.
+     * `module_catalog.md`: Catálogo de todos los módulos instalados.
 
 ---
 
