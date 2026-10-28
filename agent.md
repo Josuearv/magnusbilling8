@@ -1,25 +1,26 @@
-# Guía del Agente - MagnusBilling 8 (Fork Josuearv)
+# Guía del Agente y Manual de Desarrollo - MagnusBilling 8 (Fork Josuearv)
 
-Este documento sirve como manual de referencia técnica y contexto persistente para agentes de IA y desarrolladores que trabajen en el proyecto **MagnusBilling 8** personalizado por **Josuearv**.
+Este documento es el **manual de referencia técnica, arquitectura y flujo de trabajo** para agentes de IA y desarrolladores que implementen nuevas funcionalidades, resuelvan incidencias o extiendan el sistema **MagnusBilling 8** en este repositorio.
 
 ---
 
-## 1. Información General del Repositorio
+## 1. Identidad y Contexto del Proyecto
 
 * **Repositorio Remoto**: `https://github.com/Josuearv/magnusbilling8`
-* **Propietario**: Josuearv
+* **Propietario / Autor del Fork**: Josuearv
 * **Stack Tecnológico**:
-  * **PHP**: 8.1 / 8.2 / 8.3
-  * **Framework Web**: Yii Framework 1.1 (MVC en `protected/`)
-  * **Frontend**: ExtJS (Sencha Classic Toolkit) + Apache 2.4
-  * **Base de Datos**: MariaDB 10.x / MySQL 8.0 (motor InnoDB)
+  * **Lenguaje Backend**: PHP 8.1 / 8.2 / 8.3
+  * **Framework Web MVC**: Yii Framework 1.1 (ubicado en `protected/`)
+  * **Frontend**: Sencha ExtJS 6 Classic Toolkit (ubicado en `app/` y `classic/`)
+  * **Base de Datos**: MariaDB 10.x / MySQL 8.0 (motor InnoDB con transacciones ACID)
   * **Motor VoIP**: Asterisk 20 LTS con **PJSIP** (`chan_pjsip`)
+  * **Servidor Web**: Apache 2.4 con `mod_php` o `php-fpm`
 
 ---
 
 ## 2. Estrategia y Flujo de Ramas (Git Workflow)
 
-El repositorio mantiene una estrategia estricta de 3 ramas para facilitar el mantenimiento y sincronización con el proyecto oficial:
+El repositorio mantiene una política rigurosa de 3 ramas:
 
 ```mermaid
 gitGraph
@@ -30,119 +31,351 @@ gitGraph
    commit id: "massivecall-hook"
    branch main
    checkout main
-   commit id: "release-v8-custom"
+   commit id: "v8-production"
    checkout development
-   commit id: "work-in-progress"
+   commit id: "feature-en-desarrollo"
 ```
 
-| Rama | Propósito | Reglas |
+| Rama | Propósito | Reglas de Obligatorio Cumplimiento |
 | :--- | :--- | :--- |
-| **`development`** | **Rama de trabajo activa (Default de desarrollo)** | Aquí se agregan módulos, se modifican controladores/modelos y se prueban cambios. Todos los agentes deben trabajar sobre esta rama. |
-| **`main`** | **Rama de producción / despliegue** | Es la rama que clonan `script/install.sh` y `update.sh` en los servidores VPS en producción. Solo recibe merges estables desde `development`. |
-| **`source`** | **Espejo limpio del autor oficial** | **NUNCA** se tocan archivos directamente en `source`. Esta rama solo se actualiza mediante `Sync fork` (desde `magnussolution/magnusbilling:source`) para inspeccionar parches, novedades o fixes oficiales sin conflictos. |
+| **`development`** | **Rama de desarrollo activa (Default)** | **TODO agente debe trabajar aquí.** Aquí se crean módulos, se modifican controladores, vistas, scripts y se prueba el código. |
+| **`main`** | **Rama de despliegue en producción** | Utilizada por `script/install.sh` y `update.sh` en los servidores en vivo. **Solo recibe merges desde `development`** una vez que los cambios han sido probados. |
+| **`source`** | **Espejo limpio del upstream oficial** | **NUNCA modificar archivos directamente en `source`.** Esta rama solo se actualiza vía `Sync fork` (desde `magnussolution/magnusbilling:source`) para inspeccionar parches oficiales sin conflictos. |
 
-### Flujo de Sincronización con Upstream:
-1. En GitHub: `Sync fork` en la rama `source`.
-2. En local: Traer parches o commits específicos desde `source` hacia `development`:
-   ```bash
-   git checkout development
-   git merge source
-   # O si es un fix específico:
-   # git cherry-pick <COMMIT_SHA>
-   ```
-3. Una vez probado en `development`, mergear hacia `main`:
-   ```bash
-   git checkout main
-   git merge development
-   git push origin main
-   ```
+### Convención de Commits:
+Utilizar formato [Conventional Commits](https://www.conventionalcommits.org/):
+* `feat: <descripción>` -> Nueva funcionalidad o módulo.
+* `fix: <descripción>` -> Corrección de error o bug.
+* `refactor: <descripción>` -> Reorganización de código sin alterar comportamiento.
+* `docs: <descripción>` -> Documentación o comentarios.
+* `chore: <descripción>` -> Tareas de mantenimiento, dependencias o configuración.
 
 ---
 
-## 3. Arquitectura del Núcleo y MassiveCall
+## 3. Mapa del Repositorio (Dónde buscar cada componente)
 
-### A. Ejecución del Cron
-El sistema corre llamadas masivas mediante el cron cada minuto:
-```bash
-* * * * * php /var/www/html/mbilling/cron.php MassiveCall
+```text
+magnusbilling8/
+├── agent.md                        # ESTE DOCUMENTO (Guía maestra del agente)
+├── ARCHITECTURE.md                 # Arquitectura de alto nivel del sistema
+├── cron.php                        # Punto de entrada para comandos CLI y cron
+├── index.php                       # Punto de entrada web (Yii Framework)
+├── app/                            # Frontend: Modelos y Stores globales ExtJS
+│   ├── model/                      # Ext.data.Model (definición de campos y proxys)
+│   └── store/                      # Ext.data.Store (colecciones de datos para vistas)
+├── classic/                        # Frontend: Vistas y Componentes UI Classic
+│   └── src/view/                   # Vistas por módulo (Form.js, List.js, Module.js, Controller.js)
+├── protected/                      # Backend Yii 1.1 MVC
+│   ├── commands/                   # Comandos de consola y Cron (CLI)
+│   │   ├── MassiveCallCommand.php  # Comando de llamadas masivas
+│   │   ├── MassiveCallBeforeDial.php # Hook personalizado de rotación de CallerID
+│   │   ├── UpdateMysqlCommand.php  # Migrador incremental de base de datos
+│   │   └── update.sh               # Script de auto-actualización Git
+│   ├── components/                 # Helpers del sistema (AsteriskAccess, Util, Mail)
+│   ├── config/                     # Configuración Yii (main.php, cron.php)
+│   ├── controllers/                # Controladores HTTP / AJAX para ExtJS
+│   ├── models/                     # Modelos de datos ActiveRecord (Yii)
+│   └── runtime/                    # Logs de aplicación (application.log)
+├── resources/                      # Assets estáticos y telefonía
+│   ├── asterisk/                   # Scripts AGI Asterisk (mbilling.php)
+│   ├── help/                       # Tooltips de ayuda en interfaz por idioma
+│   └── locale/                     # Archivos de traducción i18n
+├── script/                         # Despliegue y configuración de servidor
+│   ├── database.sql                # Esquema inicial para instalaciones limpias
+│   └── install.sh                  # Instalador bash optimizado para VPS
+└── lib/                            # Integraciones externas (pasarelas de pago, auth)
 ```
-* **Punto de Entrada**: `cron.php` inicia la consola Yii con `protected/config/cron.php`.
-* **Comando Principal**: `protected/commands/MassiveCallCommand.php` -> método `run()`.
-
-### B. Hook de Marcado: `MassiveCallBeforeDial.php`
-* **Ubicación**: `protected/commands/MassiveCallBeforeDial.php`.
-* **Disparador**: Líneas 308-312 de `MassiveCallCommand.php`:
-  ```php
-  if (file_exists(dirname(__FILE__) . '/MassiveCallBeforeDial.php')) {
-      include dirname(__FILE__) . '/MassiveCallBeforeDial.php';
-  }
-  ```
-* **Propósito**: Rotación dinámica de Caller ID usando la tabla `pkg_callerid`.
-* **Lógica implementada**:
-  * Si `$campaign->callerid` es `'DYNAMIC'` o tiene valor asignado:
-  * Ejecuta: `SELECT cid FROM pkg_callerid WHERE activated IN (1, '1', 't') ORDER BY RAND() LIMIT 1`.
-  * Asigna `$campaign->callerid = $cid;`.
-  * **Regla crítica**: NUNCA usar `SHOW TABLE STATUS` para contar filas en InnoDB, ya que es una estimación aproximada y causa fallos de selección (`not found`).
-
-### C. Telefonía Asterisk 20 y PJSIP
-* **Formato de Canal Saliente**: **Obligatoriamente PJSIP**:
-  ```php
-  $dialstr = "$providertech/$destination@$trunkcode"; // Ejemplo: PJSIP/123456789@MyTrunk
-  ```
-  *(NO revertir a sintaxis `SIP/trunk/destination` de Asterisk 13/16, ya que en Asterisk 20 fallará).*
-* **Generación de Archivos de Llamada**:
-  * Usar siempre `AsteriskAccess::buildCallFile($directives, $variables)`.
-  * Escribir usando `AsteriskAccess::generateCallFile($call, $sleepNext)` (utiliza el directorio temporal atómico `.magnusbilling-tmp` para evitar lecturas truncadas del spooler de Asterisk).
-* **Configuración de Troncal para Caller ID Dinámico**:
-  * En la troncal PJSIP en la interfaz web de MagnusBilling, asegurarse de activar:
-    * `trust_id_outbound = yes`
-    * `send_pai = yes` o `send_rpid = yes`
 
 ---
 
-## 4. Instalador y Actualizador Personalizados
+## 4. Ciclo de Vida para Crear una Nueva Feature (Paso a Paso)
 
-### A. Instalador: `script/install.sh`
-* Clona directamente el repositorio:
-  ```bash
-  git clone -b main https://github.com/Josuearv/magnusbilling8.git /var/www/html/mbilling
-  ```
-* **Protección de Apache**: La carpeta `/var/www/html/mbilling/script` y los archivos `*.sql` están bloqueados con `deny from all` en Apache. **NO borrar la carpeta `script/`**, para no ensuciar el árbol de Git.
-* **Comando de instalación en VPS limpio**:
-  ```bash
-  curl -O https://raw.githubusercontent.com/Josuearv/magnusbilling8/main/script/install.sh
-  bash install.sh
-  ```
+Cuando un agente recibe la tarea de implementar un nuevo módulo o funcionalidad (por ejemplo, una nueva entidad `X`), debe seguir estrictamente este flujo secuencial:
 
-### B. Actualizador: `protected/commands/update.sh`
-* Realiza un fetch y reset seguro desde Git:
-  ```bash
-  git fetch origin main
-  git reset --hard origin/main
-  bash "$UPDATE_COMMAND"
-  ```
-* Ejecuta migraciones de base de datos pendientes: `php /var/www/html/mbilling/cron.php UpdateMysql`.
-
----
-
-## 5. Reglas de Desarrollo y Buenas Prácticas
-
-1. **Fin de Línea (Line Endings)**:
-   * **Obligatorio LF (`\n`)** en todos los scripts shell (`.sh`, scripts bash). NUNCA guardar con CRLF (`\r\n`), ya que causará errores de sintaxis en Linux (`\r: command not found`).
-2. **Estructura de Nuevos Módulos**:
-   * **Modelos**: Crear en `protected/models/NombreModelo.php` heredando de `Model` (o `ActiveRecord`).
-   * **Controladores**: Crear en `protected/controllers/NombreModuloController.php` heredando de `Controller`.
-   * **Comandos Cron**: Crear en `protected/commands/NombreCommand.php` heredando de `ConsoleCommand`.
-   * **Componentes / Helpers**: Crear en `protected/components/`.
-3. **Consultas a Base de Datos**:
-   * Usar siempre `Yii::app()->db->createCommand(...)` con binding de parámetros para prevenir inyecciones SQL:
+### Paso 1: Base de Datos (`MariaDB` / `MySQL`)
+1. **Convención de Nombres**: Toda tabla debe iniciar con el prefijo `pkg_` en minúsculas (ej: `pkg_modulo_nuevo`).
+2. **Campos Estándar**:
+   * `id`: Clave primaria entera `INT NOT NULL AUTO_INCREMENT PRIMARY KEY`.
+   * Claves foráneas: Con prefijo `id_` (ej: `id_user INT NOT NULL`).
+   * Estado activo/inactivo: `activated TINYINT(1) NOT NULL DEFAULT 1`.
+3. **Migración en Código**:
+   * Registrar la creación de la tabla en `protected/commands/UpdateMysqlCommand.php` verificando existencia previa:
      ```php
-     $cmd = Yii::app()->db->createCommand("SELECT * FROM pkg_user WHERE id = :id");
-     $cmd->bindValue(':id', (int) $id, PDO::PARAM_INT);
-     $user = $cmd->queryRow();
+     if (!$this->tableExists('pkg_modulo_nuevo')) {
+         $this->executeDB("CREATE TABLE `pkg_modulo_nuevo` (
+             `id` INT NOT NULL AUTO_INCREMENT,
+             `id_user` INT NOT NULL,
+             `nombre` VARCHAR(100) NOT NULL,
+             `activated` TINYINT(1) NOT NULL DEFAULT 1,
+             PRIMARY KEY (`id`),
+             KEY `id_user` (`id_user`)
+         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;");
+     }
      ```
-4. **Permisos de Archivos en Servidor**:
-   * Controladores, modelos y vistas: `root:root` `0644`.
-   * Scripts ejecutables en `protected/commands/*.sh`: `root:root` `0755`.
-   * AGI Asterisk (`resources/asterisk/mbilling.php`): `asterisk:asterisk` `0500`.
-   * Runtime / Logs (`protected/runtime/`): `www-data:www-data` `0750`.
+   * Agregar también el DDL a `script/database.sql` para que las instalaciones nuevas desde cero incluyan la tabla.
+
+---
+
+### Paso 2: Backend Yii 1.1 (Modelo y Controlador)
+
+#### A. Modelo: `protected/models/ModuloNuevo.php`
+Hereda de la clase base `Model` (`protected/components/Model.php`):
+```php
+<?php
+class ModuloNuevo extends Model
+{
+    protected $_module = 'modulonuevo';
+
+    public static function model($className = __CLASS__)
+    {
+        return parent::model($className);
+    }
+
+    public function tableName()
+    {
+        return 'pkg_modulo_nuevo';
+    }
+
+    public function primaryKey()
+    {
+        return 'id';
+    }
+
+    public function rules()
+    {
+        return [
+            ['id_user, nombre', 'required'],
+            ['id_user', 'numerical', 'integerOnly' => true],
+            ['nombre', 'length', 'max' => 100],
+            ['activated', 'boolean'],
+        ];
+    }
+
+    public function relations()
+    {
+        return [
+            'idUser' => [self::BELONGS_TO, 'User', 'id_user'],
+        ];
+    }
+}
+```
+
+#### B. Controlador: `protected/controllers/ModulonuevoController.php`
+Hereda de la clase base `Controller` (`protected/components/Controller.php`). Proporciona automáticamente las acciones CRUD (`actionRead`, `actionCreate`, `actionUpdate`, `actionDestroy`, `actionCsv`, `actionPdf`):
+```php
+<?php
+class ModulonuevoController extends Controller
+{
+    public $attributeOrder = 't.id';
+    public $extraValues    = ['idUser' => 'username'];
+
+    public function init()
+    {
+        $this->instanceModel = new ModuloNuevo;
+        $this->abstractModel = ModuloNuevo::model();
+        $this->titleReport   = Yii::t('zii', 'Modulo Nuevo');
+        parent::init();
+    }
+}
+```
+
+---
+
+### Paso 3: Registro en el Menú y Permisos (ACL)
+
+Para que el módulo sea visible y accesible en la interfaz web de MagnusBilling, se debe registrar en dos tablas:
+
+1. **`pkg_module`** (Registro del menú):
+   * Insertar el módulo indicando el menú padre (`id_module`), ícono FontAwesome (`iconCls`), y orden:
+     * Menús padres comunes: `1` = Clientes, `7` = Facturación, `8` = Tarifas, `9` = Reportes, `10` = Rutas, `12` = Configuración, `13` = Marcación Masiva, `85` = Servicios.
+     ```sql
+     INSERT INTO `pkg_module` (`id`, `text`, `module`, `iconCls`, `id_module`, `order`) 
+     VALUES (150, 't(\'Modulo Nuevo\')', 'modulonuevo', 'x-fa fa-cogs', 12, 10);
+     ```
+2. **`pkg_group_module`** (Permisos de rol):
+   * Otorgar permisos a los grupos deseados:
+     * Grupo `1` (Administrador): Permiso total `'crud'`.
+     * Grupo `2` (Agente/Revendedor): Según requerimiento (ej. `'crud'` o `'r'`).
+     * Grupo `3` (Cliente): Según requerimiento.
+     ```sql
+     INSERT INTO `pkg_group_module` (`id_group`, `id_module`, `action`, `show_menu`, `createShortCut`, `createQuickStart`) 
+     VALUES (1, 150, 'crud', 1, 0, 0);
+     ```
+
+---
+
+### Paso 4: Frontend Sencha ExtJS 6 Classic
+
+El frontend requiere 4 archivos en la vista y 2 en el núcleo de la aplicación:
+
+1. **Modelo de datos ExtJS**: `app/model/ModuloNuevo.js`
+   ```javascript
+   Ext.define('MBilling.model.ModuloNuevo', {
+       extend: 'Ext.data.Model',
+       fields: [
+           { name: 'id', type: 'int' },
+           { name: 'id_user', type: 'int' },
+           { name: 'nombre', type: 'string' },
+           { name: 'activated', type: 'int' },
+           'idUserusername'
+       ],
+       proxy: {
+           type: 'uxproxy',
+           module: 'modulonuevo'
+       }
+   });
+   ```
+
+2. **Store de datos ExtJS**: `app/store/ModuloNuevo.js`
+   ```javascript
+   Ext.define('MBilling.store.ModuloNuevo', {
+       extend: 'Ext.data.Store',
+       model: 'MBilling.model.ModuloNuevo'
+   });
+   ```
+
+3. **Vistas del Módulo**: `classic/src/view/modulonuevo/`
+   * **`Module.js`**: Envoltorio principal del panel:
+     ```javascript
+     Ext.define('MBilling.view.modulonuevo.Module', {
+         extend: 'Ext.ux.panel.Module',
+         alias: 'widget.modulonuevomodule',
+         controller: 'modulonuevo'
+     });
+     ```
+   * **`Controller.js`**: Controlador de interfaz:
+     ```javascript
+     Ext.define('MBilling.view.modulonuevo.Controller', {
+         extend: 'Ext.ux.app.ViewController',
+         alias: 'controller.modulonuevo'
+     });
+     ```
+   * **`List.js`**: Grid con tabla de datos, filtros y columnas:
+     ```javascript
+     Ext.define('MBilling.view.modulonuevo.List', {
+         extend: 'Ext.ux.grid.Panel',
+         alias: 'widget.modulonuevolist',
+         initComponent: function() {
+             var me = this;
+             me.columns = [
+                 { text: t('ID'), dataIndex: 'id', width: 60 },
+                 { text: t('Username'), dataIndex: 'idUserusername', flex: 1 },
+                 { text: t('Name'), dataIndex: 'nombre', flex: 2 },
+                 { text: t('Status'), dataIndex: 'activated', renderer: Helper.rendererBoolean }
+             ];
+             me.callParent(arguments);
+         }
+     });
+     ```
+   * **`Form.js`**: Ventana modal con campos para crear y editar registros:
+     ```javascript
+     Ext.define('MBilling.view.modulonuevo.Form', {
+         extend: 'Ext.ux.form.Panel',
+         alias: 'widget.modulonuevoform',
+         initComponent: function() {
+             var me = this;
+             me.items = [
+                 { xtype: 'userlookup', name: 'id_user', fieldLabel: t('Username') },
+                 { name: 'nombre', fieldLabel: t('Name'), allowBlank: false },
+                 { xtype: 'booleancombo', name: 'activated', fieldLabel: t('Status') }
+             ];
+             me.callParent(arguments);
+         }
+     });
+     ```
+
+---
+
+### Paso 5: Tareas Programadas y Comandos CLI (Cron)
+
+Si la funcionalidad requiere ejecución periódica o en segundo plano:
+1. **Crear Comando**: `protected/commands/MiTareaCommand.php`
+   ```php
+   <?php
+   class MiTareaCommand extends CConsoleCommand
+   {
+       public function run($args)
+       {
+           // Lógica de procesamiento
+       }
+   }
+   ```
+2. **Invocación desde el Cron**:
+   ```bash
+   php /var/www/html/mbilling/cron.php MiTarea
+   ```
+
+---
+
+### Paso 6: Telefonía, Asterisk 20 y PJSIP
+
+Para cualquier desarrollo que toque llamadas, troncales o numeración:
+
+1. **Canal Saliente Obligatorio (PJSIP)**:
+   ```php
+   // CORRECTO en Asterisk 20:
+   $dialstr = "PJSIP/$destination@$trunkcode";
+
+   // INCORRECTO (Legacy Asterisk 13/16 chan_sip - NO USAR):
+   // $dialstr = "SIP/$trunkcode/$destination";
+   ```
+2. **Archivos de Llamada (`.call`)**:
+   * Usar siempre el generador atómico:
+     ```php
+     $callFile = AsteriskAccess::buildCallFile($directives, $variables);
+     AsteriskAccess::generateCallFile($callFile);
+     ```
+   * Esto escribe en `/var/spool/asterisk/outgoing/.magnusbilling-tmp/` y mueve atómicamente el archivo a `/var/spool/asterisk/outgoing/` para evitar que Asterisk lea archivos a medio escribir.
+3. **Hook MassiveCall (`MassiveCallBeforeDial.php`)**:
+   * Toda lógica previa a la salida de una llamada masiva debe integrarse en este archivo.
+   * La rotación de Caller ID se realiza seleccionando números activos con `ORDER BY RAND() LIMIT 1` sobre la tabla `pkg_callerid`.
+
+---
+
+## 5. Protocolo de Seguridad y Buenas Prácticas
+
+1. **Prevención de Inyecciones SQL (PDO Obligatorio)**:
+   * **NUNCA** concatenar variables en cadenas SQL.
+   * Usar siempre consultas parametrizadas con `Yii::app()->db->createCommand()`:
+     ```php
+     $sql = "SELECT * FROM pkg_user WHERE username = :user AND activated = :act";
+     $user = Yii::app()->db->createCommand($sql)
+         ->bindValue(':user', $username, PDO::PARAM_STR)
+         ->bindValue(':act', 1, PDO::PARAM_INT)
+         ->queryRow();
+     ```
+2. **Saltos de Línea LF (Unix)**:
+   * Todos los archivos de script (`.sh`, scripts bash) deben guardarse estrictamente con saltos de línea **LF (`\n`)**. NUNCA usar CRLF (`\r\n`), para prevenir el error `\r: command not found` en Linux.
+3. **Compatibilidad PHP 8.x**:
+   * Declarar propiedades de clase explícitamente (evitar propiedades dinámicas obsoletas en PHP 8.2+).
+   * Validar nulos antes de acceder a índices (`$array['key'] ?? null`).
+   * No usar funciones eliminadas como `each()` o `create_function()`.
+
+---
+
+## 6. Flujos de Diagnóstico y Depuración (Troubleshooting)
+
+Cuando se presente un fallo o error en el sistema, consultar los logs en el siguiente orden de prioridad:
+
+| Componente | Archivo de Log / Comando de Inspección | Qué buscar |
+| :--- | :--- | :--- |
+| **Backend Yii** | `/var/www/html/mbilling/protected/runtime/application.log` | Excepciones PHP, errores de SQL, stack traces de controllers. |
+| **Asterisk CLI** | `asterisk -rvvvvv` | Fallos de marcado PJSIP, rechazos SIP (403, 404, 503), ejecución de AGI. |
+| **Asterisk Log** | `/var/log/asterisk/full` | Registro histórico detallado de llamadas y CDRs. |
+| **PJSIP Endpoints** | En Asterisk CLI: `pjsip show endpoints` / `pjsip show aors` | Registro y disponibilidad de troncales y extensiones. |
+| **Servidor Web** | `/var/log/apache2/error.log` | Errores 500, bloqueos de `.htaccess`, fallos de PHP-FPM. |
+| **Crons y Tareas** | `/var/log/syslog` o `journalctl -u cron -f` | Ejecución y salida de `cron.php MassiveCall` o tareas programadas. |
+
+---
+
+## 7. Checklist Obligatorio del Agente antes de Finalizar una Tarea
+
+Antes de entregar cualquier cambio al usuario o dar por concluida una tarea, el agente debe verificar cada uno de estos 7 puntos:
+
+- [ ] **1. Rama Correcta**: El cambio está realizado y comiteado en la rama **`development`** (NUNCA en `source`, NUNCA directamente en `main`).
+- [ ] **2. Sintaxis PHP**: Todo archivo PHP creado o modificado pasa la validación de sintaxis: `php -l <archivo.php>`.
+- [ ] **3. Saltos de Línea**: Todos los archivos `.sh` tienen terminación **LF** sin caracteres de retorno de carro (`\r`).
+- [ ] **4. Seguridad SQL**: Todas las consultas a base de datos utilizan binding de parámetros PDO (`:param`).
+- [ ] **5. Compatibilidad Asterisk**: No se utilizan cadenas obsoletas `SIP/`; todo canal utiliza `PJSIP/<dest>@<trunk>`.
+- [ ] **6. Integridad de Migración**: Si se agregaron campos o tablas, están documentados y contemplados en `UpdateMysqlCommand.php` y `script/database.sql`.
+- [ ] **7. Push Remoto**: Los commits han sido subidos exitosamente a `origin development` en GitHub.
