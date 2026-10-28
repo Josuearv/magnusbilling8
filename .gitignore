@@ -90,11 +90,8 @@ build/ApplicationPUBLIC.js
 wiki/generate.php
 script/install_18.sh
 script/test.sql
-classic/src/Application.js
 sass/example
 sass/example/*
-bootstrap.css
-bootstrap.js
 protected/tests
 protected/runtime/application.log
 classic/test
