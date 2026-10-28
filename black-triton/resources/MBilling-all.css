@@ -1,0 +1,5 @@
+/**
+ * MagnusBilling 8 - Theme Fallback Shim: MBilling-all.css
+ * Loads global stylesheet if <theme>/resources/MBilling-all.css is requested.
+ */
+@import '../../resources/MBilling-all.css';

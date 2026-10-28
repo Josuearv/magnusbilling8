@@ -1862,27 +1862,18 @@ Ext.Microloader = Ext.Microloader || (function () {
              * @private
              */
             retrieveAsset: function (key) {
-                try {
-                    return _storage.getItem(key);
-                }
-                catch (e) {
-                    // Private browsing mode
-                    return null;
-                }
+                // Disabled localStorage caching to ensure network manifests and latest builds are always fetched fresh
+                return null;
             },
 
             setAsset: function(key, content) {
                 try {
-                    if (content === null || content == '') {
+                    if (_storage) {
                         _storage.removeItem(key);
-                    } else {
-                        _storage.setItem(key, content);
                     }
                 }
                 catch (e) {
-                    if (_storage && e.code == e.QUOTA_EXCEEDED_ERR) {
-                        _warn("LocalStorage Quota exceeded, cannot store " + key + " locally");
-                    }
+                    // ignore
                 }
             }
         };
@@ -2021,7 +2012,8 @@ Ext.Microloader = Ext.Microloader || (function () {
             },
 
             shouldCache: function() {
-                return this.hash && this.cacheEnabled;
+                // Microloader asset caching disabled to ensure immediate updates across all browsers
+                return false;
             },
 
             cache: function(content) {
