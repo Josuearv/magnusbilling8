@@ -1586,6 +1586,301 @@ Ext.define('MBilling.view.main.LoginController', {
 
 
 ;
+/* Source: classic/src/view/main/ChangePasswordController.js */
+Ext.define('MBilling.view.main.ChangePasswordController', {
+    extend: 'Ext.app.ViewController',
+    alias: 'controller.changepassword',
+    requires: ['Ext.form.Panel', 'Ext.ux.form.field.Password'],
+    onShowWinChangePass: function() {
+        this.lookupReference('formChangePass').getForm().findField('current_password').focus(10);
+    },
+    savePassword: function() {
+        var me = this,
+            view = me.getView(),
+            btnSave = me.lookupReference('saveChangePass'),
+            formPanel = me.lookupReference('formChangePass'),
+            fieldPassword = formPanel.getForm().findField('password');
+        fieldCurrentPassword = formPanel.getForm().findField('current_password');
+        values = Ext.apply(formPanel.getValues(), {
+            current_password: Helper.Util.sha1(fieldCurrentPassword.getValue())
+        });
+        if (!formPanel.isValid()) {
+            Ext.ux.Alert.alert(view.titleWarning, view.msgFormInvalid, 'warning');
+            return;
+        }
+        if (fieldCurrentPassword.getValue() == fieldPassword.getValue()) {
+            Ext.ux.Alert.alert(view.titleWarning, t("New password is hidden new password"), 'warning');
+            return;
+        }
+        if (fieldPassword.getValue().indexOf('=') !== -1 || fieldPassword.getValue().indexOf('--') !== -1 || fieldPassword.getValue().indexOf('\'') !== -1 || fieldPassword.getValue().indexOf(' or ') !== -1 || fieldPassword.getValue().indexOf(' table ') !== -1) {
+            Ext.ux.Alert.alert(view.titleWarning, "New password cantain invalid caracter", 'warning');
+            return;
+        }
+        values.password = Helper.Util.sha1(fieldPassword.getValue());
+        btnSave.disable();
+        formPanel.setLoading();
+        Ext.Ajax.request({
+            url: 'index.php/authentication/changePassword',
+            params: values,
+            success: function(response) {
+                response = Ext.decode(response.responseText);
+                if (response.success) {
+                    Ext.ux.Alert.alert(view.titleSuccess, response.msg, 'success');
+                    formPanel.getForm().reset();
+                    fieldCurrentPassword.focus();
+                } else {
+                    if (!Ext.isObject(response.errors)) {
+                        Ext.ux.Alert.alert(view.titleError, response.msg, 'error');
+                        fieldCurrentPassword.focus(true);
+                    } else {
+                        formPanel.getForm().markInvalid(response.errors);
+                        fieldCurrentPassword.focus(true);
+                        Ext.ux.Alert.alert(view.titleWarning, view.msgFormInvalid, 'warning');
+                    }
+                }
+                formPanel.setLoading(false);
+                btnSave.enable();
+            }
+        });
+    },
+    checkKeyEnterChangePass: function(field, evt) {
+        if (evt.getKey() === evt.ENTER) {
+            this.savePassword();
+        }
+    }
+});
+
+;
+/* Source: classic/src/view/main/GoogleAuthenticatorController.js */
+Ext.define('MBilling.view.main.GoogleAuthenticatorController', {
+    extend: 'Ext.app.ViewController',
+    alias: 'controller.googleauthenticator',
+    titleWarning: t('Warning'),
+    msgFieldsRequired: t('Fill in the fields correctly.'),
+    msgAuthenticating: t('Authenticating...'),
+    msgEnteringInSystem: t('Entering in system...'),
+    msgWelcome: t('Welcome'),
+    titleErrorInAuthentication: t('Authentication error'),
+    control: {
+        textfield: {
+            keyup: 'onKeyUpField'
+        }
+    },
+    onGoogleAuthenticator: function(btn) {
+        var me = this,
+            loginWin = me.getView(),
+            fieldOneCode = me.lookupReference('oneCode'),
+            oneCode = fieldOneCode.getValue();
+        if (!fieldOneCode.isValid()) {
+            Ext.ux.Alert.alert(me.titleWarning, me.msgFieldsRequired, 'warning');
+            return false;
+        }
+        loginWin.setLoading(me.msgAuthenticating);
+        Ext.Ajax.request({
+            url: 'index.php/authentication/googleAuthenticator',
+            params: {
+                oneCode: oneCode
+            },
+            success: function(response) {
+                response = Ext.decode(response.responseText);
+                if (response.success) {
+                    loginWin.setLoading(me.msgEnteringInSystem);
+                    App.init();
+                    loginWin.setLoading(false);
+                    loginWin.close();
+                    Ext.ux.Alert.alert(me.msgWelcome, response.msg, 'information');
+                    App.user.logged = response.success;
+                    App.user.loggedGoogle = true;
+                } else {
+                    Ext.ux.Alert.alert(me.titleErrorInAuthentication, 'Invalid code', 'error');
+                    fieldOneCode.focus(true);
+                    loginWin.setLoading(false);
+                }
+            }
+        });
+    },
+    onShowLogin: function() {
+        this.lookupReference('user').focus(false, 10);
+    },
+    onKeyUpField: function(field, evt) {
+        if (evt.getKey() === evt.ENTER) {
+            this.onGoogleAuthenticator();
+        }
+    },
+    onLogout: function() {
+        var me = this;
+        Ext.Ajax.request({
+            url: 'index.php/authentication/logoff',
+            success: function() {
+                App.user.logged = false;
+                location.reload();
+            }
+        });
+    }
+});
+
+;
+/* Source: classic/src/view/main/SettingsController.js */
+Ext.define('MBilling.view.main.SettingsController', {
+    extend: 'Ext.app.ViewController',
+    requires: ['Ext.form.field.Checkbox'],
+    alias: 'controller.settings',
+    setDefaultMenuPreference: function(treepanel) {
+        treepanel.getSelectionModel().select(0, false, true);
+    },
+    callConfiguration: function(selModel, selected) {
+        this.lookupReference('settingsPanel').getLayout().setActiveItem(this.lookupReference(selected[0].get('id')));
+    },
+    selectInitLayout: function(tree) {
+        var node = tree.getRootNode().findChild('text', this.getView().textUserLayout, true);
+        tree.getSelectionModel().select(node);
+    },
+    onSelectLayout: function(tree, record) {
+        var me = this,
+            type = record.get('type');
+        me.getView().userLayout = type;
+        me.lookupReference('imageLayout').setSrc(me.getView().pathScreens + (type === 'standard' ? 'blue-crisp' : 'blue-crisp-desktop') + '.png');
+    },
+    savePreferenceLayout: function() {
+        var view;
+        if (localStorage) {
+            view = this.getView();
+            localStorage.setItem('layout', view.userLayout);
+            Ext.Msg.confirm(view.reloadSystemText, view.msgReloadSystem, function(opt) {
+                if (opt === 'yes') {
+                    if (view.menuColor == 'White' || view.menuColor == 'Black') {
+                        Ext.Ajax.request({
+                            params: {
+                                value: view.menuColor,
+                                field: 'color_menu'
+                            },
+                            url: 'index.php/configuration/theme'
+                        });
+                    };
+                    Ext.Ajax.request({
+                        params: {
+                            value: view.userLayout == 'desktop' ? 1 : 0,
+                            field: 'layout'
+                        },
+                        url: 'index.php/configuration/theme',
+                        success: function() {
+                            Ext.ux.Alert.alert(view.changeLayoutTitle, view.changeLayoutText, 'notification');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 3000);
+                        }
+                    });
+                }
+            });
+        }
+    },
+    selectInitTheme: function(tree) {
+        var node = tree.getRootNode().findChild('text', this.getView().textUserTheme, true);
+        tree.getSelectionModel().select(node);
+    },
+    onSelectTheme: function(tree, record) {
+        var me = this,
+            css = record.get('css');
+        me.getView().userTheme = css;
+        me.lookupReference('imageTheme').setSrc(me.getView().pathScreens + css + '.png');
+    },
+    savePreferenceTheme: function() {
+        var view;
+        if (localStorage) {
+            view = this.getView();
+            localStorage.setItem('themeApp', view.userTheme);
+            Ext.Msg.confirm(view.reloadSystemText, view.msgReloadSystemTheme, function(opt) {
+                if (opt === 'yes') {
+                    Ext.Ajax.request({
+                        params: {
+                            value: view.userTheme,
+                            field: 'template'
+                        },
+                        url: 'index.php/configuration/theme',
+                        success: function() {
+                            Ext.ux.Alert.alert(view.changeThemeTitle, view.changeThemeText, 'notification');
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 3000);
+                        }
+                    });
+                }
+            });
+        }
+    },
+    applyWallpaper: function() {
+        var view = this.getView();
+        if (view.selectedWallpaper) {
+            App.desktop.setWallpaper('resources/images/wallpapers/' + view.selectedWallpaper + '.jpg', view.stretchWallpaper);
+            localStorage && localStorage.setItem('wallpaper', 'resources/images/wallpapers/' + view.selectedWallpaper + '.jpg');
+            Ext.Ajax.request({
+                params: {
+                    value: view.selectedWallpaper,
+                    field: 'wallpaper'
+                },
+                url: 'index.php/configuration/theme',
+                success: function() {
+                    Ext.ux.Alert.alert(view.changeThemeTitle, t('Success'), 'success');
+                }
+            });
+        }
+    },
+    getTextOfWallpaper: function(path) {
+        var text = path,
+            slash = path.lastIndexOf('/'),
+            dot;
+        if (slash >= 0) {
+            text = text.substring(slash + 1);
+        }
+        dot = text.lastIndexOf('.');
+        text = Ext.String.capitalize(text.substring(0, dot));
+        text = text.replace(/[-]/g, ' ');
+        return text;
+    },
+    selectInitWallpaper: function() {
+        var view = this.getView(),
+            s = App.desktop.getWallpaper(),
+            path;
+        if (s) {
+            path = '/Wallpaper/' + t(this.getTextOfWallpaper(s));
+            this.lookupReference('treeWallpaper').selectPath(path, 'text');
+        }
+    },
+    onSelectWallpaper: function(tree, record) {
+        var view = this.getView(),
+            img = record.get('img');
+        if (img) {
+            view.wallpaper = img;
+            view.selectedWallpaper = view.pathWallpaper + img;
+        } else {
+            view.wallpaper = 'none.jpg';
+            view.selectedWallpaper = Ext.BLANK_IMAGE_URL;
+        }
+        view.previewWallpaper.setWallpaper('resources/images/wallpapers/' + view.selectedWallpaper + '.jpg');
+    },
+    onChangeMenuColor: function(cmp) {
+        this.getView().menuColor = cmp.getChecked()[0].inputValue;
+    },
+    onChangeStretchWallpaper: function(cmp) {
+        this.getView().stretchWallpaper = cmp.checked;
+    }
+});
+
+;
+/* Source: classic/src/view/main/MainModel.js */
+/**
+ * This class is the view model for the Main view of the application.
+ */
+Ext.define('MBilling.view.main.MainModel', {
+    extend: 'Ext.app.ViewModel',
+    alias: 'viewmodel.main',
+    data: {
+        name: 'MBilling'
+    }
+    //TODO - add data, formulas and/or methods to support your view
+});
+
+;
 /* Source: classic/src/view/main/ForgetPassword.js */
 /**
  * Class to change password
@@ -3158,6 +3453,33 @@ Ext.define('MBilling.view.user.Bulk', {
             }
         });
     }
+});
+
+;
+/* Source: classic/src/view/general/Window.js */
+/**
+ * Classe que define a lista de "CallShopCdr"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnussolution/magnusbilling7/issues
+ * =======================================
+ * Magnusbilling.org <info@magnussolution.com>
+ * 01/10/2013
+ */
+Ext.define('MBilling.view.general.Controller', {
+    extend: 'Ext.ux.app.ViewController',
+    alias: 'controller.general'
 });
 
 ;
@@ -5725,6 +6047,121 @@ Ext.define('MBilling.view.phoneBook.Tag', {
             }
         });
         me.callParent(arguments);
+    }
+});
+
+;
+/* Source: classic/src/view/campaignSend/Controller.js */
+/**
+ * Classe que define a lista de "CallShopCdr"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnussolution/magnusbilling7/issues
+ * =======================================
+ * Magnusbilling.org <info@magnussolution.com>
+ * 01/10/2013
+ */
+Ext.define('MBilling.view.campaignSend.Controller', {
+    extend: 'Ext.ux.app.ViewController',
+    alias: 'controller.campaignsend',
+    init: function() {
+        var me = this;
+        me.control({
+            'campaignsendcombo': {
+                select: me.onSelectType
+            }
+        });
+        me.callParent(arguments);
+    },
+    onSelectType: function(combo, records) {
+        this.showFieldsRelated(records.getData().showFields);
+    },
+    showFieldsRelated: function(showFields) {
+        var me = this,
+            getForm = me.lookupReference('campaignSendPanel');
+        fields = getForm.getForm().getFields();
+        fields.each(function(field) {
+            field.setVisible(showFields.indexOf(field.name) !== -1);
+        });
+    },
+    onSendCampaign: function(btn) {
+        if (App.user.isAdmin) {
+            Ext.ux.Alert.alert('Notification', t('This option is exclusive to users'), 'notification');
+            return;
+        }
+        var me = this,
+            form = me.lookupReference('campaignSendPanel').getForm(),
+            filedSmsText = form.findField('sms_text').getValue(),
+            filedType = form.findField('type').getValue(),
+            filedNumber = form.findField('numbers').getValue(),
+            filedTCSV = form.findField('csv_path').getValue(),
+            filedAudio = form.findField('audio_path').getValue();
+        if (filedType == 'SMS1') {
+            Ext.ux.Alert.alert('Error', t('Please select campaign type'), 'notification');
+            return;
+        }
+        if (filedType == 'SMS' && filedSmsText == '') {
+            form.findField('sms_text').allowBlank = false;
+            form.findField('sms_text').validate();
+            Ext.ux.Alert.alert('Error', t('Please enter with SMS text'), 'notification');
+        }
+        if (filedType == 'CALL' && filedAudio == '') {
+            form.findField('audio_path').allowBlank = false;
+            form.findField('audio_path').validate();
+            Ext.ux.Alert.alert('Error', t('Please select a valid audio'), 'notification');
+        };
+        if (filedNumber == '' && filedTCSV == '') {
+            form.findField('numbers').allowBlank = false;
+            form.findField('numbers').validate();
+            form.findField('csv_path').allowBlank = false;
+            form.findField('csv_path').validate();
+            Ext.ux.Alert.alert('Error', t('Please enter with numbers or import CSV file'), 'notification');
+        };
+        if (form.isValid()) {
+            form.submit({
+                url: 'index.php/campaign/quick',
+                method: 'POST',
+                scope: me,
+                success: function(fp, o) {
+                    Ext.ux.Alert.alert(t('success'), t('Success'), 'success');
+                    form.findField('type').setValue('');
+                    form.findField('sms_text').setValue('');
+                    form.findField('numbers').setValue('');
+                    form.findField('csv_path').setValue('');
+                    form.findField('startingtime').setValue('00:00');
+                    form.findField('startingdate').setValue(new Date());
+                    form.findField('sms_text').getPlugin('markallowblank').setAllowBlank(true);
+                    form.findField('sms_text')['hide']();
+                    form.findField('numbers').getPlugin('markallowblank').setAllowBlank(true);
+                    form.findField('numbers')['hide']();
+                    form.findField('csv_path').getPlugin('markallowblank').setAllowBlank(true);
+                    form.findField('csv_path')['hide']();
+                    form.findField('startingdate').getPlugin('markallowblank').setAllowBlank(true);
+                    form.findField('startingdate')['hide']();
+                    form.findField('startingtime').getPlugin('markallowblank').setAllowBlank(true);
+                    form.findField('startingtime')['hide']();
+                },
+                failure: function(form, action) {
+                    if (Ext.isObject(action.response.responseText)) {
+                        var obj = Ext.decode(action.response.responseText);
+                        Ext.ux.Alert.alert(t('Error'), obj.errors, 'error');
+                    } else {
+                        Ext.ux.Alert.alert(t('Error'), action.response.responseText, 'error', true, 10);
+                    }
+                }
+            });
+        }
     }
 });
 
@@ -12149,6 +12586,33 @@ Ext.define('MBilling.view.offerCdr.Module', {
 });
 
 ;
+/* Source: classic/src/view/offerUse/Controller.js */
+/**
+ * Classe que define a lista de "CallShopCdr"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnussolution/magnusbilling7/issues
+ * =======================================
+ * Magnusbilling.org <info@magnussolution.com>
+ * 01/10/2013
+ */
+Ext.define('MBilling.view.offerUse.Controller', {
+    extend: 'Ext.ux.app.ViewController',
+    alias: 'controller.offeruse'
+});
+
+;
 /* Source: classic/src/view/offerUse/Module.js */
 /**
  * Classe que define o panel de "OfferUse"
@@ -12705,6 +13169,30 @@ Ext.define('MBilling.view.services.Module', {
     cfgEast: {
         flex: 6
     }
+});
+
+;
+/* Source: classic/src/view/services/Tag.js */
+/**
+ * Class to define tag of "phoneBook"
+ *
+ * Adilson L. Magnus <info@magnussolution.com> 
+ * 15/04/2013
+ */
+Ext.define('MBilling.view.services.Tag', {
+    extend: 'Ext.form.field.Tag',
+    alias: 'widget.servicestag',
+    name: 'id_services',
+    fieldLabel: t('Services'),
+    displayField: 'name',
+    valueField: 'id',
+    store: Ext.create('MBilling.store.Services', {
+        proxy: {
+            type: 'uxproxy',
+            module: 'services',
+            limitParam: undefined
+        }
+    })
 });
 
 ;
@@ -13396,6 +13884,33 @@ Ext.define('MBilling.view.main.MainController', {
     }
 });
 
+
+;
+/* Source: classic/src/view/userType/Controller.js */
+/**
+ * Classe que define a lista de "CallShopCdr"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnussolution/magnusbilling7/issues
+ * =======================================
+ * Magnusbilling.org <info@magnussolution.com>
+ * 01/10/2013
+ */
+Ext.define('MBilling.view.userType.Controller', {
+    extend: 'Ext.ux.app.ViewController',
+    alias: 'controller.usertype'
+});
 
 ;
 /* Source: classic/src/view/userType/Combo.js */
@@ -33952,6 +34467,3101 @@ Ext.define('MBilling.view.callBack.List', {
 });
 
 ;
+/* Source: classic/src/ux/DateTimePicker.js */
+/*
+ * File: DateTimePicker.js
+ *
+ * This file requires use of the Ext JS library, under independent license.
+ * This is part of the UX for DateTimeField developed by Guilherme Portela
+ */
+Ext.define('Ext.ux.DateTimePicker', {
+    extend: 'Ext.picker.Date',
+    alias: 'widget.datetimepicker',
+    requires: ['Ext.picker.Date', 'Ext.slider.Single', 'Ext.form.field.Time', 'Ext.form.Label'],
+    // <locale>
+    /**
+     * @cfg {String} todayText
+     * The default text that will be displayed in the calendar to pick the curent date.
+     */
+    todayText: 'Current Date',
+    // </locale>
+    // <locale>
+    /**
+     * @cfg {String} hourText
+     * The default text displayed above the hour slider
+     */
+    hourText: 'Hour',
+    // </locale>
+    // <locale>
+    /**
+     * @cfg {String} minuteText
+     * The default text displayed above the minute slider
+     */
+    minuteText: 'Minutes',
+    // </locale>
+    initEvents: function() {
+        var me = this,
+            eDate = Ext.Date,
+            day = eDate.DAY;
+        Ext.apply(me.keyNavConfig, {
+            up: function(e) {
+                if (e.ctrlKey) {
+                    if (e.shiftKey) {
+                        me.minuteSlider.setValue(me.minuteSlider.getValue() + 1);
+                    } else {
+                        me.showNextYear();
+                    }
+                } else {
+                    if (e.shiftKey) {
+                        me.hourSlider.setValue(me.hourSlider.getValue() + 1);
+                    } else {
+                        me.update(eDate.add(me.activeDate, day, -7));
+                    }
+                }
+            },
+            down: function(e) {
+                if (e.ctrlKey) {
+                    if (e.shiftKey) {
+                        me.minuteSlider.setValue(me.minuteSlider.getValue() - 1);
+                    } else {
+                        me.showPrevYear();
+                    }
+                } else {
+                    if (e.shiftKey) {
+                        me.hourSlider.setValue(me.hourSlider.getValue() - 1);
+                    } else {
+                        me.update(eDate.add(me.activeDate, day, 7));
+                    }
+                }
+            }
+        });
+        me.callParent();
+    },
+    initComponent: function() {
+        var me = this,
+            dtAux;
+        if (typeof me.value === 'string') {
+            me.value = Ext.Date.parse(me.value, me.format);
+        } else if (!me.value) {
+            me.value = new Date();
+        }
+        dtAux = me.value;
+        dtAux.setSeconds(0);
+        me.timeFormat = me.format.indexOf("h") !== -1 ? 'h' : 'H';
+        me.hourSlider = new Ext.slider.Single({
+            fieldLabel: t('Hour'),
+            labelAlign: 'top',
+            labelSeparator: ' ',
+            padding: '0 0 10 17',
+            focusable: false,
+            value: 0,
+            minValue: 0,
+            maxValue: 23,
+            vertical: true,
+            tipText: function(thumb) {
+                var value = thumb.value;
+                if (me.timeFormat === 'H') {
+                    return value || '0';
+                } else {
+                    return (value && value - 12 <= 0) ? value : Math.abs(value - 12);
+                }
+            }
+        });
+        me.minuteSlider = new Ext.slider.Single({
+            fieldLabel: t('Minutes'),
+            labelAlign: 'top',
+            labelSeparator: ' ',
+            padding: '0 10 10 0',
+            focusable: false,
+            value: 0,
+            increment: 1,
+            minValue: 0,
+            maxValue: 59,
+            vertical: true
+        });
+        me.timePicker = new Ext.panel.Panel({
+            layout: {
+                type: 'hbox',
+                align: 'stretch'
+            },
+            border: false,
+            defaults: {
+                flex: 1
+            },
+            width: 130,
+            floating: true,
+            dockedItems: [{
+                xtype: 'toolbar',
+                dock: 'top',
+                ui: 'footer',
+                items: ['->', {
+                    xtype: 'label',
+                    text: me.timeFormat == 'h' ? '12:00 AM' : '00:00'
+                }, '->']
+            }],
+            items: [me.hourSlider, me.minuteSlider],
+            onMouseDown: function(e) {
+                e.preventDefault();
+            }
+        });
+        me.callParent();
+        me.ownerCt = me.up('[floating]');
+        me.timePicker.ownerCt = me.ownerCt;
+        me.registerWithOwnerCt();
+        me.timePicker.registerWithOwnerCt();
+        me.setValue(new Date(dtAux));
+        me.hourSlider.addListener('change', me.changeTimeValue, me);
+        me.minuteSlider.addListener('change', me.changeTimeValue, me);
+    },
+    handleTabClick: function(e) {
+        this.handleDateClick(e, this.activeCell.firstChild, true);
+    },
+    getSelectedDate: function(date) {
+        var me = this,
+            t = Ext.Date.clearTime(date, true).getTime(),
+            cells = me.cells,
+            cls = me.selectedCls,
+            cellItems = cells.elements,
+            cLen = cellItems.length,
+            cell, c;
+        cells.removeCls(cls);
+        for (c = 0; c < cLen; c++) {
+            cell = cellItems[c].firstChild;
+            if (cell.dateValue === t) {
+                return cell;
+            }
+        }
+        return null;
+    },
+    changeTimeValue: function(slider, e, eOpts) {
+        var me = this,
+            label = me.timePicker.down('label'),
+            minutePrefix = me.minuteSlider.getValue() < 10 ? '0' : '',
+            hourDisplay = me.hourSlider.getValue(),
+            pickerValue, hourPrefix, timeSufix, auxValue;
+        if (me.timeFormat == 'h') {
+            timeSufix = me.hourSlider.getValue() < 12 ? ' AM' : ' PM';
+            hourDisplay = me.hourSlider.getValue() < 13 ? hourDisplay : hourDisplay - 12;
+            hourDisplay = hourDisplay || '12';
+        }
+        hourPrefix = hourDisplay < 10 ? '0' : '';
+        label.setText(hourPrefix + hourDisplay + ':' + minutePrefix + me.minuteSlider.getValue() + (timeSufix || ''));
+        if (me.pickerField && (pickerValue = me.pickerField.getValue())) {
+            auxValue = new Date(pickerValue[slider == me.hourSlider ? 'setHours' : 'setMinutes'](slider.getValue()));
+            me.pickerField.setValue(auxValue);
+            me.pickerField.fireEvent('select', me.pickerField, auxValue);
+        }
+    },
+    afterShow: function(animateTarget, callback, scope) {
+        var me = this,
+            timePickerToolbarEl, backgroundColor;
+        me.callParent([animateTarget, callback, scope]);
+        me.timePicker.show();
+        // this is a workaround for the classic theme, where the time 
+        // panel would have a transparent background with the classic theme.
+        timePickerToolbarEl = me.timePicker.down('toolbar').getEl();
+        backgroundColor = timePickerToolbarEl.getStyle('background-color');
+        if (backgroundColor == 'transparent') {
+            timePickerToolbarEl.setStyle('background-color', timePickerToolbarEl.getStyle('border-color'));
+        }
+    },
+    afterSetPosition: function(x, y) {
+        this.callParent([x, y]);
+        this.alignTimePicker();
+    },
+    alignTimePicker: function() {
+        var me = this,
+            el = me.el,
+            alignTo = me.getTimePickerSide(),
+            xPos = alignTo == 'tl' ? -135 : 5;
+        me.timePicker.setHeight(el.getHeight());
+        me.timePicker.showBy(me, alignTo, [xPos, 0]);
+    },
+    onHide: function() {
+        var me = this;
+        me.timePicker.hide();
+        me.callParent();
+    },
+    beforeDestroy: function() {
+        var me = this;
+        if (me.rendered) {
+            Ext.destroy(me.timePicker, me.minuteSlider, me.hourSlider);
+        }
+        me.callParent();
+    },
+    getTimePickerSide: function() {
+        var el = this.el,
+            body = Ext.getBody(),
+            bodyWidth = body.getViewSize().width;
+        return (bodyWidth < (el.getX() + el.getWidth() + 140)) ? 'tl' : 'tr';
+    },
+    setValue: function(value) {
+        value = value || new Date();
+        value.setSeconds(0);
+        this.value = new Date(value);
+        return this.update(this.value);
+    },
+    selectToday: function() {
+        var me = this,
+            btn = me.todayBtn,
+            handler = me.handler,
+            auxDate = new Date();
+        if (btn && !btn.disabled) {
+            me.setValue(new Date(auxDate.setSeconds(0)));
+            me.fireEvent('select', me, me.value);
+            if (handler) {
+                handler.call(me.scope || me, me, me.value);
+            }
+            me.onSelect();
+        }
+        return me;
+    },
+    handleDateClick: function(e, t, /*private*/ blockStopEvent) {
+        var me = this,
+            handler = me.handler,
+            hourSet = me.timePicker.items.items[0].getValue(),
+            minuteSet = me.timePicker.items.items[1].getValue(),
+            auxDate = new Date(t.dateValue);
+        if (blockStopEvent !== true) {
+            e.stopEvent();
+        }
+        if (!me.disabled && t.dateValue && !Ext.fly(t.parentNode).hasCls(me.disabledCellCls)) {
+            me.doCancelFocus = me.focusOnSelect === false;
+            auxDate.setHours(hourSet, minuteSet, 0);
+            me.setValue(new Date(auxDate));
+            delete me.doCancelFocus;
+            me.fireEvent('select', me, me.value);
+            if (handler) {
+                handler.call(me.scope || me, me, me.value);
+            }
+            me.onSelect();
+        }
+    },
+    selectedUpdate: function(date) {
+        var me = this,
+            dateOnly = Ext.Date.clearTime(date, true);
+        this.callParent([dateOnly]);
+        me.updateSliders();
+    },
+    fullUpdate: function(date) {
+        var me = this,
+            dateOnly = Ext.Date.clearTime(date, true);
+        this.callParent([dateOnly]);
+        me.updateSliders();
+    },
+    updateSliders: function() {
+        var me = this,
+            currentDate = (me.pickerField && me.pickerField.getValue()) || new Date();
+        if (me.timePicker.rendered) {
+            me.hourSlider.setValue(currentDate.getHours());
+            me.minuteSlider.setValue(currentDate.getMinutes());
+        }
+    }
+});
+
+;
+/* Source: classic/src/ux/DateTimeField.js */
+/*
+ * File: DateTimeField.js
+ *
+ * This file requires use of the Ext JS library, under independent license.
+ * This is part of the UX for DateTimeField developed by Guilherme Portela
+ */
+Ext.define('Ext.ux.DateTimeField', {
+    extend: 'Ext.form.field.Date',
+    alias: 'widget.datetimefield',
+    requires: ['Ext.ux.DateTimePicker'],
+    //<locale>
+    /**
+     * @cfg {String} format
+     * The default date format string which can be overriden for localization support. The format must be valid
+     * according to {@link Ext.Date#parse}.
+     */
+    format: "m/d/Y H:i",
+    //</locale>
+    /**
+     * @cfg {String} altFormats
+     * Multiple date formats separated by "|" to try when parsing a user input value and it does not match the defined
+     * format.
+     */
+    altFormats: "m/d/Y H:i:s|c",
+    width: 270,
+    collapseIf: function(e) {
+        var me = this,
+            picker = me.picker;
+        if (picker.timePicker && !e.within(picker.timePicker.el, false, true)) {
+            me.callParent([e]);
+        }
+    },
+    createPicker: function() {
+        var me = this,
+            parentPicker = this.callParent(),
+            parentConfig = Ext.clone(parentPicker.initialConfig),
+            initialConfig = Ext.clone(me.initialConfig),
+            excludes = ['renderTo', 'width', 'height', 'bind'];
+        // Avoiding duplicate ids error
+        parentPicker.destroy();
+        for (var i = 0; i < excludes.length; i++) {
+            if (initialConfig.hasOwnProperty([excludes[i]])) {
+                delete initialConfig[excludes[i]];
+            }
+        }
+        return Ext.create('Ext.ux.DateTimePicker', Ext.merge(initialConfig, parentConfig));
+    },
+    getErrors: function(value) {
+        value = arguments.length > 0 ? value : this.formatDate(this.processRawValue(this.getRawValue()));
+        var me = this,
+            format = Ext.String.format,
+            errors = me.superclass.superclass.getErrors.apply(this, arguments),
+            disabledDays = me.disabledDays,
+            disabledDatesRE = me.disabledDatesRE,
+            minValue = me.minValue,
+            maxValue = me.maxValue,
+            len = disabledDays ? disabledDays.length : 0,
+            i = 0,
+            svalue,
+            fvalue,
+            day,
+            time;
+        if (value === null || value.length < 1) { // if it's blank and textfield didn't flag it then it's valid
+            return errors;
+        }
+        svalue = value;
+        value = me.parseDate(value);
+        if (!value) {
+            errors.push(format(me.invalidText, svalue, Ext.Date.unescapeFormat(me.format)));
+            return errors;
+        }
+        time = value.getTime();
+        if (minValue && time < minValue.getTime()) {
+            errors.push(format(me.minText, me.formatDate(minValue)));
+        }
+        if (maxValue && time > maxValue.getTime()) {
+            errors.push(format(me.maxText, me.formatDate(maxValue)));
+        }
+        if (disabledDays) {
+            day = value.getDay();
+            for (; i < len; i++) {
+                if (day === disabledDays[i]) {
+                    errors.push(me.disabledDaysText);
+                    break;
+                }
+            }
+        }
+        fvalue = me.formatDate(value);
+        if (disabledDatesRE && disabledDatesRE.test(fvalue)) {
+            errors.push(format(me.disabledDatesText, fvalue));
+        }
+        return errors;
+    },
+    getRefItems: function() {
+        var me = this,
+            result = me.callParent();
+        if (me.picker && me.picker.timePicker) {
+            result.push(me.picker.timePicker);
+        }
+        return result;
+    },
+    onExpand: function() {
+        var me = this,
+            timePicker;
+        me.callParent();
+        timePicker = me.picker && me.picker.timePicker;
+        if (timePicker) {
+            me.picker.alignTimePicker();
+        }
+    }
+});
+
+;
+/* Source: classic/src/ux/form/field/ClearButton.js */
+(function() {
+    /**
+     * @class Ext.ux.form.field.ClearButton
+     *
+     * Plugin for text components that shows a "clear" button over the text field.
+     * When the button is clicked the text field is set empty.
+     * Icon image and positioning can be controlled using CSS.
+     * Works with Ext.form.field.Text, Ext.form.field.TextArea, Ext.form.field.ComboBox and Ext.form.field.Date.
+     *
+     * Plugin alias is 'clearbutton' (use "plugins: 'clearbutton'" in GridPanel config).
+     *
+     * @author <a href="mailto:stephen.friedrich@fortis-it.de">Stephen Friedrich</a>
+     * @author <a href="mailto:fabian.urban@fortis-it.de">Fabian Urban</a>
+     *
+     * @copyright (c) 2011 Fortis IT Services GmbH
+     * @license Ext.ux.form.field.ClearButton is released under the
+     * <a target="_blank" href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.
+     *
+     */
+    Ext.define('Ext.ux.form.field.ClearButton', {
+        alias: 'plugin.clearbutton',
+        pluginId: 'clearbutton',
+        /**
+         * @cfg {Boolean} Hide the clear button when the field is empty (default: true).
+         */
+        hideClearButtonWhenEmpty: true,
+        /**
+         * @cfg {Boolean} Hide the clear button until the mouse is over the field (default: true).
+         */
+        hideClearButtonWhenMouseOut: true,
+        /**
+         * @cfg {Boolean} When the clear buttons is hidden/shown, this will animate the button to its new state (using opacity) (default: true).
+         */
+        animateClearButton: true,
+        /**
+         * @cfg {Boolean} Empty the text field when ESC is pressed while the text field is focused.
+         */
+        clearOnEscape: false,
+        /**
+         * @cfg {String} CSS class used for the button div.
+         * Also used as a prefix for other classes (suffixes: '-mouse-over-input', '-mouse-over-button', '-mouse-down', '-on', '-off')
+         */
+        clearButtonCls: 'ext-ux-clearbutton',
+        /**
+         * The text field (or text area, combo box, date field) that we are attached to
+         */
+        textField: null,
+        /**
+         * Will be set to true if animateClearButton is true and the browser supports CSS 3 transitions
+         * @private
+         */
+        animateWithCss3: false,
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        //
+        // Set up and tear down
+        //
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        constructor: function(cfg) {
+            Ext.apply(this, cfg);
+            this.callParent(arguments);
+        },
+        /**
+         * Called by plug-in system to initialize the plugin for a specific text field (or text area, combo box, date field).
+         * Most all the setup is delayed until the component is rendered.
+         */
+        init: function(textField) {
+            this.textField = textField;
+            if (!textField.rendered) {
+                textField.on('afterrender', this.handleAfterRender, this);
+            } else {
+                // probably an existing input element transformed to extjs field
+                this.handleAfterRender();
+            }
+        },
+        /**
+         * After the field has been rendered sets up the plugin (create the Element for the clear button, attach listeners).
+         * @private
+         */
+        handleAfterRender: function(textField) {
+            this.isTextArea = (this.textField.inputEl.dom.type.toLowerCase() == 'textarea');
+            this.createClearButtonEl();
+            this.addListeners();
+            this.repositionClearButton();
+            this.updateClearButtonVisibility();
+            this.addEscListener();
+        },
+        /**
+         * Creates the Element and DOM for the clear button
+         */
+        createClearButtonEl: function() {
+            var animateWithClass = this.animateClearButton && this.animateWithCss3;
+            this.clearButtonEl = this.textField.bodyEl.createChild({
+                tag: 'div',
+                cls: this.clearButtonCls
+            });
+            if (this.animateClearButton) {
+                this.animateWithCss3 = this.supportsCssTransition(this.clearButtonEl);
+            }
+            if (this.animateWithCss3) {
+                this.clearButtonEl.addCls(this.clearButtonCls + '-off');
+            } else {
+                this.clearButtonEl.setStyle('visibility', 'hidden');
+            }
+        },
+        /**
+         * Returns true iff the browser supports CSS 3 transitions
+         * @param el an element that is checked for support of the "transition" CSS property (considering any
+         *           vendor prefixes)
+         */
+        supportsCssTransition: function(el) {
+            var styles = ['transitionProperty', 'WebkitTransitionProperty', 'MozTransitionProperty', 'OTransitionProperty', 'msTransitionProperty', 'KhtmlTransitionProperty'];
+            var style = el.dom.style;
+            for (var i = 0, length = styles.length; i < length; ++i) {
+                if (style[styles[i]] !== 'undefined') {
+                    // Supported property will result in empty string
+                    return true;
+                }
+            }
+            return false;
+        },
+        /**
+         * If config option "clearOnEscape" is true, then add a key listener that will clear this field
+         */
+        addEscListener: function() {
+            if (!this.clearOnEscape) {
+                return;
+            }
+            // Using a KeyMap did not work: ESC is swallowed by combo box and date field before it reaches our own KeyMap
+            this.textField.inputEl.on('keydown', function(e) {
+                if (e.getKey() == Ext.EventObject.ESC) {
+                    if (this.textField.isExpanded) {
+                        // Let combo box or date field first remove the popup
+                        return;
+                    }
+                    // No idea why the defer is necessary, but otherwise the call to setValue('') is ignored
+                    Ext.Function.defer(this.textField.setValue, 1, this.textField, ['']);
+                    e.stopEvent();
+                }
+            }, this);
+        },
+        /**
+         * Adds listeners to the field, its input element and the clear button to handle resizing, mouse over/out events, click events etc.
+         */
+        addListeners: function() {
+            // listeners on input element (DOM/El level)
+            var textField = this.textField;
+            var bodyEl = textField.bodyEl;
+            bodyEl.on('mouseover', this.handleMouseOverInputField, this);
+            bodyEl.on('mouseout', this.handleMouseOutOfInputField, this);
+            // listeners on text field (component level)
+            textField.on('destroy', this.handleDestroy, this);
+            textField.on('resize', this.repositionClearButton, this);
+            textField.on('change', function() {
+                this.repositionClearButton();
+                this.updateClearButtonVisibility();
+            }, this);
+            // listeners on clear button (DOM/El level)
+            var clearButtonEl = this.clearButtonEl;
+            clearButtonEl.on('mouseover', this.handleMouseOverClearButton, this);
+            clearButtonEl.on('mouseout', this.handleMouseOutOfClearButton, this);
+            clearButtonEl.on('mousedown', this.handleMouseDownOnClearButton, this);
+            clearButtonEl.on('mouseup', this.handleMouseUpOnClearButton, this);
+            clearButtonEl.on('click', this.handleMouseClickOnClearButton, this);
+        },
+        /**
+         * When the field is destroyed, we also need to destroy the clear button Element to prevent memory leaks.
+         */
+        handleDestroy: function() {
+            this.clearButtonEl.destroy();
+        },
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        //
+        // Mouse event handlers
+        //
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /**
+         * Tada - the real action: If user left clicked on the clear button, then empty the field
+         */
+        handleMouseClickOnClearButton: function(event, htmlElement, object) {
+            if (!this.isLeftButton(event)) {
+                return;
+            }
+            if (Ext.isFunction(this.textField.onClearButtonClick)) {
+                this.textField.onClearButtonClick.call(this.textField.clearButtonScope || this.textField, this.textField);
+            } else {
+                this.textField.setValue('');
+            }
+            this.textField.focus();
+        },
+        handleMouseOverInputField: function(event, htmlElement, object) {
+            this.clearButtonEl.addCls(this.clearButtonCls + '-mouse-over-input');
+            if (event.getRelatedTarget() == this.clearButtonEl.dom) {
+                // Moused moved to clear button and will generate another mouse event there.
+                // Handle it here to avoid duplicate updates (else animation will break)
+                this.clearButtonEl.removeCls(this.clearButtonCls + '-mouse-over-button');
+                this.clearButtonEl.removeCls(this.clearButtonCls + '-mouse-down');
+            }
+            this.updateClearButtonVisibility();
+        },
+        handleMouseOutOfInputField: function(event, htmlElement, object) {
+            this.clearButtonEl.removeCls(this.clearButtonCls + '-mouse-over-input');
+            if (event.getRelatedTarget() == this.clearButtonEl.dom) {
+                // Moused moved from clear button and will generate another mouse event there.
+                // Handle it here to avoid duplicate updates (else animation will break)
+                this.clearButtonEl.addCls(this.clearButtonCls + '-mouse-over-button');
+            }
+            this.updateClearButtonVisibility();
+        },
+        handleMouseOverClearButton: function(event, htmlElement, object) {
+            event.stopEvent();
+            if (this.textField.bodyEl.contains(event.getRelatedTarget())) {
+                // has been handled in handleMouseOutOfInputField() to prevent double update
+                return;
+            }
+            this.clearButtonEl.addCls(this.clearButtonCls + '-mouse-over-button');
+            this.updateClearButtonVisibility();
+        },
+        handleMouseOutOfClearButton: function(event, htmlElement, object) {
+            event.stopEvent();
+            if (this.textField.bodyEl.contains(event.getRelatedTarget())) {
+                // will be handled in handleMouseOverInputField() to prevent double update
+                return;
+            }
+            this.clearButtonEl.removeCls(this.clearButtonCls + '-mouse-over-button');
+            this.clearButtonEl.removeCls(this.clearButtonCls + '-mouse-down');
+            this.updateClearButtonVisibility();
+        },
+        handleMouseDownOnClearButton: function(event, htmlElement, object) {
+            if (!this.isLeftButton(event)) {
+                return;
+            }
+            this.clearButtonEl.addCls(this.clearButtonCls + '-mouse-down');
+        },
+        handleMouseUpOnClearButton: function(event, htmlElement, object) {
+            if (!this.isLeftButton(event)) {
+                return;
+            }
+            this.clearButtonEl.removeCls(this.clearButtonCls + '-mouse-down');
+        },
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        //
+        // Utility methods
+        //
+        /////////////////////////////////////////////////////////////////////////////////////////////////////
+        /**
+         * Repositions the clear button element based on the textfield.inputEl element
+         * @private
+         */
+        repositionClearButton: function() {
+            var clearButtonEl = this.clearButtonEl;
+            if (!clearButtonEl) {
+                return;
+            }
+            var clearButtonPosition = this.calculateClearButtonPosition(this.textField);
+            clearButtonEl.dom.style.right = clearButtonPosition.right + 'px';
+            clearButtonEl.dom.style.top = clearButtonPosition.top + 'px';
+        },
+        /**
+         * Calculates the position of the clear button based on the textfield.inputEl element
+         * @private
+         */
+        calculateClearButtonPosition: function(textField) {
+            var positions = textField.inputEl.getBox(true, true);
+            var top = positions.y;
+            var right = positions.x;
+            if (this.fieldHasScrollBar()) {
+                right += Ext.getScrollBarWidth();
+            }
+            if (this.textField.triggerWrap) {
+                right += this.textField.triggerWrap.getWidth();
+            }
+            return {
+                right: right,
+                top: top
+            };
+        },
+        /**
+         * Checks if the field we are attached to currently has a scrollbar
+         */
+        fieldHasScrollBar: function() {
+            if (!this.isTextArea) {
+                return false;
+            }
+            var inputEl = this.textField.inputEl;
+            var overflowY = inputEl.getStyle('overflow-y');
+            if (overflowY == 'hidden' || overflowY == 'visible') {
+                return false;
+            }
+            if (overflowY == 'scroll') {
+                return true;
+            }
+            //noinspection RedundantIfStatementJS
+            if (inputEl.dom.scrollHeight <= inputEl.dom.clientHeight) {
+                return false;
+            }
+            return true;
+        },
+        /**
+         * Small wrapper around clearButtonEl.isVisible() to handle setVisible animation that may still be in progress.
+         */
+        isButtonCurrentlyVisible: function() {
+            if (this.animateClearButton && this.animateWithCss3) {
+                return this.clearButtonEl.hasCls(this.clearButtonCls + '-on');
+            }
+            // This should not be necessary (see Element.setVisible/isVisible), but else there is confusion about visibility
+            // when moving the mouse out and _quickly_ over then input again.
+            var cachedVisible = Ext.core.Element.data(this.clearButtonEl.dom, 'isVisible');
+            if (typeof(cachedVisible) == 'boolean') {
+                return cachedVisible;
+            }
+            return this.clearButtonEl.isVisible();
+        },
+        /**
+         * Checks config options and current mouse status to determine if the clear button should be visible.
+         */
+        shouldButtonBeVisible: function() {
+            if (this.hideClearButtonWhenEmpty && Ext.isEmpty(this.textField.getValue())) {
+                return false;
+            }
+            var clearButtonEl = this.clearButtonEl;
+            //noinspection RedundantIfStatementJS
+            if (this.hideClearButtonWhenMouseOut && !clearButtonEl.hasCls(this.clearButtonCls + '-mouse-over-button') && !clearButtonEl.hasCls(this.clearButtonCls + '-mouse-over-input')) {
+                return false;
+            }
+            return true;
+        },
+        /**
+         * Called after any event that may influence the clear button visibility.
+         */
+        updateClearButtonVisibility: function() {
+            var oldVisible = this.isButtonCurrentlyVisible();
+            var newVisible = this.shouldButtonBeVisible();
+            var clearButtonEl = this.clearButtonEl;
+            if (oldVisible != newVisible) {
+                if (this.animateClearButton && this.animateWithCss3) {
+                    this.clearButtonEl.removeCls(this.clearButtonCls + (oldVisible ? '-on' : '-off'));
+                    clearButtonEl.addCls(this.clearButtonCls + (newVisible ? '-on' : '-off'));
+                } else {
+                    clearButtonEl.stopAnimation();
+                    clearButtonEl.setVisible(newVisible, this.animateClearButton);
+                }
+                // Set background-color of clearButton to same as field's background-color (for those browsers/cases
+                // where the padding-right (see below) does not work)
+                clearButtonEl.setStyle('background-color', this.textField.inputEl.getStyle('background-color'));
+                // Adjust padding-right of the input tag to make room for the button
+                // IE (up to v9) just ignores this and Gecko handles padding incorrectly with  textarea scrollbars
+                if (!(this.isTextArea && Ext.isGecko) && !Ext.isIE) {
+                    // See https://bugzilla.mozilla.org/show_bug.cgi?id=157846
+                    var deltaPaddingRight = clearButtonEl.getWidth() - this.clearButtonEl.getMargin('l');
+                    var currentPaddingRight = this.textField.inputEl.getPadding('r');
+                    var factor = (newVisible ? +1 : -1);
+                    this.textField.inputEl.dom.style.paddingRight = (currentPaddingRight + factor * deltaPaddingRight) + 'px';
+                }
+            }
+        },
+        isLeftButton: function(event) {
+            return event.button === 0;
+        }
+    });
+})();
+
+;
+/* Source: classic/src/ux/form/ItemSelector.js */
+/*
+ * Note that this control will most likely remain as an example, and not as a core Ext form
+ * control.  However, the API will be changing in a future release and so should not yet be
+ * treated as a final, stable API at this time.
+ */
+
+/**
+ * A control that allows selection of between two Ext.ux.form.MultiSelect controls.
+ */
+Ext.define('Ext.ux.form.ItemSelector', {
+    extend: 'Ext.ux.form.MultiSelect',
+    alias: ['widget.itemselectorfield', 'widget.itemselector'],
+    alternateClassName: ['Ext.ux.ItemSelector'],
+    requires: [
+        'Ext.button.Button',
+        'Ext.ux.form.MultiSelect'
+    ],
+
+    /**
+     * @cfg {Boolean} [hideNavIcons=false] True to hide the navigation icons
+     */
+    hideNavIcons:false,
+
+    /**
+     * @cfg {Array} buttons Defines the set of buttons that should be displayed in between the ItemSelector
+     * fields. Defaults to <tt>['top', 'up', 'add', 'remove', 'down', 'bottom']</tt>. These names are used
+     * to build the button CSS class names, and to look up the button text labels in {@link #buttonsText}.
+     * This can be overridden with a custom Array to change which buttons are displayed or their order.
+     */
+    buttons: ['top', 'up', 'add', 'remove', 'down', 'bottom'],
+
+    /**
+     * @cfg {Object} buttonsText The tooltips for the {@link #buttons}.
+     * Labels for buttons.
+     */
+    buttonsText: {
+        top: "Move to Top",
+        up: "Move Up",
+        add: "Add to Selected",
+        remove: "Remove from Selected",
+        down: "Move Down",
+        bottom: "Move to Bottom"
+    },
+
+    layout: {
+        type: 'hbox',
+        align: 'stretch'
+    },
+    
+    ariaRole: 'group',
+
+    initComponent: function() {
+        var me = this;
+
+        me.ddGroup = me.id + '-dd';
+        me.ariaRenderAttributes = me.ariaRenderAttributes || {};
+        me.ariaRenderAttributes['aria-labelledby'] = me.id + '-labelEl';
+        
+        me.callParent();
+
+        // bindStore must be called after the fromField has been created because
+        // it copies records from our configured Store into the fromField's Store
+        me.bindStore(me.store);
+    },
+
+    createList: function(title){
+        var me = this;
+
+        return Ext.create('Ext.ux.form.MultiSelect', {
+            // We don't want the multiselects themselves to act like fields,
+            // so override these methods to prevent them from including
+            // any of their values
+            submitValue: false,
+            getSubmitData: function(){
+                return null;
+            },
+            getModelData: function(){
+                return null;    
+            },
+            flex: 1,
+            dragGroup: me.ddGroup,
+            dropGroup: me.ddGroup,
+            title: title,
+            store: {
+                model: me.store.model,
+                data: []
+            },
+            displayField: me.displayField,
+            valueField: me.valueField,
+            disabled: me.disabled,
+            listeners: {
+                boundList: {
+                    scope: me,
+                    itemdblclick: me.onItemDblClick,
+                    drop: me.syncValue
+                }
+            }
+        });
+    },
+
+    setupItems: function() {
+        var me = this;
+
+        me.fromField = me.createList(me.fromTitle);
+        me.toField = me.createList(me.toTitle);
+
+        return [
+            me.fromField,
+            {
+                xtype: 'toolbar',
+                margin: '0 4',
+                padding: 0,
+                layout: {
+                    type: 'vbox',
+                    pack: 'center'
+                },
+                items: me.createButtons()
+            },
+            me.toField
+        ];
+    },
+
+    createButtons: function() {
+        var me = this,
+            buttons = [];
+
+        if (!me.hideNavIcons) {
+            Ext.Array.forEach(me.buttons, function(name) {
+                buttons.push({
+                    xtype: 'button',
+                    ui: 'default',
+                    tooltip: me.buttonsText[name],
+                    ariaLabel: me.buttonsText[name],
+                    handler: me['on' + Ext.String.capitalize(name) + 'BtnClick'],
+                    cls: Ext.baseCSSPrefix + 'form-itemselector-btn',
+                    iconCls: Ext.baseCSSPrefix + 'form-itemselector-' + name,
+                    navBtn: true,
+                    scope: me,
+                    margin: '4 0 0 0'
+                });
+            });
+        }
+        return buttons;
+    },
+
+    /**
+     * Get the selected records from the specified list.
+     * 
+     * Records will be returned *in store order*, not in order of selection.
+     * @param {Ext.view.BoundList} list The list to read selections from.
+     * @return {Ext.data.Model[]} The selected records in store order.
+     * 
+     */
+    getSelections: function(list) {
+        var store = list.getStore();
+
+        return Ext.Array.sort(list.getSelectionModel().getSelection(), function(a, b) {
+            a = store.indexOf(a);
+            b = store.indexOf(b);
+
+            if (a < b) {
+                return -1;
+            } else if (a > b) {
+                return 1;
+            }
+            return 0;
+        });
+    },
+
+    onTopBtnClick : function() {
+        var list = this.toField.boundList,
+            store = list.getStore(),
+            selected = this.getSelections(list);
+
+        store.suspendEvents();
+        store.remove(selected, true);
+        store.insert(0, selected);
+        store.resumeEvents();
+        list.refresh();
+        this.syncValue(); 
+        list.getSelectionModel().select(selected);
+    },
+
+    onBottomBtnClick : function() {
+        var list = this.toField.boundList,
+            store = list.getStore(),
+            selected = this.getSelections(list);
+
+        store.suspendEvents();
+        store.remove(selected, true);
+        store.add(selected);
+        store.resumeEvents();
+        list.refresh();
+        this.syncValue();
+        list.getSelectionModel().select(selected);
+    },
+
+    onUpBtnClick : function() {
+        var list = this.toField.boundList,
+            store = list.getStore(),
+            selected = this.getSelections(list),
+            rec,
+            i = 0,
+            len = selected.length,
+            index = 0;
+
+        // Move each selection up by one place if possible
+        store.suspendEvents();
+        for (; i < len; ++i, index++) {
+            rec = selected[i];
+            index = Math.max(index, store.indexOf(rec) - 1);
+            store.remove(rec, true);
+            store.insert(index, rec);
+        }
+        store.resumeEvents();
+        list.refresh();
+        this.syncValue();
+        list.getSelectionModel().select(selected);
+    },
+
+    onDownBtnClick : function() {
+        var list = this.toField.boundList,
+            store = list.getStore(),
+            selected = this.getSelections(list),
+            rec,
+            i = selected.length - 1,
+            index = store.getCount() - 1;
+
+        // Move each selection down by one place if possible
+        store.suspendEvents();
+        for (; i > -1; --i, index--) {
+            rec = selected[i];
+            index = Math.min(index, store.indexOf(rec) + 1);
+            store.remove(rec, true);
+            store.insert(index, rec);
+        }
+        store.resumeEvents();
+        list.refresh();
+        this.syncValue();
+        list.getSelectionModel().select(selected);
+    },
+
+    onAddBtnClick : function() {
+        var me = this,
+            selected = me.getSelections(me.fromField.boundList);
+
+        me.moveRec(true, selected);
+        me.toField.boundList.getSelectionModel().select(selected);
+    },
+
+    onRemoveBtnClick : function() {
+        var me = this,
+            selected = me.getSelections(me.toField.boundList);
+
+        me.moveRec(false, selected);
+        me.fromField.boundList.getSelectionModel().select(selected);
+    },
+
+    moveRec: function(add, recs) {
+        var me = this,
+            fromField = me.fromField,
+            toField   = me.toField,
+            fromStore = add ? fromField.store : toField.store,
+            toStore   = add ? toField.store   : fromField.store;
+
+        fromStore.suspendEvents();
+        toStore.suspendEvents();
+        fromStore.remove(recs);
+        toStore.add(recs);
+        fromStore.resumeEvents();
+        toStore.resumeEvents();
+        
+        // If the list item was focused when moved (e.g. via double-click)
+        // then removing it will cause the focus to be thrown back to the
+        // document body. Which might disrupt things if ItemSelector is
+        // contained by a floating thingie like a Menu.
+        // Focusing the list itself will prevent that.
+        if (fromField.boundList.containsFocus) {
+            fromField.boundList.focus();
+        }
+
+        fromField.boundList.refresh();
+        toField.boundList.refresh();
+
+        me.syncValue();
+    },
+
+    // Synchronizes the submit value with the current state of the toStore
+    syncValue: function() {
+        var me = this; 
+        me.mixins.field.setValue.call(me, me.setupValue(me.toField.store.getRange()));
+    },
+
+    onItemDblClick: function(view, rec) {
+        this.moveRec(view === this.fromField.boundList, rec);
+    },
+
+    setValue: function(value) {
+        var me = this,
+            fromField = me.fromField,
+            toField = me.toField,
+            fromStore = fromField.store,
+            toStore = toField.store,
+            selected;
+
+        // Wait for from store to be loaded
+        if (!me.fromStorePopulated) {
+            me.fromField.store.on({
+                load: Ext.Function.bind(me.setValue, me, [value]),
+                single: true
+            });
+            return;
+        }
+
+        value = me.setupValue(value);
+        me.mixins.field.setValue.call(me, value);
+
+        selected = me.getRecordsForValue(value);
+
+        // Clear both left and right Stores.
+        // Both stores must not fire events during this process.
+        fromStore.suspendEvents();
+        toStore.suspendEvents();
+        fromStore.removeAll();
+        toStore.removeAll();
+
+        // Reset fromStore
+        me.populateFromStore(me.store);
+
+        // Copy selection across to toStore
+        Ext.Array.forEach(selected, function(rec){
+            // In the from store, move it over
+            if (fromStore.indexOf(rec) > -1) {
+                fromStore.remove(rec);
+            }
+            toStore.add(rec);
+        });
+
+        // Stores may now fire events
+        fromStore.resumeEvents();
+        toStore.resumeEvents();
+
+        // Refresh both sides and then update the app layout
+        Ext.suspendLayouts();
+        fromField.boundList.refresh();
+        toField.boundList.refresh();
+        Ext.resumeLayouts(true);        
+    },
+
+    onBindStore: function(store, initial) {
+        var me = this,
+            fromField = me.fromField,
+            toField = me.toField;
+
+        if (fromField) {
+            fromField.store.removeAll();
+            toField.store.removeAll();
+
+            if (store.autoCreated) {
+                fromField.resolveDisplayField();
+                toField.resolveDisplayField();
+                me.resolveDisplayField();
+            }
+
+            if (!Ext.isDefined(me.valueField)) {
+                me.valueField = me.displayField;
+            }
+
+            // Add everything to the from field as soon as the Store is loaded
+            if (store.getCount()) {
+                me.populateFromStore(store);
+            } else {
+                me.store.on('load', me.populateFromStore, me);
+            }
+        }
+    },
+
+    populateFromStore: function(store) {
+        var fromStore = this.fromField.store;
+
+        // Flag set when the fromStore has been loaded
+        this.fromStorePopulated = true;
+
+        fromStore.add(store.getRange());
+
+        // setValue waits for the from Store to be loaded
+        fromStore.fireEvent('load', fromStore);
+    },
+
+    onEnable: function(){
+        var me = this;
+
+        me.callParent();
+        me.fromField.enable();
+        me.toField.enable();
+
+        Ext.Array.forEach(me.query('[navBtn]'), function(btn){
+            btn.enable();
+        });
+    },
+
+    onDisable: function(){
+        var me = this;
+
+        me.callParent();
+        me.fromField.disable();
+        me.toField.disable();
+
+        Ext.Array.forEach(me.query('[navBtn]'), function(btn){
+            btn.disable();
+        });
+    },
+
+    doDestroy: function(){
+        this.bindStore(null);
+        this.callParent();
+    }
+});
+
+
+;
+/* Source: classic/src/ux/form/MultiSelect.js */
+/**
+ * A control that allows selection of multiple items in a list.
+ */
+Ext.define('Ext.ux.form.MultiSelect', {
+    
+    extend: 'Ext.form.FieldContainer',
+    
+    mixins: [
+        'Ext.util.StoreHolder',
+        'Ext.form.field.Field'
+    ],
+    
+    alternateClassName: 'Ext.ux.Multiselect',
+    alias: ['widget.multiselectfield', 'widget.multiselect'],
+    
+    requires: ['Ext.panel.Panel', 'Ext.view.BoundList', 'Ext.layout.container.Fit'],
+    
+    uses: ['Ext.view.DragZone', 'Ext.view.DropZone'],
+    
+    layout: 'anchor',
+    
+    /**
+     * @cfg {String} [dragGroup=""] The ddgroup name for the MultiSelect DragZone.
+     */
+
+    /**
+     * @cfg {String} [dropGroup=""] The ddgroup name for the MultiSelect DropZone.
+     */
+    
+    /**
+     * @cfg {String} [title=""] A title for the underlying panel.
+     */
+    
+    /**
+     * @cfg {Boolean} [ddReorder=false] Whether the items in the MultiSelect list are drag/drop reorderable.
+     */
+    ddReorder: false,
+
+    /**
+     * @cfg {Object/Array} tbar An optional toolbar to be inserted at the top of the control's selection list.
+     * This can be a {@link Ext.toolbar.Toolbar} object, a toolbar config, or an array of buttons/button configs
+     * to be added to the toolbar. See {@link Ext.panel.Panel#tbar}.
+     */
+
+    /**
+     * @cfg {String} [appendOnly=false] `true` if the list should only allow append drops when drag/drop is enabled.
+     * This is useful for lists which are sorted.
+     */
+    appendOnly: false,
+
+    /**
+     * @cfg {String} [displayField="text"] Name of the desired display field in the dataset.
+     */
+    displayField: 'text',
+
+    /**
+     * @cfg {String} [valueField="text"] Name of the desired value field in the dataset.
+     */
+
+    /**
+     * @cfg {Boolean} [allowBlank=true] `false` to require at least one item in the list to be selected, `true` to allow no
+     * selection.
+     */
+    allowBlank: true,
+
+    /**
+     * @cfg {Number} [minSelections=0] Minimum number of selections allowed.
+     */
+    minSelections: 0,
+
+    /**
+     * @cfg {Number} [maxSelections=Number.MAX_VALUE] Maximum number of selections allowed.
+     */
+    maxSelections: Number.MAX_VALUE,
+
+    /**
+     * @cfg {String} [blankText="This field is required"] Default text displayed when the control contains no items.
+     */
+    blankText: 'This field is required',
+
+    /**
+     * @cfg {String} [minSelectionsText="Minimum {0}item(s) required"] 
+     * Validation message displayed when {@link #minSelections} is not met. 
+     * The {0} token will be replaced by the value of {@link #minSelections}.
+     */
+    minSelectionsText: 'Minimum {0} item(s) required',
+    
+    /**
+     * @cfg {String} [maxSelectionsText="Maximum {0}item(s) allowed"] 
+     * Validation message displayed when {@link #maxSelections} is not met
+     * The {0} token will be replaced by the value of {@link #maxSelections}.
+     */
+    maxSelectionsText: 'Maximum {0} item(s) required',
+
+    /**
+     * @cfg {String} [delimiter=","] The string used to delimit the selected values when {@link #getSubmitValue submitting}
+     * the field as part of a form. If you wish to have the selected values submitted as separate
+     * parameters rather than a single delimited parameter, set this to `null`.
+     */
+    delimiter: ',',
+    
+    /**
+     * @cfg {String} [dragText="{0} Item{1}"] The text to show while dragging items.
+     * {0} will be replaced by the number of items. {1} will be replaced by the plural
+     * form if there is more than 1 item.
+     */
+    dragText: '{0} Item{1}',
+
+    /**
+     * @cfg {Ext.data.Store/Array} store The data source to which this MultiSelect is bound (defaults to `undefined`).
+     * Acceptable values for this property are:
+     * <div class="mdetail-params"><ul>
+     * <li><b>any {@link Ext.data.Store Store} subclass</b></li>
+     * <li><b>an Array</b> : Arrays will be converted to a {@link Ext.data.ArrayStore} internally.
+     * <div class="mdetail-params"><ul>
+     * <li><b>1-dimensional array</b> : (e.g., <tt>['Foo','Bar']</tt>)<div class="sub-desc">
+     * A 1-dimensional array will automatically be expanded (each array item will be the combo
+     * {@link #valueField value} and {@link #displayField text})</div></li>
+     * <li><b>2-dimensional array</b> : (e.g., <tt>[['f','Foo'],['b','Bar']]</tt>)<div class="sub-desc">
+     * For a multi-dimensional array, the value in index 0 of each item will be assumed to be the combo
+     * {@link #valueField value}, while the value at index 1 is assumed to be the combo {@link #displayField text}.
+     * </div></li></ul></div></li></ul></div>
+     */
+    
+    ignoreSelectChange: 0,
+
+    /**
+     * @cfg {Object} listConfig
+     * An optional set of configuration properties that will be passed to the {@link Ext.view.BoundList}'s constructor.
+     * Any configuration that is valid for BoundList can be included.
+     */
+
+    /**
+     * @cfg {Number} [pageSize=10] The number of items to advance on pageUp and pageDown
+     */
+    pageSize: 10,
+    
+    initComponent: function(){
+        var me = this;
+
+        me.items = me.setupItems();
+
+        me.bindStore(me.store, true);
+
+        me.callParent();
+        me.initField();
+    },
+
+    setupItems: function() {
+        var me = this;
+        
+        me.boundList = new Ext.view.BoundList(Ext.apply({
+            anchor: 'none 100%',
+            border: 1,
+            multiSelect: true,
+            store: me.store,
+            displayField: me.displayField,
+            disabled: me.disabled,
+            tabIndex: 0,
+            navigationModel: {
+                type: 'default'
+            }
+        }, me.listConfig));
+        
+        me.boundList.getNavigationModel().addKeyBindings({
+            pageUp: me.onKeyPageUp,
+            pageDown: me.onKeyPageDown,
+            scope: me
+        });
+
+        me.boundList.getSelectionModel().on('selectionchange', me.onSelectChange, me);
+
+        // Boundlist expects a reference to its pickerField for when an item is selected (see Boundlist#onItemClick).
+        me.boundList.pickerField = me;
+
+        // Only need to wrap the BoundList in a Panel if we have a title.
+        if (!me.title) {
+            return me.boundList;
+        }
+
+        // Wrap to add a title
+        me.boundList.border = false;
+        
+        return {
+            xtype: 'panel',
+            isAriaRegion: false,
+            border: true,
+            anchor: 'none 100%',
+            layout: 'anchor',
+            title: me.title,
+            tbar: me.tbar,
+            items: me.boundList
+        };
+    },
+
+    onSelectChange: function(selModel, selections){
+        if (!this.ignoreSelectChange) {
+            this.setValue(selections);
+        }    
+    },
+    
+    getSelected: function(){
+        return this.boundList.getSelectionModel().getSelection();
+    },
+    
+    // compare array values
+    isEqual: function(v1, v2) {
+        var fromArray = Ext.Array.from,
+            i = 0, 
+            len;
+
+        v1 = fromArray(v1);
+        v2 = fromArray(v2);
+        len = v1.length;
+
+        if (len !== v2.length) {
+            return false;
+        }
+
+        for(; i < len; i++) {
+            if (v2[i] !== v1[i]) {
+                return false;
+            }
+        }
+
+        return true;
+    },
+    
+    afterRender: function(){
+        var me = this,
+            boundList = me.boundList,
+            records, panel;
+        
+        me.callParent();
+        if (me.selectOnRender) {
+            records = me.getRecordsForValue(me.value);
+            if (records.length) {
+                ++me.ignoreSelectChange;
+                me.boundList.getSelectionModel().select(records);
+                --me.ignoreSelectChange;
+            }
+            delete me.toSelect;
+        }    
+        
+        if (me.ddReorder && !me.dragGroup && !me.dropGroup){
+            me.dragGroup = me.dropGroup = 'MultiselectDD-' + Ext.id();
+        }
+
+        if (me.draggable || me.dragGroup){
+            me.dragZone = Ext.create('Ext.view.DragZone', {
+                view: me.boundList,
+                ddGroup: me.dragGroup,
+                dragText: me.dragText
+            });
+        }
+        if (me.droppable || me.dropGroup){
+            me.dropZone = Ext.create('Ext.view.DropZone', {
+                view: me.boundList,
+                ddGroup: me.dropGroup,
+                handleNodeDrop: function(data, dropRecord, position) {
+                    var view = this.view,
+                        store = view.getStore(),
+                        records = data.records,
+                        index;
+
+                    // remove the Models from the source Store
+                    data.view.store.remove(records);
+
+                    index = store.indexOf(dropRecord);
+                    if (position === 'after') {
+                        index++;
+                    }
+                    store.insert(index, records);
+                    view.getSelectionModel().select(records);
+                    me.fireEvent('drop', me, records);
+                }
+            });
+        }
+        
+        panel = me.down('panel');
+        
+        if (panel && boundList) {
+            boundList.ariaEl.dom.setAttribute('aria-labelledby', panel.header.id + '-title-textEl');
+        }
+    },
+    
+    onKeyPageUp: function(e) {
+        var me = this,
+            pageSize = me.pageSize,
+            boundList = me.boundList,
+            nm = boundList.getNavigationModel(),
+            oldIdx, newIdx;
+        
+        oldIdx = nm.recordIndex;
+        
+        // Unlike up arrow, pgUp does not wrap but goes to the first item
+        newIdx = oldIdx > pageSize ? oldIdx - pageSize : 0;
+        
+        nm.setPosition(newIdx, e);
+    },
+    
+    onKeyPageDown: function(e) {
+        var me = this,
+            pageSize = me.pageSize,
+            boundList = me.boundList,
+            nm = boundList.getNavigationModel(),
+            count, oldIdx, newIdx;
+        
+        count = boundList.getStore().getCount();
+        oldIdx = nm.recordIndex;
+        
+        // Unlike down arrow, pgDown does not wrap but goes to the last item
+        newIdx = oldIdx < (count - pageSize) ? oldIdx + pageSize : count - 1;
+        
+        nm.setPosition(newIdx, e);
+    },
+    
+    isValid : function() {
+        var me = this,
+            disabled = me.disabled,
+            validate = me.forceValidation || !disabled;
+            
+        
+        return validate ? me.validateValue(me.value) : disabled;
+    },
+    
+    validateValue: function(value) {
+        var me = this,
+            errors = me.getErrors(value),
+            isValid = Ext.isEmpty(errors);
+            
+        if (!me.preventMark) {
+            if (isValid) {
+                me.clearInvalid();
+            } else {
+                me.markInvalid(errors);
+            }
+        }
+
+        return isValid;
+    },
+    
+    markInvalid : function(errors) {
+        // Save the message and fire the 'invalid' event
+        var me = this,
+            oldMsg = me.getActiveError();
+        me.setActiveErrors(Ext.Array.from(errors));
+        if (oldMsg !== me.getActiveError()) {
+            me.updateLayout();
+        }
+    },
+
+    /**
+     * Clear any invalid styles/messages for this field.
+     *
+     * __Note:__ this method does not cause the Field's {@link #validate} or {@link #isValid} methods to return `true`
+     * if the value does not _pass_ validation. So simply clearing a field's errors will not necessarily allow
+     * submission of forms submitted with the {@link Ext.form.action.Submit#clientValidation} option set.
+     */
+    clearInvalid : function() {
+        // Clear the message and fire the 'valid' event
+        var me = this,
+            hadError = me.hasActiveError();
+        me.unsetActiveError();
+        if (hadError) {
+            me.updateLayout();
+        }
+    },
+    
+    getSubmitData: function() {
+        var me = this,
+            data = null,
+            val;
+        if (!me.disabled && me.submitValue && !me.isFileUpload()) {
+            val = me.getSubmitValue();
+            if (val !== null) {
+                data = {};
+                data[me.getName()] = val;
+            }
+        }
+        return data;
+    },
+
+    /**
+     * Returns the value that would be included in a standard form submit for this field.
+     *
+     * @return {String} The value to be submitted, or `null`.
+     */
+    getSubmitValue: function() {
+        var me = this,
+            delimiter = me.delimiter,
+            val = me.getValue();
+        
+        return Ext.isString(delimiter) ? val.join(delimiter) : val;
+    },
+    
+    getValue: function(){
+        return this.value || [];
+    },
+    
+    getRecordsForValue: function(value){
+        var me = this,
+            records = [],
+            all = me.store.getRange(),
+            valueField = me.valueField,
+            i = 0,
+            allLen = all.length,
+            rec,
+            j,
+            valueLen;
+            
+        for (valueLen = value.length; i < valueLen; ++i) {
+            for (j = 0; j < allLen; ++j) {
+                rec = all[j];   
+                if (rec.get(valueField) == value[i]) {
+                    records.push(rec);
+                }
+            }    
+        }
+            
+        return records;
+    },
+    
+    setupValue: function(value){
+        var delimiter = this.delimiter,
+            valueField = this.valueField,
+            i = 0,
+            out,
+            len,
+            item;
+            
+        if (Ext.isDefined(value)) {
+            if (delimiter && Ext.isString(value)) {
+                value = value.split(delimiter);
+            } else if (!Ext.isArray(value)) {
+                value = [value];
+            }
+        
+            for (len = value.length; i < len; ++i) {
+                item = value[i];
+                if (item && item.isModel) {
+                    value[i] = item.get(valueField);
+                }
+            }
+            out = Ext.Array.unique(value);
+        } else {
+            out = [];
+        }
+        return out;
+    },
+    
+    setValue: function(value){
+        var me = this,
+            selModel = me.boundList.getSelectionModel(),
+            store = me.store;
+
+        // Store not loaded yet - we cannot set the value
+        if (!store.getCount()) {
+            store.on({
+                load: Ext.Function.bind(me.setValue, me, [value]),
+                single: true
+            });
+            return;
+        }
+
+        value = me.setupValue(value);
+        me.mixins.field.setValue.call(me, value);
+        
+        if (me.rendered) {
+            ++me.ignoreSelectChange;
+            selModel.deselectAll();
+            if (value.length) {
+                selModel.select(me.getRecordsForValue(value));
+            }
+            --me.ignoreSelectChange;
+        } else {
+            me.selectOnRender = true;
+        }
+    },
+    
+    clearValue: function(){
+        this.setValue([]);    
+    },
+    
+    onEnable: function(){
+        var list = this.boundList;
+        this.callParent();
+        if (list) {
+            list.enable();
+        }
+    },
+    
+    onDisable: function(){
+        var list = this.boundList;
+        this.callParent();
+        if (list) {
+            list.disable();
+        }
+    },
+    
+    getErrors : function(value) {
+        var me = this,
+            format = Ext.String.format,
+            errors = [],
+            numSelected;
+
+        value = Ext.Array.from(value || me.getValue());
+        numSelected = value.length;
+
+        if (!me.allowBlank && numSelected < 1) {
+            errors.push(me.blankText);
+        }
+        if (numSelected < me.minSelections) {
+            errors.push(format(me.minSelectionsText, me.minSelections));
+        }
+        if (numSelected > me.maxSelections) {
+            errors.push(format(me.maxSelectionsText, me.maxSelections));
+        }
+        return errors;
+    },
+    
+    doDestroy: function(){
+        var me = this;
+        
+        me.bindStore(null);
+        Ext.destroy(me.dragZone, me.dropZone, me.keyNav);
+        me.callParent();
+    },
+    
+    onBindStore: function(store){
+        var me = this,
+            boundList = this.boundList;
+
+        if (store.autoCreated) {
+            me.resolveDisplayField();
+        }
+
+        if (!Ext.isDefined(me.valueField)) {
+            me.valueField = me.displayField;
+        }
+
+        if (boundList) {
+            boundList.bindStore(store);
+        }
+    },
+
+    /**
+     * Applies auto-created store fields to field and boundlist
+     * @private
+     */
+    resolveDisplayField: function() {
+        var me = this,
+            boundList = me.boundList,
+            store = me.getStore();
+
+        me.valueField = me.displayField = 'field1';
+
+        if (!store.expanded) {
+            me.displayField = 'field2';
+        }
+
+        if (boundList) {
+            boundList.setDisplayField(me.displayField);
+        }
+    }    
+});
+
+
+;
+/* Source: classic/src/ux/RowExpander.js */
+/**
+ * @deprecated
+ * Ext.ux.RowExpander has been promoted to the core framework. Use
+ * {@link Ext.grid.plugin.RowExpander} instead.  Ext.ux.RowExpander is now just an empty
+ * stub that extends Ext.grid.plugin.RowExpander for backward compatibility reasons.
+ */
+Ext.define('Ext.ux.RowExpander', {
+    extend: 'Ext.grid.plugin.RowExpander'
+});
+
+;
+/* Source: classic/src/ux/ProgressBarPager.js */
+/**
+ * Plugin for displaying a progressbar inside of a paging toolbar
+ * instead of plain text.
+ */
+Ext.define('Ext.ux.ProgressBarPager', {
+    alias: 'plugin.ux-progressbarpager',
+
+    requires: [
+        'Ext.ProgressBar'
+    ],
+
+    /**
+     * @cfg {Number} width
+     * <p>The default progress bar width.  Default is 225.</p>
+    */
+    width: 225,
+
+    /**
+     * @cfg {String} defaultText
+    * <p>The text to display while the store is loading.  Default is 'Loading...'</p>
+     */
+    defaultText: 'Loading...',
+
+    /**
+     * @cfg {Object} defaultAnimCfg
+     * <p>A {@link Ext.fx.Anim Ext.fx.Anim} configuration object.</p>
+     */
+    defaultAnimCfg : {
+		duration: 1000,
+		easing: 'bounceOut'	
+	},	
+
+    /**
+     * Creates new ProgressBarPager.
+     * @param {Object} config Configuration options
+     */
+    constructor : function(config) {
+        if (config) {
+            Ext.apply(this, config);
+        }
+    },
+
+    init: function (parent) {
+        var displayItem;
+
+        if (parent.displayInfo) {
+            this.parent = parent;
+
+            displayItem = parent.child("#displayItem");
+            if (displayItem) {
+                parent.remove(displayItem, true);
+            }
+
+            this.progressBar = Ext.create('Ext.ProgressBar', {
+                text    : this.defaultText,
+                width   : this.width,
+                animate : this.defaultAnimCfg,
+                style: {
+                    cursor: 'pointer'
+                },
+                listeners: {
+                    el: {
+                        scope: this,
+                        click: this.handleProgressBarClick
+                    }
+                }
+            });
+
+            parent.displayItem = this.progressBar;
+
+            parent.add(parent.displayItem);
+            Ext.apply(parent, this.parentOverrides);
+        }
+    },
+
+    /**
+     * This method handles the click for the progress bar
+     * @private
+     */
+    handleProgressBarClick : function (e) {
+        var parent = this.parent,
+            displayItem = parent.displayItem,
+            box = this.progressBar.getBox(),
+            xy = e.getXY(),
+            position = xy[0]- box.x,
+            store = parent.store,
+            pageSize = parent.pageSize || store.pageSize,
+            pages = Math.ceil(store.getTotalCount() / pageSize),
+            newPage = Math.max(Math.ceil(position / (displayItem.width / pages)), 1);
+
+        store.loadPage(newPage);
+    },
+
+    /**
+     * @private
+     */
+    parentOverrides: {
+        /**
+         * This method updates the information via the progress bar.
+         * @private
+         */
+        updateInfo : function(){
+            if(this.displayItem){
+                var count = this.store.getCount(),
+                    pageData = this.getPageData(),
+                    message = count === 0 ?
+                    this.emptyMsg :
+                    Ext.String.format(
+                        this.displayMsg,
+                        pageData.fromRecord, pageData.toRecord, this.store.getTotalCount()
+                    ),
+                    percentage = pageData.pageCount > 0 ? (pageData.currentPage / pageData.pageCount) : 0;
+
+                this.displayItem.updateProgress(percentage, message, this.animate || this.defaultAnimConfig);
+            }
+        }
+    }
+});
+
+
+
+;
+/* Source: classic/src/ux/IFrame.js */
+/**
+ * Barebones iframe implementation. 
+ */
+Ext.define('Ext.ux.IFrame', {
+    extend: 'Ext.Component',
+
+    alias: 'widget.uxiframe',
+
+    loadMask: 'Loading...',
+
+    src: 'about:blank',
+
+    renderTpl: [
+        '<iframe src="{src}" id="{id}-iframeEl" data-ref="iframeEl" name="{frameName}" width="100%" height="100%" frameborder="0"></iframe>'
+    ],
+    childEls: ['iframeEl'],
+
+    initComponent: function () {
+        this.callParent();
+
+        this.frameName = this.frameName || this.id + '-frame';
+    },
+
+    initEvents : function() {
+        var me = this;
+        me.callParent();
+        me.iframeEl.on('load', me.onLoad, me);
+    },
+
+    initRenderData: function() {
+        return Ext.apply(this.callParent(), {
+            src: this.src,
+            frameName: this.frameName
+        });
+    },
+
+    getBody: function() {
+        var doc = this.getDoc();
+        return doc.body || doc.documentElement;
+    },
+
+    getDoc: function() {
+        try {
+            return this.getWin().document;
+        } catch (ex) {
+            return null;
+        }
+    },
+
+    getWin: function() {
+        var me = this,
+            name = me.frameName,
+            win = Ext.isIE ? me.iframeEl.dom.contentWindow : window.frames[name];
+        return win;
+    },
+
+    getFrame: function() {
+        var me = this;
+        return me.iframeEl.dom;
+    },
+
+    onLoad: function() {
+        var me = this,
+            doc = me.getDoc();
+
+        if (doc) {
+            this.el.unmask();
+            this.fireEvent('load', this);
+
+        } else if (me.src) {
+
+            this.el.unmask();
+            this.fireEvent('error', this);
+        }
+
+
+    },
+
+    load: function (src) {
+        var me = this,
+            text = me.loadMask,
+            frame = me.getFrame();
+
+        if (me.fireEvent('beforeload', me, src) !== false) {
+            if (text && me.el) {
+                me.el.mask(text);
+            }
+
+            frame.src = me.src = (src || me.src);
+        }
+    }
+});
+
+/*
+ * Note: Event relayers are not needed here because the combination of the gesture system and 
+ * normal focus/blur will handle it.
+ * Tested with the examples/classic/desktop app.
+ */
+
+/*
+ * TODO items:
+ *
+ * Iframe should clean up any Ext.dom.Element wrappers around its window, document
+ * documentElement and body when it is destroyed.  This helps prevent "Permission Denied"
+ * errors in IE when Ext.dom.GarbageCollector tries to access those objects on an orphaned
+ * iframe.  Permission Denied errors can occur in one of the following 2 scenarios:
+ *
+ *     a. When an iframe is removed from the document, and all references to it have been
+ *     removed, IE will "clear" the window object.  At this point the window object becomes
+ *     completely inaccessible - accessing any of its properties results in a "Permission
+ *     Denied" error. http://msdn.microsoft.com/en-us/library/ie/hh180174(v=vs.85).aspx
+ *
+ *     b. When an iframe is unloaded (either by navigating to a new url, or via document.open/
+ *     document.write, new html and body elements are created and the old the html and body
+ *     elements are orphaned.  Accessing the html and body elements or any of their properties
+ *     results in a "Permission Denied" error.
+ */
+
+
+
+
+;
+/* Source: classic/src/ux/LiveSearchGridPanel.js */
+/**
+ * A GridPanel class with live search support.
+ */
+Ext.define('Ext.ux.LiveSearchGridPanel', {
+    extend: 'Ext.grid.Panel',
+    requires: [
+        'Ext.toolbar.TextItem',
+        'Ext.form.field.Checkbox',
+        'Ext.form.field.Text',
+        'Ext.ux.statusbar.StatusBar'
+    ],
+    
+    /**
+     * @private
+     * search value initialization
+     */
+    searchValue: null,
+    
+    /**
+     * @private
+     * The matched positions from the most recent search
+     */
+    matches: [],
+    
+    /**
+     * @private
+     * The current index matched.
+     */
+    currentIndex: null,
+    
+    /**
+     * @private
+     * The generated regular expression used for searching.
+     */
+    searchRegExp: null,
+    
+    /**
+     * @private
+     * Case sensitive mode.
+     */
+    caseSensitive: false,
+    
+    /**
+     * @private
+     * Regular expression mode.
+     */
+    regExpMode: false,
+    
+    /**
+     * @cfg {String} matchCls
+     * The matched string css classe.
+     */
+    matchCls: 'x-livesearch-match',
+    
+    defaultStatusText: 'Nothing Found',
+    
+    // Component initialization override: adds the top and bottom toolbars and setup headers renderer.
+    initComponent: function() {
+        var me = this;
+
+        me.tbar = ['Search',{
+             xtype: 'textfield',
+             name: 'searchField',
+             hideLabel: true,
+             width: 200,
+             listeners: {
+                 change: {
+                     fn: me.onTextFieldChange,
+                     scope: this,
+                     buffer: 500
+                 }
+             }
+        }, {
+            xtype: 'button',
+            text: '&lt;',
+            tooltip: 'Find Previous Row',
+            handler: me.onPreviousClick,
+            scope: me
+        },{
+            xtype: 'button',
+            text: '&gt;',
+            tooltip: 'Find Next Row',
+            handler: me.onNextClick,
+            scope: me
+        }, '-', {
+            xtype: 'checkbox',
+            hideLabel: true,
+            margin: '0 0 0 4px',
+            handler: me.regExpToggle,
+            scope: me                
+        }, 'Regular expression', {
+            xtype: 'checkbox',
+            hideLabel: true,
+            margin: '0 0 0 4px',
+            handler: me.caseSensitiveToggle,
+            scope: me
+        }, 'Case sensitive'];
+
+        me.bbar = new Ext.ux.StatusBar({
+            defaultText: me.defaultStatusText,
+            name: 'searchStatusBar'
+        });
+        
+        me.callParent(arguments);
+    },
+    
+    // afterRender override: it adds textfield and statusbar reference and start monitoring keydown events in textfield input 
+    afterRender: function() {
+        var me = this;
+        me.callParent(arguments);
+        me.textField = me.down('textfield[name=searchField]');
+        me.statusBar = me.down('statusbar[name=searchStatusBar]');
+
+        me.view.on('cellkeydown', me.focusTextField, me);
+    },
+
+    focusTextField: function(view, td, cellIndex, record, tr, rowIndex, e, eOpts) {
+        if (e.getKey() === e.S) {
+            e.preventDefault();
+            this.textField.focus();
+        }
+    },
+
+    // detects html tag
+    tagsRe: /<[^>]*>/gm,
+    
+    // DEL ASCII code
+    tagsProtect: '\x0f',
+    
+    /**
+     * In normal mode it returns the value with protected regexp characters.
+     * In regular expression mode it returns the raw value except if the regexp is invalid.
+     * @return {String} The value to process or null if the textfield value is blank or invalid.
+     * @private
+     */
+    getSearchValue: function() {
+        var me = this,
+            value = me.textField.getValue();
+            
+        if (value === '') {
+            return null;
+        }
+        if (!me.regExpMode) {
+            value = Ext.String.escapeRegex(value);
+        } else {
+            try {
+                new RegExp(value);
+            } catch (error) {
+                me.statusBar.setStatus({
+                    text: error.message,
+                    iconCls: 'x-status-error'
+                });
+                return null;
+            }
+            // this is stupid
+            if (value === '^' || value === '$') {
+                return null;
+            }
+        }
+
+        return value;
+    },
+    
+    /**
+     * Finds all strings that matches the searched value in each grid cells.
+     * @private
+     */
+     onTextFieldChange: function() {
+         var me = this,
+             count = 0,
+             view = me.view,
+             cellSelector = view.cellSelector,
+             innerSelector = view.innerSelector,
+             columns = me.visibleColumnManager.getColumns();
+
+         view.refresh();
+         // reset the statusbar
+         me.statusBar.setStatus({
+             text: me.defaultStatusText,
+             iconCls: ''
+         });
+
+         me.searchValue = me.getSearchValue();
+         me.matches = [];
+         me.currentIndex = null;
+
+         if (me.searchValue !== null) {
+             me.searchRegExp = new RegExp(me.getSearchValue(), 'g' + (me.caseSensitive ? '' : 'i'));
+
+             me.store.each(function(record, idx) {
+                var node = view.getNode(record);
+
+                if (node) {
+                    Ext.Array.forEach(columns, function(column) {
+                        var cell = Ext.fly(node).down(column.getCellInnerSelector(), true),
+                            matches, cellHTML,
+                            seen;
+
+                        if (cell) {
+                            matches = cell.innerHTML.match(me.tagsRe);
+                            cellHTML = cell.innerHTML.replace(me.tagsRe, me.tagsProtect);
+
+                            // populate indexes array, set currentIndex, and replace wrap matched string in a span
+                            cellHTML = cellHTML.replace(me.searchRegExp, function(m) {
+                                ++count;
+                                if (!seen) {
+                                    me.matches.push({
+                                        record: record,
+                                        column: column
+                                    });
+                                    seen = true;
+                                }
+                                return '<span class="' + me.matchCls + '">' + m + '</span>';
+                            }, me);
+                            // restore protected tags
+                            Ext.each(matches, function(match) {
+                                cellHTML = cellHTML.replace(me.tagsProtect, match);
+                            });
+                            // update cell html
+                            cell.innerHTML = cellHTML;
+                        }
+                    });
+                }
+             }, me);
+
+             // results found
+             if (count) {
+                me.currentIndex = 0;
+                me.gotoCurrent();
+                me.statusBar.setStatus({
+                    text: Ext.String.format('{0} match{1} found.', count, count === 1 ? 'es' : ''),
+                    iconCls: 'x-status-valid'
+                });
+             }
+         }
+
+         // no results found
+         if (me.currentIndex === null) {
+             me.getSelectionModel().deselectAll();
+             me.textField.focus();
+         }
+     },
+    
+    /**
+     * Selects the previous row containing a match.
+     * @private
+     */   
+    onPreviousClick: function() {
+        var me = this,
+            matches = me.matches,
+            len = matches.length,
+            idx = me.currentIndex;
+
+        if (len) {
+            me.currentIndex = idx === 0 ? len - 1 : idx - 1;
+            me.gotoCurrent();
+        }
+    },
+    
+    /**
+     * Selects the next row containing a match.
+     * @private
+     */    
+    onNextClick: function() {
+        var me = this,
+            matches = me.matches,
+            len = matches.length,
+            idx = me.currentIndex;
+
+        if (len) {
+            me.currentIndex = idx === len - 1 ? 0 : idx + 1;
+            me.gotoCurrent();
+        }
+    },
+    
+    /**
+     * Switch to case sensitive mode.
+     * @private
+     */    
+    caseSensitiveToggle: function(checkbox, checked) {
+        this.caseSensitive = checked;
+        this.onTextFieldChange();
+    },
+    
+    /**
+     * Switch to regular expression mode
+     * @private
+     */
+    regExpToggle: function(checkbox, checked) {
+        this.regExpMode = checked;
+        this.onTextFieldChange();
+    },
+
+    privates: {
+        gotoCurrent: function() {
+            var pos = this.matches[this.currentIndex];
+            this.getNavigationModel().setPosition(pos.record, pos.column);
+            this.getSelectionModel().select(pos.record);
+        }
+    }
+});
+
+
+;
+/* Source: classic/src/ux/TreePicker.js */
+/**
+ * A Picker field that contains a tree panel on its popup, enabling selection of tree nodes.
+ */
+Ext.define('Ext.ux.TreePicker', {
+    extend: 'Ext.form.field.Picker',
+    xtype: 'treepicker',
+    
+    uses: [
+        'Ext.tree.Panel'
+    ],
+
+    triggerCls: Ext.baseCSSPrefix + 'form-arrow-trigger',
+
+    config: {
+        /**
+         * @cfg {Ext.data.TreeStore} store
+         * A tree store that the tree picker will be bound to
+         */
+        store: null,
+
+        /**
+         * @cfg {String} displayField
+         * The field inside the model that will be used as the node's text.
+         * Defaults to the default value of {@link Ext.tree.Panel}'s `displayField` configuration.
+         */
+        displayField: null,
+
+        /**
+         * @cfg {Array} columns
+         * An optional array of columns for multi-column trees
+         */
+        columns: null,
+
+        /**
+         * @cfg {Boolean} selectOnTab
+         * Whether the Tab key should select the currently highlighted item. Defaults to `true`.
+         */
+        selectOnTab: true,
+
+        /**
+         * @cfg {Number} maxPickerHeight
+         * The maximum height of the tree dropdown. Defaults to 300.
+         */
+        maxPickerHeight: 300,
+
+        /**
+         * @cfg {Number} minPickerHeight
+         * The minimum height of the tree dropdown. Defaults to 100.
+         */
+        minPickerHeight: 100
+    },
+   
+    editable: false,
+
+    /**
+     * @event select
+     * Fires when a tree node is selected
+     * @param {Ext.ux.TreePicker} picker        This tree picker
+     * @param {Ext.data.Model} record           The selected record
+     */
+
+    initComponent: function() {
+        var me = this;
+
+        me.callParent(arguments);
+
+        me.mon(me.store, {
+            scope: me,
+            load: me.onLoad,
+            update: me.onUpdate
+        });
+    },
+
+    /**
+     * Creates and returns the tree panel to be used as this field's picker.
+     */
+    createPicker: function() {
+        var me = this,
+            picker = new Ext.tree.Panel({
+                baseCls: Ext.baseCSSPrefix + 'boundlist',
+                shrinkWrapDock: 2,
+                store: me.store,
+                floating: true,
+                displayField: me.displayField,
+                columns: me.columns,
+                minHeight: me.minPickerHeight,
+                maxHeight: me.maxPickerHeight,
+                manageHeight: false,
+                shadow: false,
+                listeners: {
+                    scope: me,
+                    itemclick: me.onItemClick,
+                    itemkeydown: me.onPickerKeyDown
+                }
+            }),
+            view = picker.getView();
+
+        if (Ext.isIE9 && Ext.isStrict) {
+            // In IE9 strict mode, the tree view grows by the height of the horizontal scroll bar when the items are highlighted or unhighlighted.
+            // Also when items are collapsed or expanded the height of the view is off. Forcing a repaint fixes the problem.
+            view.on({
+                scope: me,
+                highlightitem: me.repaintPickerView,
+                unhighlightitem: me.repaintPickerView,
+                afteritemexpand: me.repaintPickerView,
+                afteritemcollapse: me.repaintPickerView
+            });
+        }
+        return picker;
+    },
+
+    /**
+     * repaints the tree view
+     */
+    repaintPickerView: function() {
+        var style = this.picker.getView().getEl().dom.style;
+
+        // can't use Element.repaint because it contains a setTimeout, which results in a flicker effect
+        style.display = style.display;
+    },
+
+    /**
+     * Handles a click even on a tree node
+     * @private
+     * @param {Ext.tree.View} view
+     * @param {Ext.data.Model} record
+     * @param {HTMLElement} node
+     * @param {Number} rowIndex
+     * @param {Ext.event.Event} e
+     */
+    onItemClick: function(view, record, node, rowIndex, e) {
+        this.selectItem(record);
+    },
+
+    /**
+     * Handles a keypress event on the picker element
+     * @private
+     * @param {Ext.event.Event} e
+     * @param {HTMLElement} el
+     */
+    onPickerKeyDown: function(treeView, record, item, index, e) {
+        var key = e.getKey();
+
+        if (key === e.ENTER || (key === e.TAB && this.selectOnTab)) {
+            this.selectItem(record);
+        }
+    },
+
+    /**
+     * Changes the selection to a given record and closes the picker
+     * @private
+     * @param {Ext.data.Model} record
+     */
+    selectItem: function(record) {
+        var me = this;
+        me.setValue(record.getId());
+        me.fireEvent('select', me, record);
+        me.collapse();
+    },
+
+    /**
+     * Runs when the picker is expanded.  Selects the appropriate tree node based on the value of the input element,
+     * and focuses the picker so that keyboard navigation will work.
+     * @private
+     */
+    onExpand: function() {
+        var picker = this.picker,
+            store = picker.store,
+            value = this.value,
+            node;
+
+        
+        if (value) {
+            node = store.getNodeById(value);
+        }
+        
+        if (!node) {
+            node = store.getRoot();
+        }
+        
+        picker.ensureVisible(node, {
+            select: true,
+            focus: true
+        });
+    },
+
+    /**
+     * Sets the specified value into the field
+     * @param {Mixed} value
+     * @return {Ext.ux.TreePicker} this
+     */
+    setValue: function(value) {
+        var me = this,
+            record;
+
+        me.value = value;
+
+        if (me.store.loading) {
+            // Called while the Store is loading. Ensure it is processed by the onLoad method.
+            return me;
+        }
+            
+        // try to find a record in the store that matches the value
+        record = value ? me.store.getNodeById(value) : me.store.getRoot();
+        if (value === undefined) {
+            record = me.store.getRoot();
+            me.value = record.getId();
+        } else {
+            record = me.store.getNodeById(value);
+        }
+
+        // set the raw value to the record's display field if a record was found
+        me.setRawValue(record ? record.get(me.displayField) : '');
+
+        return me;
+    },
+    
+    getSubmitValue: function(){
+        return this.value;    
+    },
+
+    /**
+     * Returns the current data value of the field (the idProperty of the record)
+     * @return {Number}
+     */
+    getValue: function() {
+        return this.value;
+    },
+
+    /**
+     * Handles the store's load event.
+     * @private
+     */
+    onLoad: function() {
+        var value = this.value;
+
+        if (value) {
+            this.setValue(value);
+        }
+    },
+    
+    onUpdate: function(store, rec, type, modifiedFieldNames){
+        var display = this.displayField;
+        
+        if (type === 'edit' && modifiedFieldNames && Ext.Array.contains(modifiedFieldNames, display) && this.value === rec.getId()) {
+            this.setRawValue(rec.get(display));
+        }
+    }
+
+});
+
+
+
+;
+/* Source: classic/src/ux/TabCloseMenu.js */
+/**
+ * Plugin for adding a close context menu to tabs. Note that the menu respects
+ * the closable configuration on the tab. As such, commands like remove others
+ * and remove all will not remove items that are not closable.
+ */
+Ext.define('Ext.ux.TabCloseMenu', {
+    extend: 'Ext.plugin.Abstract',
+
+    alias: 'plugin.tabclosemenu',
+
+    mixins: {
+        observable: 'Ext.util.Observable'
+    },
+
+    /**
+     * @cfg {String} closeTabText
+     * The text for closing the current tab.
+     */
+    closeTabText: 'Close Tab',
+
+    /**
+     * @cfg {Boolean} showCloseOthers
+     * Indicates whether to show the 'Close Others' option.
+     */
+    showCloseOthers: true,
+
+    /**
+     * @cfg {String} closeOthersTabsText
+     * The text for closing all tabs except the current one.
+     */
+    closeOthersTabsText: 'Close Other Tabs',
+
+    /**
+     * @cfg {Boolean} showCloseAll
+     * Indicates whether to show the 'Close All' option.
+     */
+    showCloseAll: true,
+
+    /**
+     * @cfg {String} closeAllTabsText
+     * The text for closing all tabs.
+     */
+    closeAllTabsText: 'Close All Tabs',
+
+    /**
+     * @cfg {Array} extraItemsHead
+     * An array of additional context menu items to add to the front of the context menu.
+     */
+    extraItemsHead: null,
+
+    /**
+     * @cfg {Array} extraItemsTail
+     * An array of additional context menu items to add to the end of the context menu.
+     */
+    extraItemsTail: null,
+
+    //public
+    constructor: function (config) {
+        this.callParent([config]);
+        this.mixins.observable.constructor.call(this, config);
+    },
+
+    init : function(tabpanel){
+        this.tabPanel = tabpanel;
+        this.tabBar = tabpanel.down("tabbar");
+
+        this.mon(this.tabPanel, {
+            scope: this,
+            afterlayout: this.onAfterLayout,
+            single: true
+        });
+    },
+
+    onAfterLayout: function() {
+        this.mon(this.tabBar.el, {
+            scope: this,
+            contextmenu: this.onContextMenu,
+            delegate: '.x-tab'
+        });
+    },
+
+    destroy: function() {
+        Ext.destroy(this.menu);
+        this.callParent();
+    },
+
+    /**
+     * @private
+     */
+    onContextMenu : function(event, target){
+        var me = this,
+            menu = me.createMenu(),
+            disableAll = true,
+            disableOthers = true,
+            tab = me.tabBar.getChildByElement(target),
+            index = me.tabBar.items.indexOf(tab);
+
+        me.item = me.tabPanel.getComponent(index);
+        menu.child('#close').setDisabled(!me.item.closable);
+
+        if (me.showCloseAll || me.showCloseOthers) {
+            me.tabPanel.items.each(function(item) {
+                if (item.closable) {
+                    disableAll = false;
+                    if (item !== me.item) {
+                        disableOthers = false;
+                        return false;
+                    }
+                }
+                return true;
+            });
+
+            if (me.showCloseAll) {
+                menu.child('#closeAll').setDisabled(disableAll);
+            }
+
+            if (me.showCloseOthers) {
+                menu.child('#closeOthers').setDisabled(disableOthers);
+            }
+        }
+
+        event.preventDefault();
+        me.fireEvent('beforemenu', menu, me.item, me);
+
+        menu.showAt(event.getXY());
+    },
+
+    createMenu : function() {
+        var me = this;
+
+        if (!me.menu) {
+            var items = [{
+                itemId: 'close',
+                text: me.closeTabText,
+                scope: me,
+                handler: me.onClose
+            }];
+
+            if (me.showCloseAll || me.showCloseOthers) {
+                items.push('-');
+            }
+
+            if (me.showCloseOthers) {
+                items.push({
+                    itemId: 'closeOthers',
+                    text: me.closeOthersTabsText,
+                    scope: me,
+                    handler: me.onCloseOthers
+                });
+            }
+
+            if (me.showCloseAll) {
+                items.push({
+                    itemId: 'closeAll',
+                    text: me.closeAllTabsText,
+                    scope: me,
+                    handler: me.onCloseAll
+                });
+            }
+
+            if (me.extraItemsHead) {
+                items = me.extraItemsHead.concat(items);
+            }
+
+            if (me.extraItemsTail) {
+                items = items.concat(me.extraItemsTail);
+            }
+
+            me.menu = Ext.create('Ext.menu.Menu', {
+                items: items,
+                listeners: {
+                    hide: me.onHideMenu,
+                    scope: me
+                }
+            });
+        }
+
+        return me.menu;
+    },
+
+    onHideMenu: function () {
+        var me = this;
+        me.fireEvent('aftermenu', me.menu, me);
+    },
+
+    onClose : function(){
+        this.tabPanel.remove(this.item);
+    },
+
+    onCloseOthers : function(){
+        this.doClose(true);
+    },
+
+    onCloseAll : function(){
+        this.doClose(false);
+    },
+
+    doClose : function(excludeActive){
+        var items = [];
+
+        this.tabPanel.items.each(function(item){
+            if(item.closable){
+                if(!excludeActive || item !== this.item){
+                    items.push(item);
+                }
+            }
+        }, this);
+
+        Ext.suspendLayouts();
+        Ext.Array.forEach(items, function(item){
+            this.tabPanel.remove(item);
+        }, this);
+        Ext.resumeLayouts(true);
+    }
+});
+
+
+;
+/* Source: classic/src/ux/TabReorderer.js */
+/**
+ * This plugin allow you to reorder tabs of a TabPanel.
+ */
+Ext.define('Ext.ux.TabReorderer', {
+    extend: 'Ext.ux.BoxReorderer',
+    alias: 'plugin.tabreorderer',
+
+    itemSelector: '.' + Ext.baseCSSPrefix + 'tab',
+
+    init: function(tabPanel) {
+        var me = this;
+        
+        me.callParent([tabPanel.getTabBar()]);
+
+        // Ensure reorderable property is copied into dynamically added tabs
+        tabPanel.onAdd = Ext.Function.createSequence(tabPanel.onAdd, me.onAdd);
+    },
+
+    onBoxReady: function() {
+        var tabs,
+            len,
+            i = 0,
+            tab;
+
+        this.callParent(arguments);
+
+        // Copy reorderable property from card into tab
+        for (tabs = this.container.items.items, len = tabs.length; i < len; i++) {
+            tab = tabs[i];
+            if (tab.card) {
+                tab.reorderable = tab.card.reorderable;
+            }
+        }
+    },
+
+    onAdd: function(card, index) {
+        card.tab.reorderable = card.reorderable;
+    },
+
+    afterBoxReflow: function() {
+        var me = this;
+
+        // Cannot use callParent, this is not called in the scope of this plugin, but that of its Ext.dd.DD object
+        Ext.ux.BoxReorderer.prototype.afterBoxReflow.apply(me, arguments);
+
+        // Move the associated card to match the tab order
+        if (me.dragCmp) {
+            me.container.tabPanel.setActiveTab(me.dragCmp.card);
+            me.container.tabPanel.move(me.dragCmp.card, me.curIndex);
+        }
+    }
+});
+
+;
+/* Source: classic/src/ux/TabScrollerMenu.js */
+Ext.ns('Ext.ux');
+/**
+ * Plugin for adding a tab menu to a TabBar is the Tabs overflow.
+ */
+Ext.define('Ext.ux.TabScrollerMenu', {
+    alias: 'plugin.tabscrollermenu',
+
+    requires: ['Ext.menu.Menu'],
+
+    /**
+     * @cfg {Number} pageSize How many items to allow per submenu.
+     */
+    pageSize: 10,
+    /**
+     * @cfg {Number} maxText How long should the title of each {@link Ext.menu.Item} be.
+     */
+    maxText: 15,
+    /**
+     * @cfg {String} menuPrefixText Text to prefix the submenus.
+     */
+    menuPrefixText: 'Items',
+
+    /**
+     * Creates new TabScrollerMenu.
+     * @param {Object} config Configuration options
+     */
+    constructor: function(config) {
+        Ext.apply(this, config);
+    },
+
+    /**
+     * @private
+     */
+    init: function(tabPanel) {
+        var me = this;
+
+        me.tabPanel = tabPanel;
+
+        tabPanel.on({
+            render: function() {
+                me.tabBar = tabPanel.tabBar;
+                me.layout = me.tabBar.layout;
+                me.layout.overflowHandler.handleOverflow = Ext.Function.bind(me.showButton, me);
+                me.layout.overflowHandler.clearOverflow = Ext.Function.createSequence(me.layout.overflowHandler.clearOverflow, me.hideButton, me);
+            },
+            destroy: me.destroy,
+            scope: me,
+            single: true
+        });
+    },
+
+    showButton: function() {
+        var me = this,
+            result = Ext.getClass(me.layout.overflowHandler).prototype.handleOverflow.apply(me.layout.overflowHandler, arguments),
+            button = me.menuButton;
+
+        if (me.tabPanel.items.getCount() > 1) {
+            if (!button) {
+                button = me.menuButton = me.tabBar.body.createChild({
+                    cls: Ext.baseCSSPrefix + 'tab-tabmenu-right'
+                }, me.tabBar.body.child('.' + Ext.baseCSSPrefix + 'box-scroller-right'));
+                button.addClsOnOver(Ext.baseCSSPrefix + 'tab-tabmenu-over');
+                button.on('click', me.showTabsMenu, me);
+            }
+            button.setVisibilityMode(Ext.dom.Element.DISPLAY);
+            button.show();
+            result.reservedSpace += button.getWidth();
+        } else {
+            me.hideButton();
+        }
+        return result;
+    },
+
+    hideButton: function() {
+        var me = this;
+        if (me.menuButton) {
+            me.menuButton.hide();
+        }
+    },
+
+    /**
+     * Returns an the current page size (this.pageSize);
+     * @return {Number} this.pageSize The current page size.
+     */
+    getPageSize: function() {
+        return this.pageSize;
+    },
+    /**
+     * Sets the number of menu items per submenu "page size".
+     * @param {Number} pageSize The page size
+     */
+    setPageSize: function(pageSize) {
+        this.pageSize = pageSize;
+    },
+    /**
+     * Returns the current maxText length;
+     * @return {Number} this.maxText The current max text length.
+     */
+    getMaxText: function() {
+        return this.maxText;
+    },
+    /**
+     * Sets the maximum text size for each menu item.
+     * @param {Number} t The max text per each menu item.
+     */
+    setMaxText: function(t) {
+        this.maxText = t;
+    },
+    /**
+     * Returns the current menu prefix text String.;
+     * @return {String} this.menuPrefixText The current menu prefix text.
+     */
+    getMenuPrefixText: function() {
+        return this.menuPrefixText;
+    },
+    /**
+     * Sets the menu prefix text String.
+     * @param {String} t The menu prefix text.
+     */
+    setMenuPrefixText: function(t) {
+        this.menuPrefixText = t;
+    },
+
+    showTabsMenu: function(e) {
+        var me = this;
+
+        if (me.tabsMenu) {
+            me.tabsMenu.removeAll();
+        } else {
+            me.tabsMenu = new Ext.menu.Menu();
+        }
+
+        me.generateTabMenuItems();
+
+        var target = Ext.get(e.getTarget()),
+            xy = target.getXY();
+
+        //Y param + 24 pixels
+        xy[1] += 24;
+
+        me.tabsMenu.showAt(xy);
+    },
+
+    /**
+     * @private
+     */
+    generateTabMenuItems: function() {
+        var me = this,
+            tabPanel = me.tabPanel,
+            curActive = tabPanel.getActiveTab(),
+            allItems = tabPanel.items.getRange(),
+            pageSize = me.getPageSize(),
+            tabsMenu = me.tabsMenu,
+            totalItems, numSubMenus, remainder,
+            i, curPage, menuItems, x, item, start, index;
+            
+        tabsMenu.suspendLayouts();
+        allItems = Ext.Array.filter(allItems, function(item){
+            if (item.id == curActive.id) {
+                return false;
+            }
+            return item.hidden ? !!item.hiddenByLayout : true;
+        });
+        totalItems = allItems.length;
+        numSubMenus = Math.floor(totalItems / pageSize);
+        remainder = totalItems % pageSize;
+
+        if (totalItems > pageSize) {
+
+            // Loop through all of the items and create submenus in chunks of 10
+            for (i = 0; i < numSubMenus; i++) {
+                curPage = (i + 1) * pageSize;
+                menuItems = [];
+
+                for (x = 0; x < pageSize; x++) {
+                    index = x + curPage - pageSize;
+                    item = allItems[index];
+                    menuItems.push(me.autoGenMenuItem(item));
+                }
+
+                tabsMenu.add({
+                    text: me.getMenuPrefixText() + ' ' + (curPage - pageSize + 1) + ' - ' + curPage,
+                    menu: menuItems
+                });
+            }
+            // remaining items
+            if (remainder > 0) {
+                start = numSubMenus * pageSize;
+                menuItems = [];
+                for (i = start; i < totalItems; i++) {
+                    item = allItems[i];
+                    menuItems.push(me.autoGenMenuItem(item));
+                }
+
+                me.tabsMenu.add({
+                    text: me.menuPrefixText + ' ' + (start + 1) + ' - ' + (start + menuItems.length),
+                    menu: menuItems
+                });
+
+            }
+        } else {
+            for (i = 0; i < totalItems; ++i) {
+                tabsMenu.add(me.autoGenMenuItem(allItems[i]));
+            }
+        }
+        tabsMenu.resumeLayouts(true);
+    },
+
+    /**
+     * @private
+     */
+    autoGenMenuItem: function(item) {
+        var maxText = this.getMaxText(),
+            text = Ext.util.Format.ellipsis(item.title, maxText);
+
+        return {
+            text: text,
+            handler: this.showTabFromMenu,
+            scope: this,
+            disabled: item.disabled,
+            tabToShow: item,
+            iconCls: item.iconCls
+        };
+    },
+
+    /**
+     * @private
+     */
+    showTabFromMenu: function(menuItem) {
+        this.tabPanel.setActiveTab(menuItem.tabToShow);
+    },
+    
+    destroy: function(){
+        Ext.destroy(this.tabsMenu, this.menuButton);       
+        this.callParent();
+    }
+});
+
+
+;
 /* Source: classic/src/ux/form/field/Float.js */
 Ext.define('Ext.ux.form.field.Float', {
     extend: 'Ext.form.field.Number',
@@ -34024,6 +37634,644 @@ Ext.define('MBilling.model.Signup', {
 Ext.define('MBilling.store.Signup', {
     extend: 'Ext.data.Store',
     model: 'MBilling.model.Signup'
+});
+
+;
+/* Source: app/model/CampaignOptimizerConfig.js */
+Ext.define('MBilling.model.CampaignOptimizerConfig', {
+    extend: 'Ext.data.Model',
+    fields: [
+        { name: 'id', type: 'int' },
+        { name: 'id_campaign', type: 'int' },
+        { name: 'activated', type: 'int' },
+        { name: 'mode', type: 'string' },
+        { name: 'max_calls_daily_per_recipient', type: 'int' },
+        { name: 'min_failures_temp_block', type: 'int' },
+        { name: 'timezone', type: 'string' },
+        { name: 'schedule_weekday_start', type: 'string' },
+        { name: 'schedule_weekday_end', type: 'string' },
+        { name: 'schedule_weekend_start', type: 'string' },
+        { name: 'schedule_weekend_end', type: 'string' },
+        { name: 'jitter_range_minutes', type: 'int' },
+        { name: 'audio_pool_directory', type: 'string' },
+        { name: 'audio_rotation_interval_minutes', type: 'int' },
+        { name: 'created_at', type: 'string' },
+        { name: 'updated_at', type: 'string' },
+        'idCampaignname'
+    ],
+    proxy: {
+        type: 'uxproxy',
+        module: 'campaignoptimizerconfig'
+    }
+});
+
+
+;
+/* Source: app/store/CampaignOptimizerConfig.js */
+Ext.define('MBilling.store.CampaignOptimizerConfig', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.CampaignOptimizerConfig'
+});
+
+
+;
+/* Source: app/model/CampaignOptimizerAudio.js */
+Ext.define('MBilling.model.CampaignOptimizerAudio', {
+    extend: 'Ext.data.Model',
+    fields: [
+        { name: 'id', type: 'int' },
+        { name: 'id_campaign', type: 'int' },
+        { name: 'version_tag', type: 'string' },
+        { name: 'file_path', type: 'string' },
+        { name: 'sha256_checksum', type: 'string' },
+        { name: 'file_size_bytes', type: 'int' },
+        { name: 'format', type: 'string' },
+        { name: 'is_active', type: 'int' },
+        { name: 'validated_at', type: 'string' },
+        'idCampaignname'
+    ],
+    proxy: {
+        type: 'uxproxy',
+        module: 'campaignoptimizeraudio'
+    }
+});
+
+
+;
+/* Source: app/store/CampaignOptimizerAudio.js */
+Ext.define('MBilling.store.CampaignOptimizerAudio', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.CampaignOptimizerAudio'
+});
+
+
+;
+/* Source: app/model/CampaignOptimizerLog.js */
+Ext.define('MBilling.model.CampaignOptimizerLog', {
+    extend: 'Ext.data.Model',
+    fields: [
+        { name: 'id', type: 'int' },
+        { name: 'execution_type', type: 'string' },
+        { name: 'requested_by', type: 'string' },
+        { name: 'status', type: 'string' },
+        { name: 'start_time', type: 'string' },
+        { name: 'duration_seconds', type: 'number' },
+        { name: 'attempts_reserved', type: 'int' },
+        { name: 'attempts_reconciled', type: 'int' },
+        { name: 'suspensions_applied', type: 'int' },
+        { name: 'suspensions_expired', type: 'int' },
+        { name: 'schedules_updated', type: 'int' },
+        { name: 'audios_rotated', type: 'int' },
+        { name: 'error_details', type: 'string' }
+    ],
+    proxy: {
+        type: 'uxproxy',
+        module: 'campaignoptimizerlog'
+    }
+});
+
+
+;
+/* Source: app/store/CampaignOptimizerLog.js */
+Ext.define('MBilling.store.CampaignOptimizerLog', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.CampaignOptimizerLog'
+});
+
+
+;
+/* Source: app/model/CampaignOptimizerState.js */
+Ext.define('MBilling.model.CampaignOptimizerState', {
+    extend: 'Ext.data.Model',
+    fields: [
+        { name: 'id', type: 'int' },
+        { name: 'id_campaign', type: 'int' },
+        { name: 'id_phonenumber', type: 'int' },
+        { name: 'canonical_number', type: 'string' },
+        { name: 'state', type: 'string' },
+        { name: 'reason', type: 'string' },
+        { name: 'suspended_until', type: 'string' },
+        { name: 'is_permanent', type: 'int' },
+        { name: 'applied_by', type: 'string' },
+        { name: 'applied_at', type: 'string' },
+        { name: 'updated_at', type: 'string' },
+        'idCampaignname',
+        'idPhonenumbernumber'
+    ],
+    proxy: {
+        type: 'uxproxy',
+        module: 'campaignoptimizerstate'
+    }
+});
+
+
+;
+/* Source: app/store/CampaignOptimizerState.js */
+Ext.define('MBilling.store.CampaignOptimizerState', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.CampaignOptimizerState'
+});
+
+
+;
+/* Source: app/model/CampaignFailedAnalytics.js */
+Ext.define('MBilling.model.CampaignFailedAnalytics', {
+    extend: 'Ext.data.Model',
+    fields: [
+        { name: 'id', type: 'int' },
+        { name: 'id_campaign', type: 'int' },
+        { name: 'id_phonenumber', type: 'int' },
+        { name: 'canonical_number', type: 'string' },
+        { name: 'date_day', type: 'string' },
+        { name: 'failure_count', type: 'int' },
+        { name: 'count_no_answer', type: 'int' },
+        { name: 'count_busy', type: 'int' },
+        { name: 'count_failed', type: 'int' },
+        { name: 'count_congestion', type: 'int' },
+        { name: 'count_chanunavail', type: 'int' },
+        { name: 'last_sip_code', type: 'int' },
+        { name: 'last_hangup_cause', type: 'int' },
+        { name: 'current_state', type: 'string' },
+        { name: 'suspended_until', type: 'string' },
+        { name: 'last_attempt_at', type: 'string' },
+        { name: 'updated_at', type: 'string' },
+        'idCampaignname',
+        'idPhonenumbernumber'
+    ],
+    proxy: {
+        type: 'uxproxy',
+        module: 'campaignfailedanalytics'
+    }
+});
+
+
+;
+/* Source: app/store/CampaignFailedAnalytics.js */
+Ext.define('MBilling.store.CampaignFailedAnalytics', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.CampaignFailedAnalytics'
+});
+
+
+;
+/* Source: app/model/MagnusSentinelIncident.js */
+/**
+ * Model dos incidentes do Magnus Sentinel.
+ */
+Ext.define('MBilling.model.MagnusSentinelIncident', {
+    extend: 'Ext.data.Model',
+    idProperty: 'id',
+    fields: [{
+        name: 'id',
+        type: 'int'
+    }, {
+        name: 'incident_type',
+        type: 'string'
+    }, {
+        name: 'state',
+        type: 'string'
+    }, {
+        name: 'severity',
+        type: 'string'
+    }, {
+        name: 'entity_kind',
+        type: 'string'
+    }, {
+        name: 'entity_id',
+        type: 'int'
+    }, {
+        name: 'entity_name',
+        type: 'string'
+    }, {
+        name: 'title',
+        type: 'string'
+    }, {
+        name: 'summary',
+        type: 'string'
+    }, {
+        name: 'first_seen',
+        type: 'string'
+    }, {
+        name: 'last_seen',
+        type: 'string'
+    }, {
+        name: 'last_seen_display',
+        type: 'string'
+    }, {
+        name: 'display_timezone',
+        type: 'string'
+    }, {
+        name: 'occurrence_count',
+        type: 'int'
+    }],
+    proxy: {
+        type: 'ajax',
+        url: 'index.php/magnusSentinelIncident/read',
+        actionMethods: {
+            read: 'GET'
+        },
+        pageParam: false,
+        sortParam: false,
+        filterParam: false,
+        reader: {
+            type: 'json',
+            rootProperty: 'data.items',
+            totalProperty: 'data.pagination.total',
+            successProperty: 'success',
+            metaProperty: 'data'
+        }
+    }
+});
+
+
+;
+/* Source: app/store/MagnusSentinelIncident.js */
+/**
+ * Store paginado dos incidentes do Magnus Sentinel.
+ */
+Ext.define('MBilling.store.MagnusSentinelIncident', {
+    extend: 'Ext.data.Store',
+    alias: 'store.magnussentinelincident',
+    requires: ['MBilling.model.MagnusSentinelIncident'],
+    model: 'MBilling.model.MagnusSentinelIncident',
+    pageSize: 100,
+    autoLoad: false,
+    autoDestroy: true,
+    remoteSort: false
+});
+
+
+;
+/* Source: app/model/Menu.js */
+/**
+ * Classe que define a model "Callerid"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ * 19/09/2012
+ */
+Ext.define('MBilling.model.Menu', {
+    extend: 'Ext.data.Model',
+    idProperty: 'controller',
+    fields: [{
+        name: 'text',
+        convert: function(value) {
+            return (value.indexOf('t(') !== -1) ? eval(value) : value;
+        }
+    }, 'module', 'action', 'iconCls', 'rows']
+});
+
+;
+/* Source: app/store/Menu.js */
+/**
+ * Classe que define o store do menu
+ *
+ * MagnusBilling <info@magnusbilling.com>
+ * 02/03/2012
+ */
+Ext.define('MBilling.store.Menu', {
+    extend: 'Ext.data.Store',
+    model: 'MagnusBilling.model.Menu'
+});
+
+;
+/* Source: app/model/SendCreditProducts.js */
+/**
+ * Classe que define a model "Callerid"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ * 19/09/2012
+ */
+Ext.define('MBilling.model.SendCreditProducts', {
+    extend: 'Ext.data.Model',
+    fields: [{
+        name: 'id',
+        type: 'int'
+    }, {
+        name: 'country_code',
+        type: 'int'
+    }, {
+        name: 'operator_id',
+        type: 'string'
+    }, {
+        name: 'SkuCode',
+        type: 'string'
+    }, {
+        name: 'country',
+        type: 'string'
+    }, {
+        name: 'operator_name',
+        type: 'string'
+    }, {
+        name: 'currency_dest',
+        type: 'string'
+    }, {
+        name: 'product',
+        type: 'string'
+    }, {
+        name: 'currency_orig',
+        type: 'string'
+    }, {
+        name: 'wholesale_price',
+        type: 'string'
+    }, {
+        name: 'send_value',
+        type: 'string'
+    }, {
+        name: 'provider',
+        type: 'string'
+    }, {
+        name: 'info',
+        type: 'string'
+    }, {
+        name: 'status',
+        type: 'int'
+    }, {
+        name: 'retail_price',
+        type: 'string'
+    }, 'idUserusername'],
+    proxy: {
+        type: 'uxproxy',
+        module: 'sendCreditProducts'
+    }
+});
+
+;
+/* Source: app/store/SendCreditProducts.js */
+/**
+ * Classe que define o store "SendCreditProducts"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ * 17/08/2018
+ */
+Ext.define('MBilling.store.SendCreditProducts', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.SendCreditProducts'
+});
+
+;
+/* Source: app/model/SendCreditRates.js */
+/**
+ * Classe que define a model "Callerid"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ * 19/09/2012
+ */
+Ext.define('MBilling.model.SendCreditRates', {
+    extend: 'Ext.data.Model',
+    fields: [{
+        name: 'id',
+        type: 'int'
+    }, {
+        name: 'id_user',
+        type: 'int'
+    }, {
+        name: 'id_operator',
+        type: 'int'
+    }, {
+        name: 'sell_price',
+        type: 'string'
+    }, 'idUserusername', 'idProductoperator_name', 'idProductcountry', 'idProductcurrency_dest', 'idProductproduct', 'idProductcurrency_orig', 'idProductwholesale_price'],
+    proxy: {
+        type: 'uxproxy',
+        module: 'sendCreditRates'
+    }
+});
+
+;
+/* Source: app/store/SendCreditRates.js */
+/**
+ * Classe que define o store "SendCreditRates"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ * 17/08/2018
+ */
+Ext.define('MBilling.store.SendCreditRates', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.SendCreditRates'
+});
+
+;
+/* Source: app/model/SendCreditSummary.js */
+/**
+ * Classe que define a model "Callerid"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ */
+Ext.define('MBilling.model.SendCreditSummary', {
+    extend: 'Ext.data.Model',
+    fields: [{
+        name: 'id',
+        type: 'int'
+    }, {
+        name: 'day',
+        type: 'date',
+        dateFormat: 'Y-m-d'
+    }, {
+        name: 'id_user',
+        type: 'int'
+    }, {
+        name: 'service',
+        type: 'string'
+    }, {
+        name: 'total_sale',
+        type: 'string'
+    }, {
+        name: 'earned',
+        type: 'string'
+    }, {
+        name: 'commision',
+        type: 'string'
+    }, {
+        name: 'profit',
+        type: 'string'
+    }, 'idUserusername'],
+    proxy: {
+        type: 'uxproxy',
+        module: 'sendCreditSummary'
+    }
+});
+
+;
+/* Source: app/store/SendCreditSummary.js */
+/**
+ * Classe que define o store "SendCreditSummary"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ */
+Ext.define('MBilling.store.SendCreditSummary', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.SendCreditSummary'
+});
+
+;
+/* Source: app/model/UserType.js */
+/**
+ * Classe que define a model "USerType"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ * 19/09/2012
+ */
+Ext.define('MBilling.model.UserType', {
+    extend: 'Ext.data.Model',
+    fields: [{
+        name: 'id',
+        type: 'int'
+    }, 'name'],
+    proxy: {
+        type: 'uxproxy',
+        module: 'userType'
+    }
+});
+
+;
+/* Source: app/store/UserType.js */
+/**
+ * Class to define the store of combo "groupuser"
+ *
+ * MagnusBilling <info@magnusbilling.com>
+ * 15/04/2013
+ */
+Ext.define('MBilling.store.UserType', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.UserType'
+});
+
+;
+/* Source: app/store/Main.js */
+/**
+ * Classe que define o store "Backup"
+ *
+ * =======================================
+ * ###################################
+ * MagnusBilling
+ *
+ * @package MagnusBilling
+ * @author Adilson Leffa Magnus.
+ * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
+ * ###################################
+ *
+ * This software is released under the terms of the GNU Lesser General Public License v3
+ * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
+ *
+ * Please submit bug reports, patches, etc to https://github.com/magnusbilling/mbilling/issues
+ * =======================================
+ * Magnusbilling.com <info@magnusbilling.com>
+ * 17/08/2012
+ */
+Ext.define('MBilling.store.Main', {
+    extend: 'Ext.data.Store'
 });
 
 ;
@@ -74434,6 +78682,1381 @@ Ext.define('MBilling.view.dashboard.Module', {
 });
 
 ;
+/* Source: classic/src/view/magnusSentinel/Controller.js */
+/**
+ * Controller do painel operacional do Magnus Sentinel.
+ */
+Ext.define('MBilling.view.magnusSentinel.Controller', {
+    extend: 'Ext.app.ViewController',
+    alias: 'controller.magnussentinel',
+    onRenderModule: function() {
+        var me = this;
+        me.list = me.lookupReference('incidentList');
+        me.detail = me.lookupReference('incidentDetail');
+        me.store = me.list.getStore();
+        me.store.on('load', me.onStoreLoad, me);
+        me.store.getProxy().on('exception', me.onProxyException, me);
+        me.loadIncidents();
+        me.loadResources();
+    },
+    onDestroyModule: function() {
+        var me = this;
+        me.detailGeneration = (me.detailGeneration || 0) + 1;
+        if (me.store) {
+            me.store.un('load', me.onStoreLoad, me);
+            me.store.getProxy().un('exception', me.onProxyException, me);
+        }
+        Ext.Array.each(me.detailRequests || [], function(request) {
+            Ext.Ajax.abort(request);
+        });
+    },
+    onFilterChange: function() {
+        var me = this;
+        var state = me.lookupReference('stateFilter');
+        var days = me.lookupReference('daysFilter');
+        if (state && days) {
+            days.setVisible(
+                state.getValue() === 'resolved' ||
+                state.getValue() === 'false_positive'
+            );
+        }
+        if (me.store) {
+            me.loadIncidents();
+        }
+    },
+    onRefresh: function() {
+        this.loadIncidents();
+        this.loadResources();
+    },
+    loadResources: function() {
+        var me = this;
+        if (me.resourceRequest) { Ext.Ajax.abort(me.resourceRequest); }
+        me.resourceRequest = Ext.Ajax.request({
+            url: 'index.php/magnusSentinelIncident/resources', method: 'GET', timeout: 15000,
+            callback: function(options, success, response) {
+                var payload;
+                if (!success) { return; }
+                try {
+                    payload = Ext.decode(response.responseText);
+                    if (payload && payload.success === true) {
+                        var resources = me.getView().down('magnussentinelresources');
+                        if (resources) {
+                            resources.setResources(payload.data);
+                        }
+                    }
+                } catch (ignore) {}
+            }
+        });
+    },
+    loadIncidents: function() {
+        var me = this;
+        var state = me.lookupReference('stateFilter').getValue();
+        var params = {
+            state: state,
+            limit: 100
+        };
+        var severity = me.lookupReference('severityFilter').getValue();
+        var entity = me.lookupReference('entityFilter').getValue();
+        var type = me.lookupReference('typeFilter').getValue();
+        if (severity) {
+            params.severity = severity;
+        }
+        if (entity) {
+            params.entity_kind = entity;
+        }
+        if (type) {
+            params.incident_type = type;
+        }
+        if (state === 'resolved' || state === 'false_positive') {
+            params.days = me.lookupReference('daysFilter').getValue();
+        }
+        me.store.getProxy().setExtraParams(params);
+        me.store.loadPage(1);
+    },
+    onStoreLoad: function(store, records, successful, operation) {
+        var me = this;
+        var resultSet = operation && operation.getResultSet ?
+            operation.getResultSet() : null;
+        var reader = store.getProxy().getReader();
+        var raw = reader.rawData || {};
+        var data = raw.data || {};
+        var state = me.lookupReference('stateFilter').getValue();
+        if (!successful) {
+            return;
+        }
+        var metadata = resultSet && resultSet.getMetadata ?
+            resultSet.getMetadata() || data : data;
+        var health = metadata.health || null;
+        me.list.setHealthEmptyState(health, state);
+        me.list.getSelectionModel().deselectAll();
+        me.detail.clearIncident();
+        me.detail.collapse();
+    },
+    onProxyException: function() {
+        Ext.ux.Alert.alert(
+            t('Error'),
+            t('Check the session, the Sentinel API and server connectivity.'),
+            'error'
+        );
+    },
+    onIncidentSelectionChange: function(selectionModel, records) {
+        if (records.length) {
+            this.detail.expand();
+            this.loadDetail(records[0].get('id'));
+        }
+    },
+    loadDetail: function(id) {
+        var me = this;
+        var generation = (me.detailGeneration || 0) + 1;
+        var pending = 2;
+        var detailData = null;
+        var transitions = [];
+        var errorMessage = '';
+        me.detailGeneration = generation;
+        Ext.Array.each(me.detailRequests || [], function(request) {
+            Ext.Ajax.abort(request);
+        });
+        me.detail.setLoading(t('Loading...'));
+        function complete() {
+            pending -= 1;
+            if (pending > 0 || generation !== me.detailGeneration) {
+                return;
+            }
+            me.detail.setLoading(false);
+            if (errorMessage || !detailData) {
+                me.detail.showError(
+                    errorMessage || t('Invalid server response.')
+                );
+                return;
+            }
+            me.detail.update(me.prepareDetail(detailData, transitions));
+        }
+        function callback(kind) {
+            return function(options, success, response) {
+                var payload;
+                if (!success) {
+                    errorMessage = t(
+                        'The details did not respond. Refresh and try again.'
+                    );
+                    complete();
+                    return;
+                }
+                try {
+                    payload = Ext.decode(response.responseText);
+                    if (!payload || payload.success !== true ||
+                        payload.api_version !== 'magnus-sentinel.api/v1') {
+                        throw new Error(
+                            payload && payload.error ?
+                                payload.error : t('Invalid server response.')
+                        );
+                    }
+                    if (kind === 'detail') {
+                        detailData = payload.data;
+                    } else {
+                        transitions = payload.data.items || [];
+                    }
+                } catch (error) {
+                    errorMessage = error.message;
+                }
+                complete();
+            };
+        }
+        me.detailRequests = [
+            Ext.Ajax.request({
+                url: 'index.php/magnusSentinelIncident/detail',
+                method: 'GET',
+                params: {
+                    id: id
+                },
+                timeout: 15000,
+                callback: callback('detail')
+            }),
+            Ext.Ajax.request({
+                url: 'index.php/magnusSentinelIncident/transitions',
+                method: 'GET',
+                params: {
+                    id: id,
+                    limit: 25
+                },
+                timeout: 15000,
+                callback: callback('transitions')
+            })
+        ];
+    },
+    prepareDetail: function(data, transitions) {
+        var me = this;
+        var incident = data.incident || {};
+        var entity = incident.entity || {};
+        var probableCause = incident.probable_cause || {};
+        var action = incident.recommended_action || {};
+        var display = data.display || {};
+        var fallbackSteps = me.legacyActionSteps(incident);
+        var operatorSteps = action.operator_steps || fallbackSteps.operator;
+        var technicalSteps = action.technical_steps || fallbackSteps.technical;
+        return {
+            loaded: true,
+            priority: data.severity === 'critical' ?
+                t('CHECK NOW') : t('MONITOR'),
+            priorityColor: data.severity === 'critical' ?
+                '#8e1b12' : '#8a3418',
+            title: incident.title || '',
+            summary: incident.summary || '',
+            entity: me.formatEntity(entity.kind, entity.name),
+            state: me.stateLabel(data.state),
+            firstSeen: me.formatDisplayDate(
+                display.first_seen,
+                display.timezone,
+                data.first_seen
+            ),
+            lastSeen: me.formatDisplayDate(
+                display.last_seen,
+                display.timezone,
+                data.last_seen
+            ),
+            detectionWindow: me.formatDetectionWindow(
+                display,
+                incident.window
+            ),
+            displayTimezone: display.timezone || t('UTC'),
+            impact: (incident.impact || {}).description || '',
+            probableCause: probableCause.description || '',
+            probableCauseHelp: probableCause.hypothesis === true ?
+                t('This is a hypothesis based on the available evidence. It must be confirmed before changing the system.') :
+                t('This cause is supported by direct evidence collected by the Sentinel.'),
+            confidence: me.confidenceLabel(probableCause.confidence),
+            hypothesis: probableCause.hypothesis === true,
+            recommendedAction: t('Follow the steps for your role. Do not make configuration changes without confirming the cause.'),
+            operatorSteps: operatorSteps,
+            technicalSteps: technicalSteps,
+            evidence: Ext.Array.map(
+                incident.evidence || [],
+                me.prepareEvidence,
+                me
+            ),
+            transitions: Ext.Array.map(
+                transitions || [],
+                me.prepareTransition,
+                me
+            )
+        };
+    },
+    prepareEvidence: function(item) {
+        var labels = {
+            security_summary: t('Configuration comparison summary'),
+            security_reference: t('Comparison reference'),
+            security_differences: t('Configuration differences'),
+            security_comparison: t('Comparison limits'),
+            security_coverage: t('Collection coverage'),
+            security_scopes: t('Collected configuration scopes'),
+            security_hashes: t('Sanitized configuration hashes'),
+            response_code: t('Received code'),
+            response_reason: t('Received response'),
+            current_asr: t('Current ASR'),
+            baseline_asr: t('Historical reference ASR'),
+            current_acd: t('Current ACD'),
+            baseline_acd: t('Expected ACD'),
+            calls: t('Attempts'),
+            answered: t('Answered'),
+            baseline_calls: t('Baseline attempts'),
+            baseline_answered: t('Baseline answered calls'),
+            baseline_days: t('Baseline days'),
+            baseline_answered_days: t('Baseline answered days'),
+            current_count: t('Current occurrences'),
+            previous_count: t('Previous occurrences'),
+            current_rate: t('Current rate'),
+            previous_rate: t('Previous rate'),
+            current_events: t('Current events'),
+            expected_events: t('Expected events'),
+            drop_percentage: t('Traffic drop'),
+            involved_servers: t('Involved servers'),
+            monitored_servers: t('Monitored servers'),
+            server_distribution: t('Distribution by server'),
+            current_expected_ratio: t('Current versus expected'),
+            peer_ratio_median: t('Peer median'),
+            additional_to_global_drop: t('Additional server degradation'),
+            error_rate: t('Error rate'),
+            peer_median: t('Peer median'),
+            events: t('Events'),
+            expected_members: t('Expected servers'),
+            configured_members: t('Configured servers'),
+            runtime_members: t('In-memory servers'),
+            missing_workers: t('Missing servers'),
+            missing_in_memory: t('Missing in memory'),
+            extra_destinations: t('Unexpected destinations'),
+            extra_workers: t('Unexpected servers'),
+            extra_in_memory: t('Unexpected in memory'),
+            unhealthy_destinations: t('Unavailable destinations'),
+            weight_mismatches: t('Different weights'),
+            priority_mismatches: t('Different priorities'),
+            nonzero_states: t('Nonzero states'),
+            nonzero_state_destinations: t('Destinations with nonzero state'),
+            invalid_destinations: t('Invalid destinations'),
+            invalid_worker_addresses: t('Invalid server addresses'),
+            snapshot_age_seconds: t('Snapshot age'),
+            probe_duration_ms: t('Probe duration'),
+            runtime_state_verified: t('Runtime verified'),
+            proxy_host: t('Proxy address'),
+            error_code: t('Error code'),
+            error_class: t('Technical error category'),
+            resolver: t('DNS resolver'),
+            query_type: t('DNS query type'),
+            query: t('DNS query'),
+            duration_ms: t('DNS duration'),
+            timed_out: t('DNS timeout'),
+            dns_status: t('DNS status'),
+            configured_search_domains: t('Configured search domains'),
+            resolver_options: t('Resolver options'),
+            inferred_search_domain: t('Inferred search domain'),
+            provider_search_suffix: t('Provider search suffix'),
+            affected_trunk_hosts: t('Affected PJSIP hosts'),
+            trunk_host: t('PJSIP trunk host'),
+            dns_statuses: t('DNS statuses'),
+            probe_limits: t('Probe limits'),
+            all_resolvers_unavailable: t('All resolvers unavailable')
+        };
+        var help = {
+            current_asr: t('Percentage of answered calls in the current 15-minute window: answered calls divided by total attempts.'),
+            baseline_asr: t('Historical ASR for this trunk in the same 15-minute windows of up to seven previous days. It is not a configured target or a carrier guarantee.'),
+            current_acd: t('Average duration of answered calls in the current 15-minute window.'),
+            baseline_acd: t('Historical average call duration for the same time windows of previous days.'),
+            calls: t('Answered calls plus rejected calls in the current 15-minute window.'),
+            answered: t('Calls answered in the current 15-minute window.'),
+            baseline_calls: t('Sum of answered and rejected calls in the historical windows used as reference.'),
+            baseline_answered: t('Calls answered in the historical windows used to calculate the reference ASR.'),
+            baseline_days: t('Previous days with valid data in the same time window. At least three days are required.'),
+            baseline_answered_days: t('Previous days with answered calls in the same time window.'),
+            response_code: t('Raw code received from the trunk or internal Asterisk cause. The Sentinel does not change its meaning.'),
+            response_reason: t('Raw text received with the attempt result.'),
+            current_count: t('Occurrences observed in the current detector window.'),
+            previous_count: t('Occurrences observed in the historical comparison window.'),
+            current_rate: t('Percentage share of this occurrence in the current window.'),
+            previous_rate: t('Historical percentage share of this occurrence.'),
+            current_events: t('Events received from this server in the current window.'),
+            expected_events: t('Expected event count based on the recent behavior of the servers.'),
+            drop_percentage: t('Percentage reduction of current total compared with the expected total.'),
+            involved_servers: t('Servers that dropped simultaneously and in a similar proportion.'),
+            monitored_servers: t('Servers with sufficient baseline and healthy telemetry included in the evaluation.'),
+            server_distribution: t('Current, expected and proportional distribution used to compare each server with the fleet.'),
+            current_expected_ratio: t('Percentage of expected activity observed for this server.'),
+            peer_ratio_median: t('Median current-versus-expected percentage for servers in the same drop.'),
+            additional_to_global_drop: t('Indicates that this server degraded clearly more than the global behavior.'),
+            error_rate: t('Percentage of this server attempts classified as failures by the detector.'),
+            peer_median: t('Median failure rate of the other comparable servers.'),
+            events: t('Total events used to calculate the displayed rate.'),
+            expected_members: t('Servers that should participate according to the MagnusBilling topology.'),
+            configured_members: t('Destinations found in the persistent dispatcher configuration.'),
+            runtime_members: t('Destinations found in the dispatcher currently loaded in memory.'),
+            missing_workers: t('Expected servers not found in the persistent configuration.'),
+            missing_in_memory: t('Persistent destinations not found in the dispatcher loaded in memory.'),
+            extra_destinations: t('Persistent destinations that are not part of the expected topology.'),
+            extra_workers: t('Configured destinations that are not part of the expected topology.'),
+            extra_in_memory: t('Destinations found in memory but absent from the persistent configuration.'),
+            unhealthy_destinations: t('Destinations loaded in memory with a state other than healthy.'),
+            weight_mismatches: t('Destinations whose weights differ between the compared sources.'),
+            priority_mismatches: t('Destinations whose priorities differ between configuration and memory.'),
+            nonzero_states: t('Persistent destinations with an administrative state other than zero.'),
+            nonzero_state_destinations: t('Persistent destinations with an administrative state other than zero.'),
+            invalid_destinations: t('Destinations that could not be built or validated from the current configuration.'),
+            invalid_worker_addresses: t('Servers whose expected SIP address could not be built or validated.'),
+            snapshot_age_seconds: t('Age in seconds of the proxy runtime snapshot.'),
+            probe_duration_ms: t('Time spent by the local probe querying the proxy state.'),
+            runtime_state_verified: t('Indicates whether the Sentinel verified the state actually loaded in memory.'),
+            proxy_host: t('Address of the proxy related to this diagnosis.'),
+            error_code: t('Safe identifier for the failure found by the probe.'),
+            error_class: t('Technical exception category. Credentials and sensitive messages are not exposed.'),
+            resolver: t('Nameserver tested individually. It does not contain credentials.'),
+            query_type: t('DNS record type queried: A, AAAA or SRV.'),
+            query: t('Sanitized DNS name used by the bounded probe.'),
+            duration_ms: t('Total DNS response duration in milliseconds.'),
+            timed_out: t('Indicates that the resolver did not answer within one second.'),
+            dns_status: t('Sanitized DNS status. A fast NXDOMAIN confirms that the resolver answered.'),
+            configured_search_domains: t('Explicit search or domain policy read from resolv.conf.'),
+            resolver_options: t('Relevant resolv.conf options limited to timeout, attempts, ndots and rotate.'),
+            inferred_search_domain: t('Domain inferred from the hostname when no explicit search policy exists.'),
+            provider_search_suffix: t('Known provider suffix found in the inferred domain.'),
+            affected_trunk_hosts: t('PJSIP hosts extracted locally without username, password or full URI.'),
+            trunk_host: t('Sanitized PJSIP hostname that did not receive an A or AAAA address.'),
+            dns_statuses: t('DNS statuses returned for the trunk host.'),
+            probe_limits: t('Effective resolver, host, query, concurrency and timeout limits.'),
+            all_resolvers_unavailable: t('Indicates that no configured nameserver answered the bounded probe.')
+        };
+        return {
+            label: labels[item.key] || item.key,
+            value: this.evidenceValue(item),
+            help: item.display_description || item.description || help[item.key] ||
+                t('Technical evidence used by the detector to explain this incident.')
+        };
+    },
+    confidenceLabel: function(value) {
+        return {
+            low: t('Low'),
+            medium: t('Medium'),
+            high: t('High')
+        }[value] || t('Not informed');
+    },
+    evidenceValue: function(item) {
+        var value = Object.prototype.hasOwnProperty.call(item, 'display_value') ?
+            item.display_value : item.value;
+        if (item.key === 'security_differences' && Ext.isArray(value)) {
+            return value.map(function(row) {
+                return row.component + ' · ' + (row.file || row.scope) +
+                    ' [' + (row.section || '-') + '] ' +
+                    (row.parameter || row.change) + ': ' +
+                    (row.reference_value === null ? '∅' : row.reference_value) +
+                    ' → ' + (row.affected_value === null ? '∅' : row.affected_value) +
+                    ' (' + row.scope + ', ' + row.change + ')';
+            }).join('\n') || t('None');
+        }
+        if (Ext.isArray(value)) {
+            return value.length ? value.map(function(row) {
+                return Ext.isObject(row) ? Ext.encode(row) : String(row);
+            }).join('\n') : t('None');
+        }
+        if (Ext.isObject(value)) {
+            return Ext.encode(value);
+        }
+        if (Ext.isNumber(value) && [
+            'current_asr', 'baseline_asr', 'error_rate',
+            'current_rate', 'previous_rate', 'drop_percentage',
+            'current_expected_ratio', 'peer_ratio_median'
+        ].indexOf(item.key) !== -1) {
+            return value + '%';
+        }
+        if (Ext.isNumber(value) && [
+            'current_acd', 'baseline_acd'
+        ].indexOf(item.key) !== -1) {
+            return value + ' s';
+        }
+        return String(Ext.isEmpty(value) ? '' : value);
+    },
+    prepareTransition: function(item) {
+        var from = item.from_state ?
+            this.stateLabel(item.from_state) : t('Creation');
+        return {
+            state: from + ' → ' + this.stateLabel(item.to_state),
+            date: this.formatDisplayDate(
+                item.changed_at_display,
+                item.display_timezone,
+                item.changed_at
+            ),
+            note: item.note || ''
+        };
+    },
+    stateLabel: function(value) {
+        return {
+            'new': t('New'),
+            acknowledged: t('Acknowledged'),
+            resolved: t('Resolved'),
+            false_positive: t('False positive')
+        }[value] || value;
+    },
+    entityLabel: function(value) {
+        return {
+            trunk: t('Trunk'),
+            server: t('Server'),
+            proxy: t('Proxy'),
+            fleet: t('Fleet')
+        }[value] || value;
+    },
+    formatEntity: function(kind, name) {
+        if (kind === 'fleet') {
+            return t('Fleet');
+        }
+        return this.entityLabel(kind) + ' ' + (name || '');
+    },
+    legacyActionSteps: function(incident) {
+        if (incident.type === 'server_activity_drop') {
+            return {
+                operator: [
+                    t('Check the Pipeline health section and note the status of the collector for the affected server.'),
+                    t('Confirm whether calls, campaigns or traffic were expected during the exact detection window.'),
+                    t('Send the server, detection window, current events, expected events and collector status to support.'),
+                    t('Do not restart Asterisk, the collector or the server without technical confirmation.')
+                ],
+                technical: [
+                    t('Use the exact detection window and first confirm that the collector was healthy and had no backlog.'),
+                    t('Check Asterisk and the collector with read-only commands and compare channels, load, disk and inodes with peer servers.'),
+                    t('Compare event counts and traffic share with the other servers during the same window.'),
+                    t('If there is a proxy, verify the persistent and in-memory dispatcher state without reloading it.'),
+                    t('Do not restart or remove the server from load balancing before confirming the cause and rollback procedure.')
+                ]
+            };
+        }
+        return {
+            operator: [
+                t('Confirm whether calls are affected and note numbers, times and results.'),
+                t('Send this incident and your observations to support. Do not change the configuration without guidance.')
+            ],
+            technical: incident.recommended_action &&
+                incident.recommended_action.description ?
+                [incident.recommended_action.description] : [
+                    t('Review the evidence and correlate it with logs and configuration before making changes.')
+                ]
+        };
+    },
+    formatDisplayDate: function(value, timezone, utcFallback) {
+        if (value) {
+            return String(value) + (timezone ? ' ' + timezone : '');
+        }
+        return this.formatDate(utcFallback);
+    },
+    formatDetectionWindow: function(display, window) {
+        var start = display.window_start;
+        var end = display.window_end;
+        var minutes = display.window_minutes;
+        if (start && end) {
+            return Ext.String.format(
+                t('{0} to {1} ({2} minutes)'),
+                start,
+                end,
+                Ext.isNumber(minutes) ? minutes : 15
+            );
+        }
+        window = window || {};
+        if (window.start && window.end) {
+            return Ext.String.format(
+                t('{0} to {1}'),
+                this.formatDate(window.start),
+                this.formatDate(window.end)
+            );
+        }
+        return t('Not informed');
+    },
+    formatDate: function(value) {
+        var text;
+        if (!value) {
+            return t('Not informed');
+        }
+        text = String(value).replace('T', ' ');
+        text = text.replace(
+            /\.\d+(?=Z$|[+-]\d{2}:\d{2}$|$)/,
+            ''
+        );
+        text = text.replace(/Z$|\+00:00$/, '');
+        return text + ' ' + t('UTC');
+    }
+});
+
+
+;
+/* Source: classic/src/view/magnusSentinel/Summary.js */
+/**
+ * Resumo por prioridade dos incidentes do Magnus Sentinel.
+ */
+Ext.define('MBilling.view.magnusSentinel.Summary', {
+    extend: 'Ext.container.Container',
+    alias: 'widget.magnussentinelsummary',
+    region: 'north',
+    height: 92,
+    padding: 10,
+    layout: {
+        type: 'hbox',
+        align: 'stretch'
+    },
+    defaults: {
+        xtype: 'component',
+        flex: 1,
+        margin: '0 8 0 0'
+    },
+    initComponent: function() {
+        var me = this;
+        me.items = [{
+            itemId: 'criticalSummary',
+            style: 'background:#fff;border:1px solid #d9d9d9;' +
+                'border-left:6px solid #b42318;padding:12px;',
+            html: me.summaryHtml(0, t('Check now'))
+        }, {
+            itemId: 'warningSummary',
+            style: 'background:#fff;border:1px solid #d9d9d9;' +
+                'border-left:6px solid #b54708;padding:12px;',
+            html: me.summaryHtml(0, t('Monitor'))
+        }, {
+            itemId: 'totalSummary',
+            margin: 0,
+            style: 'background:#fff;border:1px solid #d9d9d9;' +
+                'border-left:6px solid #4777a7;padding:12px;',
+            html: me.summaryHtml(0, t('Active problems'))
+        }];
+        me.callParent(arguments);
+    },
+    summaryHtml: function(value, label) {
+        return '<strong style="display:block;font-size:25px;line-height:28px">' +
+            Ext.util.Format.htmlEncode(value) + '</strong><span>' +
+            Ext.util.Format.htmlEncode(label) + '</span>';
+    },
+    setSummary: function(summary, history) {
+        summary = summary || {};
+        this.down('#criticalSummary').update(
+            this.summaryHtml(summary.critical || 0, t('Check now'))
+        );
+        this.down('#warningSummary').update(
+            this.summaryHtml(summary.warning || 0, t('Monitor'))
+        );
+        this.down('#totalSummary').update(
+            this.summaryHtml(
+                summary.total || 0,
+                history ? t('In history') : t('Active problems')
+            )
+        );
+    }
+});
+
+
+;
+/* Source: classic/src/view/magnusSentinel/Resources.js */
+Ext.define('MBilling.view.magnusSentinel.Resources', {
+    extend: 'Ext.grid.Panel',
+    alias: 'widget.magnussentinelresources',
+    reference: 'sentinelResources',
+    title: t('Server resources'),
+    border: true,
+    store: { fields: ['server_name','severity','cpu_percent','iowait_percent',
+        'load_1','cpu_count','memory_total_bytes','memory_available_bytes',
+        'swap_total_bytes','swap_used_bytes','disk_max_percent','affected_resources',
+        'active_diagnostic','trends','baseline'], data: [] },
+    viewConfig: { emptyText: t('Server resource data is not available yet.'), deferEmptyText: false },
+    initComponent: function() {
+        var me = this;
+        function percent(value) { return Ext.isNumber(value) ? value.toFixed(1) + '%' : '—'; }
+        function bytes(value) {
+            return Ext.isNumber(value) ? (value / 1073741824).toFixed(1) + ' GB' : '—';
+        }
+        me.columns = [
+            { text: t('Server'), dataIndex: 'server_name', flex: 2, minWidth: 120 },
+            { text: t('Severity'), dataIndex: 'severity', width: 105 },
+            { text: t('CPU'), dataIndex: 'cpu_percent', width: 80, renderer: percent },
+            { text: t('I/O wait'), dataIndex: 'iowait_percent', width: 85, renderer: percent },
+            { text: t('Load'), dataIndex: 'load_1', width: 70 },
+            { text: t('Available RAM'), dataIndex: 'memory_available_bytes', width: 125, renderer: bytes },
+            { text: t('Swap used'), dataIndex: 'swap_used_bytes', width: 105, renderer: bytes },
+            { text: t('Disk'), dataIndex: 'disk_max_percent', width: 80, renderer: percent },
+            { text: t('Affected resource'), dataIndex: 'affected_resources', flex: 2,
+              renderer: function(value) { return Ext.util.Format.htmlEncode((value || []).join(', ') || t('None')); } },
+            { text: t('Probable cause'), dataIndex: 'active_diagnostic', flex: 3, minWidth: 220,
+              renderer: function(value) {
+                  var diagnostic = value && value.diagnostic;
+                  return Ext.util.Format.htmlEncode(diagnostic ? diagnostic.probable_cause : t('No degradation detected'));
+              } },
+            { text: t('Recommended action'), dataIndex: 'active_diagnostic', flex: 3, minWidth: 240,
+              renderer: function(value) {
+                  var diagnostic = value && value.diagnostic;
+                  return Ext.util.Format.htmlEncode(diagnostic ? diagnostic.recommended_action : t('None'));
+              } }
+        ];
+        me.callParent(arguments);
+    },
+    setResources: function(data) { this.getStore().loadData((data && data.items) || []); }
+});
+
+
+;
+/* Source: classic/src/view/magnusSentinel/Health.js */
+/**
+ * Saúde operacional da pipeline, independente do estado dos incidentes.
+ */
+Ext.define('MBilling.view.magnusSentinel.Health', {
+    extend: 'Ext.grid.Panel',
+    alias: 'widget.magnussentinelhealth',
+    reference: 'sentinelHealth',
+    border: true,
+    columnLines: true,
+    title: t('Sentinel health'),
+    store: {
+        fields: [
+            'component', 'server_name', 'health_status', 'heartbeat_at',
+            'heartbeat_at_display', 'display_timezone',
+            'heartbeat_age_seconds', 'pending_events', 'ingest_lag_seconds',
+            'health_reasons', 'last_error_at', 'last_error_at_display',
+            'last_error_code',
+            'last_error_message', 'filesystem_status', 'filesystem_reason',
+            'filesystem_path', 'filesystem_used_percent',
+            'filesystem_available_bytes',
+            'filesystem_inode_used_percent',
+            'filesystem_available_inodes', 'filesystem_checked_at'
+        ],
+        data: []
+    },
+    viewConfig: {
+        emptyText: t('Sentinel health data is not available yet.'),
+        deferEmptyText: false
+    },
+    initComponent: function() {
+        var me = this;
+        me.columns = [{
+            text: t('Status'),
+            dataIndex: 'health_status',
+            width: 110,
+            renderer: function(value) {
+                var colors = {
+                    HEALTHY: '#18794e',
+                    UNKNOWN: '#5f6b7a',
+                    DEGRADED: '#8a5a00',
+                    STALE: '#8a3418',
+                    UNHEALTHY: '#8e1b12'
+                };
+                return '<b style="color:' + (colors[value] || '#5f6b7a') +
+                    '">' + Ext.util.Format.htmlEncode(me.statusLabel(value)) +
+                    '</b>';
+            }
+        }, {
+            text: t('Component'),
+            dataIndex: 'component',
+            width: 110,
+            renderer: function(value) {
+                return Ext.util.Format.htmlEncode(
+                    value === 'collector' ? t('Collector') : t('Analyzer')
+                );
+            }
+        }, {
+            text: t('Server'),
+            dataIndex: 'server_name',
+            flex: 2,
+            minWidth: 120,
+            renderer: Ext.util.Format.htmlEncode
+        }, {
+            text: t('Last heartbeat'),
+            dataIndex: 'heartbeat_at_display',
+            flex: 2,
+            minWidth: 155,
+            renderer: function(value, metadata, record) {
+                return Ext.util.Format.htmlEncode(me.formatDate(
+                    value,
+                    record.get('display_timezone')
+                ));
+            }
+        }, {
+            text: t('Data age'),
+            dataIndex: 'heartbeat_age_seconds',
+            width: 105,
+            renderer: function(value) {
+                return Ext.util.Format.htmlEncode(me.formatAge(value));
+            }
+        }, {
+            text: t('Backlog'),
+            dataIndex: 'pending_events',
+            width: 90,
+            align: 'right'
+        }, {
+            text: t('Ingest lag'),
+            dataIndex: 'ingest_lag_seconds',
+            width: 105,
+            renderer: function(value) {
+                return Ext.util.Format.htmlEncode(me.formatAge(value || 0));
+            }
+        }, {
+            text: t('Filesystem'),
+            dataIndex: 'filesystem_path',
+            flex: 2,
+            minWidth: 180,
+            renderer: function(value, metadata, record) {
+                return Ext.util.Format.htmlEncode(
+                    me.formatFilesystem(record)
+                );
+            }
+        }, {
+            text: t('Inodes'),
+            dataIndex: 'filesystem_inode_used_percent',
+            width: 155,
+            renderer: function(value, metadata, record) {
+                if (!Ext.isNumber(value)) {
+                    return Ext.util.Format.htmlEncode(t('Not monitored'));
+                }
+                return Ext.util.Format.htmlEncode(
+                    Ext.String.format(
+                        t('{0}% used; {1} available'),
+                        value,
+                        record.get('filesystem_available_inodes')
+                    )
+                );
+            }
+        }, {
+            text: t('Reason'),
+            dataIndex: 'health_reasons',
+            flex: 3,
+            minWidth: 180,
+            renderer: function(value) {
+                return Ext.util.Format.htmlEncode(
+                    Ext.Array.map(value || [], me.reasonLabel, me).join('; ') ||
+                    t('No degradation detected')
+                );
+            }
+        }, {
+            text: t('Last error'),
+            dataIndex: 'last_error_at_display',
+            flex: 2,
+            minWidth: 170,
+            renderer: function(value, metadata, record) {
+                if (!value) {
+                    return Ext.util.Format.htmlEncode(t('None'));
+                }
+                var code = record.get('last_error_code');
+                var translated = me.reasonLabel(code);
+                return Ext.util.Format.htmlEncode(
+                    me.formatDate(value, record.get('display_timezone')) +
+                    (code ?
+                        ' — ' + (
+                            translated !== code ?
+                                translated :
+                                record.get('last_error_message') || code
+                        ) : '')
+                );
+            }
+        }];
+        me.dockedItems = [{
+            xtype: 'component',
+            dock: 'top',
+            itemId: 'aggregateHealth',
+            padding: '7 10',
+            style: 'background:#f5f7f9;border-bottom:1px solid #d9d9d9',
+            html: Ext.util.Format.htmlEncode(
+                t('Waiting for Sentinel health data...')
+            )
+        }];
+        me.callParent(arguments);
+    },
+    setHealth: function(health) {
+        health = health || {
+            health_status: 'UNKNOWN',
+            components: [],
+            evaluated_at: null
+        };
+        this.getStore().loadData(health.components || []);
+        this.down('#aggregateHealth').update(
+            '<b>' + Ext.util.Format.htmlEncode(
+                t('Pipeline status') + ': ' +
+                this.statusLabel(health.health_status)
+            ) + '</b> &nbsp; ' +
+            Ext.util.Format.htmlEncode(
+                t('Evaluated at') + ': ' + this.formatDate(
+                    health.evaluated_at_display,
+                    health.display_timezone
+                )
+            )
+        );
+    },
+    statusLabel: function(value) {
+        return {
+            HEALTHY: t('Healthy'),
+            UNKNOWN: t('Unknown'),
+            DEGRADED: t('Degraded'),
+            STALE: t('Outdated'),
+            UNHEALTHY: t('Unhealthy')
+        }[value] || t('Unknown');
+    },
+    reasonLabel: function(value) {
+        return {
+            heartbeat_missing: t('Heartbeat was never received'),
+            heartbeat_stale: t('Heartbeat is outdated'),
+            successful_cycle_missing: t('No successful cycle was recorded'),
+            database_unavailable: t('Central database is unavailable'),
+            repeated_database_failures: t('Repeated database failures'),
+            recoverable_database_failures: t('Recent recoverable database failures'),
+            pending_events: t('Events are waiting to be persisted'),
+            committed_event_evidence_missing: t('No persisted event evidence yet'),
+            asterisk_log_unavailable: t('Asterisk event log is unavailable'),
+            collector_cycle_failed: t('Collector cycle failed'),
+            analysis_partial: t('Analyzer cycle was incomplete'),
+            analyzer_failed: t('Analyzer cycle failed'),
+            filesystem_space_low: t('Filesystem space is low'),
+            filesystem_space_critical: t('Filesystem space is critical'),
+            filesystem_inodes_low: t('Filesystem inodes are low'),
+            filesystem_inodes_critical: t('Filesystem inodes are critical'),
+            filesystem_check_failed: t('Filesystem check failed'),
+            filesystem_no_space: t('Filesystem has no space available'),
+            filesystem_quota_exceeded: t('Filesystem quota was exceeded'),
+            filesystem_read_only: t('Filesystem is read-only'),
+            local_state_write_failed: t('Sentinel local state write failed')
+        }[value] || value;
+    },
+    formatFilesystem: function(record) {
+        var used = record.get('filesystem_used_percent');
+        var path = record.get('filesystem_path');
+        if (!Ext.isNumber(used) || !path) {
+            return t('Not monitored');
+        }
+        return path + ' · ' + Ext.String.format(
+            t('{0}% used; {1} available'),
+            used,
+            this.formatBytes(record.get('filesystem_available_bytes'))
+        );
+    },
+    formatBytes: function(value) {
+        var gibibyte = 1024 * 1024 * 1024;
+        var mebibyte = 1024 * 1024;
+        if (!Ext.isNumber(value)) {
+            return t('Not informed');
+        }
+        if (value >= gibibyte) {
+            return (value / gibibyte).toFixed(1) + ' GB';
+        }
+        return Math.round(value / mebibyte) + ' MB';
+    },
+    formatAge: function(value) {
+        if (!Ext.isNumber(value)) {
+            return t('Not informed');
+        }
+        if (value < 60) {
+            return value + ' ' + t('seconds');
+        }
+        return Math.floor(value / 60) + ' ' + t('minutes');
+    },
+    formatDate: function(value, timezone) {
+        if (!value) {
+            return t('Not informed');
+        }
+        return String(value).replace(/\.\d+$/, '') +
+            (timezone ? ' ' + timezone : '');
+    }
+});
+
+
+;
+/* Source: classic/src/view/magnusSentinel/Detail.js */
+/**
+ * Detalhe sob demanda dos incidentes do Magnus Sentinel.
+ */
+Ext.define('MBilling.view.magnusSentinel.Detail', {
+    extend: 'Ext.panel.Panel',
+    alias: 'widget.magnussentineldetail',
+    reference: 'incidentDetail',
+    title: t('Problem details'),
+    bodyPadding: 14,
+    border: true,
+    split: true,
+    collapsible: true,
+    scrollable: true,
+    minWidth: 340,
+    initComponent: function() {
+        var me = this;
+        me.tpl = Ext.create('Ext.XTemplate',
+            '<tpl if="loaded">',
+                '<div style="border-left:6px solid {priorityColor};padding-left:12px">',
+                    '<div style="font-weight:bold;color:{priorityColor};">',
+                        '{priority:htmlEncode}',
+                    '</div>',
+                    '<h2 style="margin:5px 0 8px">{title:htmlEncode}</h2>',
+                    '<p>{summary:htmlEncode}</p>',
+                '</div>',
+                '<div style="background:#f5f5f5;padding:9px;margin:12px 0">',
+                    '<b>' + t('Component') + ':</b> {entity:htmlEncode}<br>',
+                    '<b>' + t('State') + ':</b> {state:htmlEncode}<br>',
+                    '<b>' + t('First detection') + ':</b> {firstSeen:htmlEncode}<br>',
+                    '<b>' + t('Last detection') + ':</b> {lastSeen:htmlEncode}<br>',
+                    '<b>' + t('Detection window') + ':</b> {detectionWindow:htmlEncode}<br>',
+                    '<b>' + t('Server timezone') + ':</b> {displayTimezone:htmlEncode}',
+                '</div>',
+                '<h3>' + t('Impact') + '</h3><p>{impact:htmlEncode}</p>',
+                '<h3>' + t('Probable cause'),
+                    ' <span class="x-fa fa-info-circle" tabindex="0" role="img"' +
+                        ' data-qtip="{probableCauseHelp:htmlEncode}"' +
+                        ' aria-label="{probableCauseHelp:htmlEncode}"' +
+                        ' style="color:#205493;cursor:help;font-size:14px"></span>',
+                '</h3>',
+                '<p>{probableCause:htmlEncode} ',
+                    '<tpl if="hypothesis">',
+                        '<span style="background:#fff0d8;color:#7a3900;' +
+                            'padding:2px 6px;border-radius:8px">',
+                            t('Hypothesis to confirm'),
+                        '</span>',
+                    '</tpl>',
+                '</p>',
+                '<p style="color:#555"><b>' + t('Analysis confidence') +
+                    ':</b> {confidence:htmlEncode}</p>',
+                '<div style="border-left:5px solid #205493;background:#edf5ff;' +
+                    'padding:8px 12px;margin:12px 0">',
+                    '<h3 style="margin-top:0">' + t('Recommended action') + '</h3>',
+                    '<p>{recommendedAction:htmlEncode}</p>',
+                    '<h4 style="margin:10px 0 3px">' +
+                        t('What the operator can do') + '</h4>',
+                    '<tpl if="operatorSteps.length">',
+                        '<ol style="padding-left:22px;margin-bottom:8px">',
+                        '<tpl for="operatorSteps">',
+                            '<li style="margin-bottom:5px">{.:htmlEncode}</li>',
+                        '</tpl>',
+                        '</ol>',
+                    '</tpl>',
+                    '<tpl if="technicalSteps.length">',
+                        '<h4 style="margin:10px 0 3px">' +
+                            t('For technical support') + '</h4>',
+                        '<ol style="padding-left:22px;margin-bottom:0">',
+                        '<tpl for="technicalSteps">',
+                            '<li style="margin-bottom:5px">{.:htmlEncode}</li>',
+                        '</tpl>',
+                        '</ol>',
+                    '</tpl>',
+                '</div>',
+                '<h3>' + t('Evidence') + '</h3>',
+                '<tpl if="evidence.length">',
+                    '<table style="width:100%;border-collapse:collapse">',
+                    '<tpl for="evidence">',
+                        '<tr><td style="padding:5px;border-bottom:1px solid #ddd">',
+                            '{label:htmlEncode}',
+                            '<tpl if="help">',
+                                ' <span class="x-fa fa-info-circle" tabindex="0"' +
+                                    ' role="img" data-qtip="{help:htmlEncode}"' +
+                                    ' aria-label="{help:htmlEncode}"' +
+                                    ' style="color:#205493;cursor:help"></span>',
+                            '</tpl>',
+                        '</td><td style="padding:5px;border-bottom:1px solid #ddd;' +
+                            'font-weight:bold;white-space:pre-wrap;overflow-wrap:anywhere">{value:htmlEncode}</td></tr>',
+                    '</tpl>',
+                    '</table>',
+                '<tpl else>',
+                    '<p>' + t('No additional evidence available.') + '</p>',
+                '</tpl>',
+                '<h3>' + t('State history') + '</h3>',
+                '<tpl if="transitions.length">',
+                    '<tpl for="transitions">',
+                        '<div style="border-left:3px solid #999;padding:3px 8px;' +
+                            'margin-bottom:7px">',
+                            '<b>{state:htmlEncode}</b><br>',
+                            '<small>{date:htmlEncode}<tpl if="note"> · ',
+                                '{note:htmlEncode}</tpl></small>',
+                        '</div>',
+                    '</tpl>',
+                '<tpl else>',
+                    '<p>' + t('No manual state changes.') + '</p>',
+                '</tpl>',
+            '<tpl else>',
+                '<div style="text-align:center;color:#666;padding:28px">',
+                    '<h3>' + t('No incident selected') + '</h3>',
+                    '<p>' + t('Select an incident to see what happened, the evidence and the recommended action.') + '</p>',
+                '</div>',
+            '</tpl>'
+        );
+        me.data = {
+            loaded: false
+        };
+        me.callParent(arguments);
+    },
+    clearIncident: function() {
+        this.update({
+            loaded: false
+        });
+    },
+    showError: function(message) {
+        this.update({
+            loaded: true,
+            priority: t('Error'),
+            priorityColor: '#b42318',
+            title: t('Unable to open details'),
+            summary: message,
+            entity: '',
+            state: '',
+            firstSeen: '',
+            lastSeen: '',
+            detectionWindow: '',
+            displayTimezone: '',
+            impact: '',
+            probableCause: '',
+            probableCauseHelp: '',
+            confidence: '',
+            hypothesis: false,
+            recommendedAction: '',
+            operatorSteps: [],
+            technicalSteps: [],
+            evidence: [],
+            transitions: []
+        });
+    }
+});
+
+
+;
+/* Source: classic/src/view/magnusSentinel/List.js */
+/**
+ * Lista operacional dos incidentes do Magnus Sentinel.
+ */
+Ext.define('MBilling.view.magnusSentinel.List', {
+    extend: 'Ext.grid.Panel',
+    alias: 'widget.magnussentinellist',
+    region: 'center',
+    reference: 'incidentList',
+    border: true,
+    columnLines: true,
+    selModel: {
+        mode: 'SINGLE'
+    },
+    viewConfig: {
+        loadMask: {
+            msg: t('Loading...')
+        },
+        emptyText: '<div class="grid-empty">' +
+            t('Sentinel health has not been confirmed yet.') + '</div>',
+        deferEmptyText: false
+    },
+    listeners: {
+        selectionchange: 'onIncidentSelectionChange'
+    },
+    initComponent: function () {
+        var me = this;
+        me.store = Ext.create('MBilling.store.MagnusSentinelIncident');
+        me.columns = [{
+            text: t('Priority'),
+            dataIndex: 'severity',
+            flex: 2,
+            renderer: function (value) {
+                var critical = value === 'critical';
+                return '<span style="font-weight:bold;color:' +
+                    (critical ? '#8e1b12' : '#8a3418') + '">' +
+                    Ext.util.Format.htmlEncode(
+                        critical ? t('Check now') : t('Monitor')
+                    ) + '</span>';
+            }
+        }, {
+            text: t('Problem'),
+            dataIndex: 'title',
+            flex: 5,
+            renderer: function (value, metadata, record) {
+                metadata.tdAttr = 'data-qtip="' +
+                    Ext.util.Format.htmlEncode(record.get('summary')) + '"';
+                return Ext.util.Format.htmlEncode(value);
+            }
+        }, {
+            text: t('Component'),
+            dataIndex: 'entity_name',
+            flex: 4,
+            renderer: function (value, metadata, record) {
+                return Ext.util.Format.htmlEncode(
+                    record.get('entity_kind') === 'fleet' ?
+                        t('Fleet') :
+                        me.entityLabel(record.get('entity_kind')) + ' ' + value
+                );
+            }
+        }, {
+            text: t('State'),
+            dataIndex: 'state',
+            flex: 1,
+            renderer: function (value) {
+                return Ext.util.Format.htmlEncode(me.stateLabel(value));
+            }
+        }, {
+            text: t('Recurrences'),
+            dataIndex: 'occurrence_count',
+            flex: 1,
+            align: 'right'
+        }, {
+            text: t('Last detection'),
+            dataIndex: 'last_seen_display',
+            flex: 3,
+            renderer: function (value, metadata, record) {
+                var timezone = record.get('display_timezone');
+                return Ext.util.Format.htmlEncode(
+                    value ?
+                        value + (timezone ? ' ' + timezone : '') :
+                        me.formatDate(record.get('last_seen'))
+                );
+            }
+        }];
+        me.dockedItems = [{
+            xtype: 'toolbar',
+            dock: 'top',
+            items: [{
+                xtype: 'combobox',
+                reference: 'stateFilter',
+                fieldLabel: t('State'),
+                labelWidth: 42,
+                width: 190,
+                editable: false,
+                queryMode: 'local',
+                value: 'active',
+                store: [
+                    ['active', t('Active')],
+                    ['new', t('New only')],
+                    ['acknowledged', t('Acknowledged')],
+                    ['resolved', t('Resolved')],
+                    ['false_positive', t('False positives')]
+                ],
+                listeners: {
+                    change: 'onFilterChange'
+                }
+            }, {
+                xtype: 'combobox',
+                reference: 'severityFilter',
+                fieldLabel: t('Priority'),
+                labelWidth: 52,
+                width: 190,
+                editable: false,
+                queryMode: 'local',
+                value: '',
+                store: [
+                    ['', t('All')],
+                    ['critical', t('Check now')],
+                    ['warning', t('Monitor')]
+                ],
+                listeners: {
+                    change: 'onFilterChange'
+                }
+            }, {
+                xtype: 'combobox',
+                reference: 'entityFilter',
+                fieldLabel: t('Component'),
+                labelWidth: 70,
+                width: 200,
+                editable: false,
+                queryMode: 'local',
+                value: '',
+                store: [
+                    ['', t('All')],
+                    ['trunk', t('Trunks')],
+                    ['server', t('Servers')],
+                    ['proxy', t('Proxies')],
+                    ['fleet', t('Fleets')]
+                ],
+                listeners: {
+                    change: 'onFilterChange'
+                }
+            }, {
+                xtype: 'combobox',
+                reference: 'typeFilter',
+                fieldLabel: t('Problem'),
+                labelWidth: 52,
+                width: 245,
+                editable: false,
+                queryMode: 'local',
+                value: '',
+                store: [
+                    ['', t('All problems')],
+                    ['low_asr', t('Low ASR')],
+                    ['abnormal_acd', t('Abnormal ACD')],
+                    ['trunk_offline', t('Trunk offline')],
+                    ['recurring_trunk_error', t('Recurring trunk error')],
+                    ['server_activity_drop', t('Server activity drop')],
+                    ['server_error_divergence', t('Divergent server errors')],
+                    ['dispatcher_membership_mismatch',
+                        t('Persistent dispatcher mismatch')],
+                    ['dispatcher_runtime_mismatch',
+                        t('Dispatcher in-memory mismatch')],
+                    ['proxy_runtime_probe_unavailable',
+                        t('Proxy probe unavailable')],
+                    ['proxy_dispatcher_unreachable',
+                        t('Proxy destination unavailable')],
+                    ['dns_resolution_degradation',
+                        t('DNS resolution degradation')],
+                    ['pjsip_dns_search_suffix_risk',
+                        t('PJSIP DNS search suffix risk')],
+                    ['pjsip_trunk_dns_failure',
+                        t('PJSIP trunk DNS failure')]
+                ],
+                listeners: {
+                    change: 'onFilterChange'
+                }
+            }, {
+                xtype: 'combobox',
+                reference: 'daysFilter',
+                fieldLabel: t('Period'),
+                labelWidth: 42,
+                width: 140,
+                hidden: true,
+                editable: false,
+                queryMode: 'local',
+                value: 7,
+                store: [
+                    [7, t('7 days')],
+                    [30, t('30 days')],
+                    [90, t('90 days')]
+                ],
+                listeners: {
+                    change: 'onFilterChange'
+                }
+            }, '->', {
+                xtype: 'button',
+                text: t('Refresh now'),
+                handler: 'onRefresh'
+            }]
+        }, {
+            xtype: 'pagingtoolbar',
+            dock: 'bottom',
+            store: me.store,
+            displayInfo: true
+        }];
+        me.callParent(arguments);
+    },
+    setHealthEmptyState: function(health, state) {
+        var status = health && health.health_status;
+        var message;
+        if (state !== 'active') {
+            message = t('No incidents match the selected filters.');
+        } else if (status === 'HEALTHY') {
+            message = t(
+                'No active incidents were detected in the received data.'
+            );
+        } else {
+            message = t(
+                'It is not possible to confirm the environment health because the Sentinel data is unavailable or outdated.'
+            );
+        }
+        this.getView().emptyText = '<div class="grid-empty">' +
+            Ext.util.Format.htmlEncode(message) + '</div>';
+        this.getView().refresh();
+    },
+    stateLabel: function (value) {
+        return {
+            'new': t('New'),
+            acknowledged: t('Acknowledged'),
+            resolved: t('Resolved'),
+            false_positive: t('False positive')
+        }[value] || value;
+    },
+    entityLabel: function (value) {
+        return {
+            trunk: t('Trunk'),
+            server: t('Server'),
+            proxy: t('Proxy')
+        }[value] || value;
+    },
+    formatDate: function (value) {
+        if (!value) {
+            return t('Not informed');
+        }
+        return String(value).replace(/\.\d+$/, '') + ' ' + t('UTC');
+    }
+});
+
+
+;
+/* Source: classic/src/view/magnusSentinel/Module.js */
+/**
+ * Módulo ExtJS nativo do Magnus Sentinel.
+ */
+Ext.define('MBilling.view.magnusSentinel.Module', {
+    extend: 'Ext.panel.Panel',
+    alias: 'widget.magnussentinelmodule',
+    controller: 'magnussentinel',
+    requires: [
+        'MBilling.store.MagnusSentinelIncident',
+        'MBilling.view.magnusSentinel.Controller',
+        'MBilling.view.magnusSentinel.Health',
+        'MBilling.view.magnusSentinel.Resources',
+        'MBilling.view.magnusSentinel.Summary',
+        'MBilling.view.magnusSentinel.List',
+        'MBilling.view.magnusSentinel.Detail'
+    ],
+    border: false,
+    layout: 'border',
+    listeners: {
+        afterrender: 'onRenderModule',
+        beforedestroy: 'onDestroyModule'
+    },
+    initComponent: function () {
+        var me = this;
+        var mobile = window.isMobileLayout ||
+            window.isTablet || window.isTablets;
+        me.items = [{
+            xtype: 'magnussentinellist'
+        }, {
+            xtype: 'magnussentineldetail',
+            region: mobile ? 'south' : 'east',
+            width: mobile ? undefined : '43%',
+            height: mobile ? '45%' : undefined,
+            collapsed: true
+        }];
+        me.callParent(arguments);
+    }
+});
+
+
+;
 /* Source: classic/src/Application.js */
 /**
  * The main application class. An instance of this class is created by app.js when it calls
@@ -74446,8 +80069,8 @@ Ext.define('MBilling.Application', {
     name: 'MBilling',
     titleNotification: t('Notification'),
     msgSessionExpired: t('Your session has expired. Log in again.'),
-    views: ['userHistory.Controller', 'userHistory.Module', 'userHistory.List', 'userHistory.Form', 'main.MainController', 'main.Login', 'main.LoginController', 'main.ForgetPassword', 'main.GoogleAuthenticator', 'main.Main', 'main.Desktop', 'main.Help', 'main.Settings', 'main.About', 'main.ChangePassword', 'main.ImportLogo', 'main.ImportLoginBackground', 'main.SetUserData', 'groupModule.Controller', 'groupModule.Module', 'groupModule.List', 'groupModule.Form', 'groupModule.Field', 'groupUser.Controller', 'groupUser.Module', 'groupUser.List', 'groupUser.Form', 'groupUser.Combo', 'groupUser.Tag', 'module.Controller', 'module.Module', 'module.List', 'module.Form', 'module.Combo', 'module.Tag', 'user.Controller', 'user.Combo', 'user.Module', 'user.List', 'user.Form', 'user.Lookup', 'user.Bulk', 'configuration.Controller', 'configuration.Module', 'configuration.List', 'configuration.Form', 'general.BooleanCombo', 'general.GroupCombo', 'general.LcrtypeCombo', 'general.OfferTypeCombo', 'general.SipCombo', 'general.TypePaymentCombo', 'templateMail.Controller', 'templateMail.Module', 'templateMail.List', 'templateMail.Form', 'logUsers.Controller', 'logUsers.Module', 'logUsers.List', 'logUsers.Form', 'provider.Controller', 'provider.Combo', 'provider.Module', 'provider.List', 'provider.Form', 'provider.Lookup', 'providerCNL.Controller', 'providerCNL.Module', 'providerCNL.List', 'providerCNL.Form', 'providerCNL.ImportCsv', 'plan.Controller', 'plan.Combo', 'plan.Module', 'plan.List', 'plan.Form', 'plan.Tag', 'plan.Lookup', 'trunk.Controller', 'trunk.Combo', 'trunk.Module', 'trunk.List', 'trunk.Form', 'trunk.Lookup', 'trunk.Tag', 'trunkGroup.Controller', 'trunkGroup.Module', 'trunkGroup.List', 'trunkGroup.Form', 'trunkGroup.Lookup', 'trunkGroup.Combo', 'prefix.Controller', 'prefix.Combo', 'prefix.Module', 'prefix.List', 'prefix.Form', 'trunkSipCodes.Controller', 'trunkSipCodes.Module', 'trunkSipCodes.List', 'trunkSipCodes.Form', 'prefix.Lookup', 'sipTrace.Controller', 'sipTrace.Module', 'sipTrace.List', 'sipTrace.Form', 'rateProvider.Controller', 'rateProvider.Module', 'rateProvider.List', 'rateProvider.Form', 'rateProvider.ImportCsv', 'api.Controller', 'api.Module', 'api.List', 'api.Form', 'sip.Controller', 'sip.Module', 'sip.List', 'sip.Form', 'sip.Lookup', 'sip.Bulk', 'sip.ImportCsv', 'sip2.Controller', 'sip2.Module', 'sip2.List', 'sip2.Form', 'sip2.Lookup', 'sipuras.Controller', 'sipuras.Module', 'sipuras.List', 'sipuras.Form', 'iax.Controller', 'iax.Module', 'iax.List', 'iax.Form', 'iax.Lookup', 'callOnLine.Controller', 'callOnLine.Module', 'callOnLine.List', 'callOnLine.Form', 'callSummaryDayUser.Controller', 'callSummaryDayUser.Module', 'callSummaryDayUser.List', 'callSummaryDayUser.Form', 'callSummaryDayTrunk.Controller', 'callSummaryDayTrunk.Module', 'callSummaryDayTrunk.List', 'callSummaryDayTrunk.Form', 'callSummaryDayAgent.Controller', 'callSummaryDayAgent.Module', 'callSummaryDayAgent.List', 'callSummaryDayAgent.Form', 'callerid.Controller', 'callerid.Module', 'callerid.List', 'callerid.Form', 'alarm.Controller', 'alarm.Module', 'alarm.List', 'alarm.Form', 'holidays.Controller', 'holidays.Module', 'holidays.List', 'holidays.Form', 'restrictedPhonenumber.Controller', 'restrictedPhonenumber.Module', 'restrictedPhonenumber.List', 'restrictedPhonenumber.Form', 'restrictedPhonenumber.ImportCsv', 'did.Controller', 'did.Lookup', 'did.Combo', 'did.Module', 'did.List', 'did.Form', 'did.ImportCsv', 'didbuy.Module', 'diddestination.Controller', 'diddestination.Module', 'diddestination.List', 'diddestination.Form', 'diddestination.Combo', 'didUse.Controller', 'didUse.Module', 'didUse.List', 'didUse.Form', 'didHistory.Controller', 'didHistory.Module', 'didHistory.List', 'didHistory.Form', 'dashboard.Module', 'dashboardQueue.Module', 'ivr.Controller', 'ivr.Module', 'ivr.List', 'ivr.Form', 'ivr.Lookup', 'queue.Controller', 'queue.Combo', 'queue.Module', 'queue.List', 'queue.Form', 'queue.Lookup', 'queue.ListDashboard', 'queueMember.Controller', 'queueMember.Module', 'queueMember.List', 'queueMember.Form', 'queueMember.ListDashboard', 'refill.Controller', 'refill.Module', 'refill.List', 'refill.Form', 'refill.Chart', 'methodPay.Controller', 'methodPay.Module', 'methodPay.List', 'methodPay.Form', 'methodPay.Combo', 'voucher.Controller', 'voucher.Module', 'voucher.List', 'voucher.Form', 'refillprovider.Controller', 'refillprovider.Module', 'refillprovider.List', 'refillprovider.Form', 'offer.Controller', 'offer.Combo', 'offer.Module', 'offer.List', 'offer.Form', 'offerCdr.Controller', 'offerCdr.Module', 'offerCdr.List', 'offerCdr.Form', 'offerUse.Module', 'offerUse.List', 'offerUse.Form', 'campaignDashboard.Controller', 'campaignDashboard.Module', 'campaignDashboard.List', 'campaignDashboard.Form', 'campaignReport.Controller', 'campaignReport.Module', 'campaignReport.List', 'campaignReport.Form', 'campaign.Controller', 'campaign.Combo', 'campaign.Module', 'campaign.List', 'campaign.Form', 'campaignoptimizerconfig.Controller', 'campaignoptimizerconfig.Module', 'campaignoptimizerconfig.List', 'campaignoptimizerconfig.Form', 'campaignoptimizerconfig.FailedAnalyticsWindow', 'campaignoptimizerconfig.StateWindow', 'campaignoptimizerconfig.AudioWindow', 'campaignoptimizerconfig.LogWindow', 'campaignPoll.Controller', 'campaignPoll.Combo', 'campaignPoll.Module', 'campaignPoll.List', 'campaignPoll.Form', 'phoneNumber.Controller', 'phoneNumber.Module', 'phoneNumber.List', 'phoneNumber.Form', 'phoneNumber.ImportCsv', 'rate.Controller', 'rate.Module', 'rate.List', 'rate.Form', 'rate.ImportCsv', 'phoneBook.Controller', 'phoneBook.Combo', 'phoneBook.Module', 'phoneBook.List', 'phoneBook.Form', 'phoneBook.Tag', 'call.Controller', 'call.Module', 'call.List', 'call.Form', 'callArchive.Controller', 'callArchive.Module', 'callArchive.List', 'callArchive.Form', 'callFailed.Controller', 'callFailed.Module', 'callFailed.List', 'callFailed.Form', 'callSummaryPerDay.Controller', 'callSummaryPerDay.Module', 'callSummaryPerDay.List', 'callSummaryPerDay.Form', 'callSummaryPerMonth.Controller', 'callSummaryPerMonth.Module', 'callSummaryPerMonth.List', 'callSummaryPerMonth.Form', 'callSummaryMonthUser.Controller', 'callSummaryMonthUser.Module', 'callSummaryMonthUser.List', 'callSummaryMonthUser.Form', 'callSummaryMonthDid.Controller', 'callSummaryMonthDid.Module', 'callSummaryMonthDid.List', 'callSummaryMonthDid.Form', 'callSummaryMonthTrunk.Controller', 'callSummaryMonthTrunk.Module', 'callSummaryMonthTrunk.List', 'callSummaryMonthTrunk.Form', 'sms.Controller', 'sms.Module', 'sms.List', 'sms.Form', 'campaignPollInfo.Controller', 'campaignPollInfo.Module', 'campaignPollInfo.List', 'campaignPollInfo.Form', 'campaignPollInfo.Chart', 'campaignRestrictPhone.Controller', 'campaignRestrictPhone.Module', 'campaignRestrictPhone.List', 'campaignRestrictPhone.Form', 'campaignRestrictPhone.ImportCsv', 'campaignLog.Controller', 'campaignLog.Module', 'campaignLog.List', 'campaignLog.Form', 'campaignSend.Module', 'callShop.Controller', 'callShop.Module', 'callShop.List', 'callShop.Form', 'callShopCdr.Controller', 'callShopCdr.Module', 'callShopCdr.List', 'callShopCdr.Form', 'rateCallshop.Controller', 'rateCallshop.Module', 'rateCallshop.List', 'rateCallshop.Form', 'rateCallshop.ImportCsv', 'callSummaryCallShop.Controller', 'callSummaryCallShop.Module', 'callSummaryCallShop.List', 'callSummaryCallShop.Form', 'callSummaryCallShop.Chart', 'buycredit.Controller', 'buycredit.Module', 'firewall.Controller', 'firewall.Module', 'firewall.List', 'firewall.Form', 'userRate.Controller', 'userRate.Module', 'userRate.List', 'userRate.Form', 'didww.Module', 'extra.Module', 'extra2.Module', 'extra3.Module', 'callOnlineChart.Module', 'callOnlineChart.List', 'callOnlineChart.Form', 'callOnlineChart.Chart', 'smtps.Controller', 'smtps.List', 'smtps.Form', 'smtps.Module', 'servers.Tag', 'servers.Controller', 'servers.List', 'servers.Form', 'servers.Module', 'servers.Combo', 'callSummaryPerUser.Controller', 'callSummaryPerUser.List', 'callSummaryPerUser.Form', 'callSummaryPerUser.Module', 'callSummaryPerTrunk.Controller', 'callSummaryPerTrunk.List', 'callSummaryPerTrunk.Form', 'callSummaryPerTrunk.Module', 'backup.Controller', 'backup.List', 'backup.Form', 'backup.Module', 'backup.ImportCsv', 'gAuthenticator.Controller', 'gAuthenticator.List', 'gAuthenticator.Form', 'gAuthenticator.Module', 'groupUserGroup.Controller', 'groupUserGroup.List', 'groupUserGroup.Form', 'groupUserGroup.Module', 'services.Controller', 'services.List', 'services.Form', 'services.Module', 'services.Lookup', 'servicesUse.Controller', 'servicesUse.List', 'servicesUse.Form', 'servicesUse.Module', 'callBack.Controller', 'callBack.Module', 'callBack.List', 'callBack.Form'],
-    stores: ['UserHistory', 'CampaignDashBoard', 'DidHistory', 'TrunkSipCodes', 'CampaignReport', 'TrunkGroup', 'TrunkChart', 'Alarm', 'Holidays', 'StatusSystem', 'ProviderCNL', 'CallOnlineChart', 'Help', 'Api', 'CallSummaryMonthTrunk', 'CallArchive', 'CallSummaryMonthUser', 'CallSummaryMonthDid', 'RateProvider', 'GroupModule', 'GroupUser', 'CallSummaryDayTrunk', 'CallSummaryDayAgent', 'CallSummaryDayUser', 'Module', 'User', 'Configuration', 'TemplateMail', 'LogUsers', 'Provider', 'Plan', 'Trunk', 'Prefix', 'PrefixCombo', 'Sip', 'Sip2', 'Iax', 'Sipuras', 'CallOnLine', 'Callerid', 'RestrictedPhonenumber', 'Did', 'Diddestination', 'DidUse', 'Ivr', 'Queue', 'QueueMember', 'QueueDashBoard', 'QueueMemberDashBoard', 'Refill', 'RefillChart', 'MethodPay', 'Voucher', 'Refillprovider', 'Offer', 'OfferCdr', 'OfferUse', 'Campaign', 'CampaignLog', 'CampaignPoll', 'CallSummaryPerTrunk', 'PhoneBook', 'Rate', 'PhoneNumber', 'Call', 'CallFailed', 'CallSummaryPerDay', 'CallSummaryPerMonth', 'Sms', 'CampaignPollInfo', 'CampaignPollInfoChart', 'CampaignRestrictPhone', 'CallShop', 'CallShopCdr', 'SipTrace', 'RateCallshop', 'CallSummaryCallShop', 'Firewall', 'UserRate', 'Smtps', 'Servers', 'CallSummaryPerUser', 'Backup', 'GAuthenticator', 'GroupUserGroup', 'Services', 'ServicesUse', 'CallBack'],
+    views: ['userHistory.Controller', 'userHistory.Module', 'userHistory.List', 'userHistory.Form', 'main.MainController', 'main.Login', 'main.LoginController', 'main.ForgetPassword', 'main.GoogleAuthenticator', 'main.Main', 'main.Desktop', 'main.Help', 'main.Settings', 'main.About', 'main.ChangePassword', 'main.ImportLogo', 'main.ImportLoginBackground', 'main.SetUserData', 'groupModule.Controller', 'groupModule.Module', 'groupModule.List', 'groupModule.Form', 'groupModule.Field', 'groupUser.Controller', 'groupUser.Module', 'groupUser.List', 'groupUser.Form', 'groupUser.Combo', 'groupUser.Tag', 'module.Controller', 'module.Module', 'module.List', 'module.Form', 'module.Combo', 'module.Tag', 'user.Controller', 'user.Combo', 'user.Module', 'user.List', 'user.Form', 'user.Lookup', 'user.Bulk', 'configuration.Controller', 'configuration.Module', 'configuration.List', 'configuration.Form', 'general.BooleanCombo', 'general.GroupCombo', 'general.LcrtypeCombo', 'general.OfferTypeCombo', 'general.SipCombo', 'general.TypePaymentCombo', 'templateMail.Controller', 'templateMail.Module', 'templateMail.List', 'templateMail.Form', 'logUsers.Controller', 'logUsers.Module', 'logUsers.List', 'logUsers.Form', 'provider.Controller', 'provider.Combo', 'provider.Module', 'provider.List', 'provider.Form', 'provider.Lookup', 'providerCNL.Controller', 'providerCNL.Module', 'providerCNL.List', 'providerCNL.Form', 'providerCNL.ImportCsv', 'plan.Controller', 'plan.Combo', 'plan.Module', 'plan.List', 'plan.Form', 'plan.Tag', 'plan.Lookup', 'trunk.Controller', 'trunk.Combo', 'trunk.Module', 'trunk.List', 'trunk.Form', 'trunk.Lookup', 'trunk.Tag', 'trunkGroup.Controller', 'trunkGroup.Module', 'trunkGroup.List', 'trunkGroup.Form', 'trunkGroup.Lookup', 'trunkGroup.Combo', 'prefix.Controller', 'prefix.Combo', 'prefix.Module', 'prefix.List', 'prefix.Form', 'trunkSipCodes.Controller', 'trunkSipCodes.Module', 'trunkSipCodes.List', 'trunkSipCodes.Form', 'prefix.Lookup', 'sipTrace.Controller', 'sipTrace.Module', 'sipTrace.List', 'sipTrace.Form', 'rateProvider.Controller', 'rateProvider.Module', 'rateProvider.List', 'rateProvider.Form', 'rateProvider.ImportCsv', 'api.Controller', 'api.Module', 'api.List', 'api.Form', 'sip.Controller', 'sip.Module', 'sip.List', 'sip.Form', 'sip.Lookup', 'sip.Bulk', 'sip.ImportCsv', 'sip2.Controller', 'sip2.Module', 'sip2.List', 'sip2.Form', 'sip2.Lookup', 'sipuras.Controller', 'sipuras.Module', 'sipuras.List', 'sipuras.Form', 'iax.Controller', 'iax.Module', 'iax.List', 'iax.Form', 'iax.Lookup', 'callOnLine.Controller', 'callOnLine.Module', 'callOnLine.List', 'callOnLine.Form', 'callSummaryDayUser.Controller', 'callSummaryDayUser.Module', 'callSummaryDayUser.List', 'callSummaryDayUser.Form', 'callSummaryDayTrunk.Controller', 'callSummaryDayTrunk.Module', 'callSummaryDayTrunk.List', 'callSummaryDayTrunk.Form', 'callSummaryDayAgent.Controller', 'callSummaryDayAgent.Module', 'callSummaryDayAgent.List', 'callSummaryDayAgent.Form', 'callerid.Controller', 'callerid.Module', 'callerid.List', 'callerid.Form', 'alarm.Controller', 'alarm.Module', 'alarm.List', 'alarm.Form', 'holidays.Controller', 'holidays.Module', 'holidays.List', 'holidays.Form', 'restrictedPhonenumber.Controller', 'restrictedPhonenumber.Module', 'restrictedPhonenumber.List', 'restrictedPhonenumber.Form', 'restrictedPhonenumber.ImportCsv', 'did.Controller', 'did.Lookup', 'did.Combo', 'did.Module', 'did.List', 'did.Form', 'did.ImportCsv', 'didbuy.Module', 'diddestination.Controller', 'diddestination.Module', 'diddestination.List', 'diddestination.Form', 'diddestination.Combo', 'didUse.Controller', 'didUse.Module', 'didUse.List', 'didUse.Form', 'didHistory.Controller', 'didHistory.Module', 'didHistory.List', 'didHistory.Form', 'dashboard.Module', 'dashboardQueue.Module', 'ivr.Controller', 'ivr.Module', 'ivr.List', 'ivr.Form', 'ivr.Lookup', 'queue.Controller', 'queue.Combo', 'queue.Module', 'queue.List', 'queue.Form', 'queue.Lookup', 'queue.ListDashboard', 'queueMember.Controller', 'queueMember.Module', 'queueMember.List', 'queueMember.Form', 'queueMember.ListDashboard', 'refill.Controller', 'refill.Module', 'refill.List', 'refill.Form', 'refill.Chart', 'methodPay.Controller', 'methodPay.Module', 'methodPay.List', 'methodPay.Form', 'methodPay.Combo', 'voucher.Controller', 'voucher.Module', 'voucher.List', 'voucher.Form', 'refillprovider.Controller', 'refillprovider.Module', 'refillprovider.List', 'refillprovider.Form', 'offer.Controller', 'offer.Combo', 'offer.Module', 'offer.List', 'offer.Form', 'offerCdr.Controller', 'offerCdr.Module', 'offerCdr.List', 'offerCdr.Form', 'offerUse.Module', 'offerUse.List', 'offerUse.Form', 'campaignDashboard.Controller', 'campaignDashboard.Module', 'campaignDashboard.List', 'campaignDashboard.Form', 'campaignReport.Controller', 'campaignReport.Module', 'campaignReport.List', 'campaignReport.Form', 'campaign.Controller', 'campaign.Combo', 'campaign.Module', 'campaign.List', 'campaign.Form', 'campaignoptimizerconfig.Controller', 'campaignoptimizerconfig.Module', 'campaignoptimizerconfig.List', 'campaignoptimizerconfig.Form', 'campaignoptimizerconfig.FailedAnalyticsWindow', 'campaignoptimizerconfig.StateWindow', 'campaignoptimizerconfig.AudioWindow', 'campaignoptimizerconfig.LogWindow', 'campaignPoll.Controller', 'campaignPoll.Combo', 'campaignPoll.Module', 'campaignPoll.List', 'campaignPoll.Form', 'phoneNumber.Controller', 'phoneNumber.Module', 'phoneNumber.List', 'phoneNumber.Form', 'phoneNumber.ImportCsv', 'rate.Controller', 'rate.Module', 'rate.List', 'rate.Form', 'rate.ImportCsv', 'phoneBook.Controller', 'phoneBook.Combo', 'phoneBook.Module', 'phoneBook.List', 'phoneBook.Form', 'phoneBook.Tag', 'call.Controller', 'call.Module', 'call.List', 'call.Form', 'callArchive.Controller', 'callArchive.Module', 'callArchive.List', 'callArchive.Form', 'callFailed.Controller', 'callFailed.Module', 'callFailed.List', 'callFailed.Form', 'callSummaryPerDay.Controller', 'callSummaryPerDay.Module', 'callSummaryPerDay.List', 'callSummaryPerDay.Form', 'callSummaryPerMonth.Controller', 'callSummaryPerMonth.Module', 'callSummaryPerMonth.List', 'callSummaryPerMonth.Form', 'callSummaryMonthUser.Controller', 'callSummaryMonthUser.Module', 'callSummaryMonthUser.List', 'callSummaryMonthUser.Form', 'callSummaryMonthDid.Controller', 'callSummaryMonthDid.Module', 'callSummaryMonthDid.List', 'callSummaryMonthDid.Form', 'callSummaryMonthTrunk.Controller', 'callSummaryMonthTrunk.Module', 'callSummaryMonthTrunk.List', 'callSummaryMonthTrunk.Form', 'sms.Controller', 'sms.Module', 'sms.List', 'sms.Form', 'campaignPollInfo.Controller', 'campaignPollInfo.Module', 'campaignPollInfo.List', 'campaignPollInfo.Form', 'campaignPollInfo.Chart', 'campaignRestrictPhone.Controller', 'campaignRestrictPhone.Module', 'campaignRestrictPhone.List', 'campaignRestrictPhone.Form', 'campaignRestrictPhone.ImportCsv', 'campaignLog.Controller', 'campaignLog.Module', 'campaignLog.List', 'campaignLog.Form', 'campaignSend.Module', 'callShop.Controller', 'callShop.Module', 'callShop.List', 'callShop.Form', 'callShopCdr.Controller', 'callShopCdr.Module', 'callShopCdr.List', 'callShopCdr.Form', 'rateCallshop.Controller', 'rateCallshop.Module', 'rateCallshop.List', 'rateCallshop.Form', 'rateCallshop.ImportCsv', 'callSummaryCallShop.Controller', 'callSummaryCallShop.Module', 'callSummaryCallShop.List', 'callSummaryCallShop.Form', 'callSummaryCallShop.Chart', 'buycredit.Controller', 'buycredit.Module', 'firewall.Controller', 'firewall.Module', 'firewall.List', 'firewall.Form', 'userRate.Controller', 'userRate.Module', 'userRate.List', 'userRate.Form', 'didww.Module', 'extra.Module', 'extra2.Module', 'extra3.Module', 'callOnlineChart.Module', 'callOnlineChart.List', 'callOnlineChart.Form', 'callOnlineChart.Chart', 'smtps.Controller', 'smtps.List', 'smtps.Form', 'smtps.Module', 'servers.Tag', 'servers.Controller', 'servers.List', 'servers.Form', 'servers.Module', 'servers.Combo', 'callSummaryPerUser.Controller', 'callSummaryPerUser.List', 'callSummaryPerUser.Form', 'callSummaryPerUser.Module', 'callSummaryPerTrunk.Controller', 'callSummaryPerTrunk.List', 'callSummaryPerTrunk.Form', 'callSummaryPerTrunk.Module', 'backup.Controller', 'backup.List', 'backup.Form', 'backup.Module', 'backup.ImportCsv', 'gAuthenticator.Controller', 'gAuthenticator.List', 'gAuthenticator.Form', 'gAuthenticator.Module', 'groupUserGroup.Controller', 'groupUserGroup.List', 'groupUserGroup.Form', 'groupUserGroup.Module', 'services.Controller', 'services.List', 'services.Form', 'services.Module', 'services.Lookup', 'servicesUse.Controller', 'servicesUse.List', 'servicesUse.Form', 'servicesUse.Module', 'callBack.Controller', 'callBack.Module', 'callBack.List', 'callBack.Form', 'userType.Controller', 'userType.Combo', 'magnusSentinel.Controller', 'magnusSentinel.Module', 'magnusSentinel.List', 'magnusSentinel.Detail', 'magnusSentinel.Health', 'magnusSentinel.Resources', 'magnusSentinel.Summary'],
+    stores: ['UserHistory', 'CampaignDashBoard', 'DidHistory', 'TrunkSipCodes', 'CampaignReport', 'TrunkGroup', 'TrunkChart', 'Alarm', 'Holidays', 'StatusSystem', 'ProviderCNL', 'CallOnlineChart', 'Help', 'Api', 'CallSummaryMonthTrunk', 'CallArchive', 'CallSummaryMonthUser', 'CallSummaryMonthDid', 'RateProvider', 'GroupModule', 'GroupUser', 'CallSummaryDayTrunk', 'CallSummaryDayAgent', 'CallSummaryDayUser', 'Module', 'User', 'Configuration', 'TemplateMail', 'LogUsers', 'Provider', 'Plan', 'Trunk', 'Prefix', 'PrefixCombo', 'Sip', 'Sip2', 'Iax', 'Sipuras', 'CallOnLine', 'Callerid', 'RestrictedPhonenumber', 'Did', 'Diddestination', 'DidUse', 'Ivr', 'Queue', 'QueueMember', 'QueueDashBoard', 'QueueMemberDashBoard', 'Refill', 'RefillChart', 'MethodPay', 'Voucher', 'Refillprovider', 'Offer', 'OfferCdr', 'OfferUse', 'Campaign', 'CampaignLog', 'CampaignPoll', 'CallSummaryPerTrunk', 'PhoneBook', 'Rate', 'PhoneNumber', 'Call', 'CallFailed', 'CallSummaryPerDay', 'CallSummaryPerMonth', 'Sms', 'CampaignPollInfo', 'CampaignPollInfoChart', 'CampaignRestrictPhone', 'CallShop', 'CallShopCdr', 'SipTrace', 'RateCallshop', 'CallSummaryCallShop', 'Firewall', 'UserRate', 'Smtps', 'Servers', 'CallSummaryPerUser', 'Backup', 'GAuthenticator', 'GroupUserGroup', 'Services', 'ServicesUse', 'CallBack', 'CampaignOptimizerConfig', 'CampaignOptimizerAudio', 'CampaignOptimizerLog', 'CampaignOptimizerState', 'CampaignFailedAnalytics', 'MagnusSentinelIncident', 'SendCreditProducts', 'SendCreditRates', 'SendCreditSummary', 'Signup', 'UserType'],
     mainView: 'MBilling.view.main.Start',
     init: function () {
         Ext.Boot.load(window.lang === 'de'
