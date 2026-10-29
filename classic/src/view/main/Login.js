@@ -163,16 +163,21 @@ Ext.define('MBilling.view.main.Login', {
             hidden: !window.show_signup_button
         }, {
             cls: isMac ? 'mb-mac-login-links' : 'mb-windows-login-links mb-modern-login-links',
+            border: false,
+            bodyBorder: false,
             layout: 'hbox',
             items: [{
                 xtype: 'locale',
                 width: 140,
+                border: false,
                 margin: '5 0 0 0'
             }, {
                 flex: 1,
+                border: false,
+                bodyBorder: false,
                 cls: isMac ? 'mb-mac-login-forgot' : 'mb-windows-login-forgot mb-modern-login-forgot',
                 margin: '14 0 0 16',
-                html: '<div class="mb-modern-forgot-link" style="text-align: right; cursor: pointer;">' + Ext.String.htmlEncode(t('Forgot your password?')) + '</div>',
+                html: '<div class="mb-modern-forgot-link" style="text-align: right; cursor: pointer; white-space: nowrap;">' + Ext.String.htmlEncode(t('Forgot your password?')) + '</div>',
                 listeners: {
                     render: function (c) {
                         c.getEl().on({
@@ -211,6 +216,8 @@ Ext.define('MBilling.view.main.Login', {
             cls: isMac ? 'auth-dialog mb-mac-login-card' : 'auth-dialog mb-windows-login-card mb-modern-login-card',
             defaultButton: 'loginButton',
             autoComplete: true,
+            border: false,
+            bodyBorder: false,
             bodyPadding: isMac ? '34 38 28' : '36 40 32',
             header: false,
             width: Math.min(440, Ext.Element.getViewportWidth() - 32),
@@ -219,7 +226,8 @@ Ext.define('MBilling.view.main.Login', {
                 align: 'stretch'
             },
             defaults: {
-                margin: '0'
+                margin: '0',
+                border: false
             },
             items: loginItems
         }];
