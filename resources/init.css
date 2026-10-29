@@ -169,105 +169,7 @@ textarea {
 
 
 
-/* Remove completamente a borda retangular ao redor dos inputs */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-item-body {
-    border: none !important;
-    background: transparent !important;
-    padding: 0 !important;
-}
-
-/* Remove a borda retangular da área de edição do ExtJS */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-trigger-wrap-default {
-    border: none !important;
-    background: transparent !important;
-    box-shadow: none !important;
-}
-
-/* Garante que no foco a borda quadrada não volta */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-trigger-wrap-focus {
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* ===== FORM CONTAINER (Modern SaaS Card Base) ===== */
-html:not(.mb-macos) .auth-locked-window .auth-dialog {
-    background: rgba(255, 255, 255, 0.97) !important;
-    border-radius: 16px !important;
-    padding: 36px 40px 28px !important;
-    box-shadow: 0 24px 50px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.6) inset !important;
-    border: 1px solid rgba(226, 232, 240, 0.8) !important;
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
-}
-
-/* Remove sub-containers do ExtJS que geram caixas duplicadas */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-panel-body {
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-/* ===== TÍTULO ===== */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-component {
-    color: #1e293b !important;
-    font-size: 14px;
-    font-weight: 500;
-}
-
-/* ===== INPUTS - estilo moderno e clean ===== */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-text-default {
-    background: #f8fafc !important;
-    border-radius: 8px !important;
-    border: 1.5px solid #cbd5e1 !important;
-    color: #0f172a !important;
-    height: 44px !important;
-    padding: 0 14px !important;
-    font-size: 14px !important;
-    transition: all 0.15s ease-in-out !important;
-}
-
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-text-default::placeholder {
-    color: #94a3b8 !important;
-}
-
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-text-default.x-form-focus {
-    background: #ffffff !important;
-    border-color: #2563eb !important;
-    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
-}
-
-/* ===== BOTÃO LOGIN ===== */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-btn-default-large {
-    background: #2563eb !important;
-    border-radius: 8px !important;
-    height: 46px !important;
-    border: 1px solid #1d4ed8 !important;
-    font-size: 15px !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32) !important;
-    transition: all 0.15s ease-in-out !important;
-}
-
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-btn-default-large:hover,
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-btn-over {
-    background: #1d4ed8 !important;
-    border-color: #1e40af !important;
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.42) !important;
-}
-
-/* ===== RODAPÉ (idioma + forgot) ===== */
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-container .x-box-inner {
-    align-items: center;
-}
-
-html:not(.mb-macos) .auth-locked-window .auth-dialog .x-container .x-box-item:last-child div {
-    color: #2563eb !important;
-    font-size: 13px;
-    font-weight: 500;
-}
-
-/* ===== Remover “cantinhos” do ExtJS ===== */
+/* ===== BASE LOGIN CARD RESET ===== */
 html:not(.mb-macos) .auth-locked-window .auth-dialog:before,
 html:not(.mb-macos) .auth-locked-window .auth-dialog:after,
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-panel-body:before,
@@ -3047,305 +2949,375 @@ div.ux-taskbar div.x-toolbar {
 }
 
 /* ==========================================================================
-   Modern SaaS / Windows Login Interface Redesign
+   Modern SaaS Login Interface Redesign - Full Harmonization
    ========================================================================== */
-.mb-windows-login-window.x-window-default {
+
+/* 1. Backdrop Harmonizer - Soft Vignette on top of any wallpaper */
+.auth-locked-window.x-window-default {
     border: 0 !important;
     border-radius: 0 !important;
     padding: 0 !important;
+    background: transparent !important;
 }
 
-.mb-windows-login-window>.x-window-body,
-.mb-windows-login-window .x-window-body-default,
-.mb-modern-login-window>.x-window-body,
-.mb-modern-login-window .x-window-body-default {
+.auth-locked-window>.x-window-body,
+.auth-locked-window .x-window-body-default {
     background:
-        radial-gradient(ellipse at 15% 15%, rgba(37, 99, 235, 0.40) 0%, transparent 45%),
-        radial-gradient(ellipse at 85% 85%, rgba(14, 165, 233, 0.25) 0%, transparent 40%),
-        radial-gradient(ellipse at 50% 50%, rgba(30, 41, 59, 0.50) 0%, transparent 60%),
-        linear-gradient(135deg, #090e17 0%, #0f172a 45%, #1e293b 100%) !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    position: relative;
+        radial-gradient(circle at 50% 45%, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.70) 100%),
+        rgba(0, 0, 0, 0.25) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    position: relative !important;
 }
 
+/* 2. Glassmorphism Card Container */
+.auth-locked-window .auth-dialog,
 .mb-windows-login-card,
 .mb-modern-login-card {
-    background: rgba(255, 255, 255, 0.97) !important;
-    border: 1px solid rgba(226, 232, 240, 0.85) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 25px 50px -12px rgba(0, 10, 30, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.6) inset !important;
-    overflow: hidden;
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
-    backdrop-filter: blur(24px) saturate(180%);
+    background: rgba(255, 255, 255, 0.94) !important;
+    border: 1px solid rgba(255, 255, 255, 0.85) !important;
+    border-radius: 20px !important;
+    box-shadow:
+        0 25px 60px -12px rgba(0, 10, 30, 0.45),
+        0 8px 20px -6px rgba(0, 10, 30, 0.2),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset !important;
+    -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+    backdrop-filter: blur(28px) saturate(190%) !important;
+    padding: 38px 42px 32px !important;
+    overflow: hidden !important;
+    max-width: 440px !important;
+    width: 440px !important;
+    box-sizing: border-box !important;
 }
 
+.auth-locked-window .auth-dialog>.x-panel-body,
+.auth-locked-window .auth-dialog>.x-container-body,
 .mb-windows-login-card>.x-panel-body,
 .mb-windows-login-card>.x-container-body,
 .mb-modern-login-card>.x-panel-body,
 .mb-modern-login-card>.x-container-body {
     background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
 }
 
-/* Brand header & Proportional Logo */
-.mb-modern-login-brand,
-.mb-windows-login-brand {
-    text-align: center;
-    margin-bottom: 8px !important;
+/* 3. Brand Header & Proportional Logo */
+.mb-login-brand-wrapper {
+    text-align: center !important;
+    margin-bottom: 20px !important;
 }
 
 .mb-login-brand-logo-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 48px;
-    margin-bottom: 12px;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 48px !important;
+    margin-bottom: 12px !important;
 }
 
-.mb-modern-login-logo,
-.mb-windows-login-logo {
+.mb-login-brand-logo {
     display: block !important;
     max-height: 48px !important;
-    max-width: 280px !important;
+    max-width: 260px !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
     margin: 0 auto !important;
 }
 
-.mb-modern-login-product,
-.mb-windows-login-product {
+.mb-login-brand-title {
     color: #0f172a !important;
-    font-size: 19px !important;
+    font-size: 20px !important;
     font-weight: 700 !important;
-    letter-spacing: -0.3px;
-    line-height: 1.3 !important;
+    letter-spacing: -0.35px !important;
+    line-height: 1.25 !important;
     text-align: center !important;
-    max-width: 100% !important;
+    margin: 0 0 4px 0 !important;
+    padding: 0 !important;
 }
 
-/* Heading / Subtitle */
-.mb-modern-login-heading,
-.mb-windows-login-heading {
+.mb-login-brand-subtitle {
     color: #64748b !important;
     font-size: 13.5px !important;
     font-weight: 500 !important;
-    letter-spacing: -0.15px;
-    line-height: 1.4 !important;
+    letter-spacing: -0.1px !important;
     text-align: center !important;
-    margin-bottom: 14px !important;
-    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    line-height: 1.4 !important;
 }
 
-/* Field Top Labels (WCAG 3.3.2) */
+/* 4. Labels above Form Fields */
+.mb-login-field-label-wrap {
+    margin-top: 12px !important;
+    margin-bottom: 6px !important;
+    width: 100% !important;
+}
+
 .mb-login-field-label {
     color: #334155 !important;
     font-size: 13px !important;
     font-weight: 600 !important;
-    line-height: 1.3 !important;
-    margin-bottom: 5px !important;
+    letter-spacing: -0.1px !important;
     display: block !important;
+    line-height: 1.3 !important;
+    user-select: none;
 }
 
-/* Fields & Trigger Wrappers */
-.mb-modern-login-field,
-.mb-windows-login-field {
-    margin-bottom: 6px !important;
+/* 5. Field Item & Full-Width Pill Containers (NO CUT-OFFS) */
+.auth-dialog .x-form-item {
+    margin-bottom: 0 !important;
+    width: 100% !important;
+    table-layout: auto !important;
 }
 
-.mb-modern-login-field .x-form-text-wrap,
-.mb-modern-login-field .x-form-trigger-wrap,
-.mb-windows-login-field .x-form-text-wrap,
-.mb-windows-login-field .x-form-trigger-wrap {
-    background: #f8fafc !important;
+.auth-dialog .x-form-item-body {
+    width: 100% !important;
+    max-width: 100% !important;
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+}
+
+/* The Unified Input Pill */
+.auth-dialog .x-form-trigger-wrap,
+.auth-dialog .x-form-trigger-wrap-default {
+    background: #ffffff !important;
     border: 1.5px solid #cbd5e1 !important;
-    border-radius: 8px !important;
+    border-radius: 10px !important;
+    height: 48px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    align-items: center !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+}
+
+/* Glowing Focus Ring on the Pill */
+.auth-dialog .x-field-focus .x-form-trigger-wrap,
+.auth-dialog .x-form-trigger-wrap-focus {
+    border-color: #2563eb !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.18) !important;
+}
+
+/* Raw Input Element inside the Pill */
+.auth-dialog input.x-form-text-default,
+.auth-dialog .x-form-text {
+    border: none !important;
+    background: transparent !important;
     box-shadow: none !important;
-    transition: all 0.15s ease-in-out !important;
-}
-
-.mb-modern-login-field input,
-.mb-windows-login-field input {
-    color: #0f172a !important;
-    font-size: 14px !important;
-    font-weight: 400 !important;
+    height: 100% !important;
+    line-height: 48px !important;
     padding: 0 14px !important;
-    height: 42px !important;
-    line-height: 42px !important;
+    font-size: 14.5px !important;
+    color: #0f172a !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    outline: none !important;
+    box-sizing: border-box !important;
 }
 
-.mb-modern-login-field input::placeholder,
-.mb-windows-login-field input::placeholder {
+.auth-dialog input.x-form-text-default::placeholder,
+.auth-dialog .x-form-text::placeholder {
     color: #94a3b8 !important;
     opacity: 1;
 }
 
-.mb-modern-login-field.x-field-focus .x-form-text-wrap,
-.mb-modern-login-field.x-field-focus .x-form-trigger-wrap,
-.mb-windows-login-field.x-field-focus .x-form-text-wrap,
-.mb-windows-login-field.x-field-focus .x-form-trigger-wrap {
-    border-color: #2563eb !important;
-    background: #ffffff !important;
-    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
-}
-
-/* Password Reveal Trigger */
-.mb-trigger-password-reveal {
-    color: #64748b !important;
-    cursor: pointer !important;
-    font-size: 15px !important;
-    width: 38px !important;
+/* Eye Reveal Trigger inside the Pill */
+.auth-dialog .x-form-trigger,
+.auth-dialog .x-form-trigger-default {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    width: 44px !important;
+    height: 100% !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
-    transition: color 0.15s ease-in-out !important;
+    color: #64748b !important;
+    cursor: pointer !important;
+    font-size: 15px !important;
+    transition: color 0.15s ease !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: 0 0 44px !important;
 }
 
-.mb-trigger-password-reveal:hover {
+.auth-dialog .x-form-trigger:hover {
     color: #0f172a !important;
 }
 
-/* Submit Action Button */
-.mb-modern-login-submit,
-.mb-windows-login-submit {
-    background: #2563eb !important;
-    border: 1px solid #1d4ed8 !important;
-    border-radius: 8px !important;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32) !important;
-    height: 46px !important;
-    margin-top: 10px !important;
-    cursor: pointer !important;
-    transition: all 0.15s ease-in-out !important;
+.auth-dialog .x-form-trigger:before {
+    line-height: 1 !important;
 }
 
+/* 6. Primary Action Button */
+.auth-dialog .x-btn-default-large,
+.mb-modern-login-submit {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border: 1px solid #1d4ed8 !important;
+    border-radius: 10px !important;
+    height: 48px !important;
+    margin-top: 18px !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+    transition: all 0.15s ease-in-out !important;
+    cursor: pointer !important;
+    width: 100% !important;
+}
+
+.auth-dialog .x-btn-default-large:hover,
+.auth-dialog .x-btn-over,
 .mb-modern-login-submit:hover,
-.mb-modern-login-submit.x-btn-over,
-.mb-windows-login-submit:hover,
-.mb-windows-login-submit.x-btn-over {
-    background: #1d4ed8 !important;
+.mb-modern-login-submit.x-btn-over {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
     border-color: #1e40af !important;
-    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.42) !important;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
     transform: translateY(-1px);
 }
 
-.mb-modern-login-submit:active,
-.mb-modern-login-submit.x-btn-pressed,
-.mb-windows-login-submit:active,
-.mb-windows-login-submit.x-btn-pressed {
-    background: #1e40af !important;
-    border-color: #1e3a8a !important;
+.auth-dialog .x-btn-default-large:active,
+.mb-modern-login-submit:active {
     transform: translateY(0);
+    background: #1e40af !important;
 }
 
-.mb-modern-login-submit .x-btn-inner,
-.mb-windows-login-submit .x-btn-inner {
+.auth-dialog .x-btn-default-large .x-btn-inner,
+.mb-modern-login-submit .x-btn-inner {
+    color: #ffffff !important;
+    font-size: 15.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.2px !important;
+}
+
+.auth-dialog .x-btn-default-large .x-btn-icon-el,
+.mb-modern-login-submit .x-btn-icon-el {
     color: #ffffff !important;
     font-size: 15px !important;
-    font-weight: 600 !important;
-    letter-spacing: -0.2px;
 }
 
-.mb-modern-login-submit .x-btn-icon-el,
-.mb-windows-login-submit .x-btn-icon-el {
-    color: #ffffff !important;
-    font-size: 16px !important;
-}
-
-/* Create Account / Signup Button */
-.mb-modern-login-create,
-.mb-windows-login-create {
+/* 7. Create Account / Signup Button */
+.auth-dialog .mb-modern-login-create,
+.auth-dialog .mb-windows-login-create {
     background: #f8fafc !important;
-    border: 1px solid #cbd5e1 !important;
-    border-radius: 8px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
     height: 44px !important;
+    margin-top: 6px !important;
     transition: all 0.15s ease-in-out !important;
+    width: 100% !important;
 }
 
-.mb-modern-login-create:hover,
-.mb-modern-login-create.x-btn-over,
-.mb-windows-login-create:hover,
-.mb-windows-login-create.x-btn-over {
+.auth-dialog .mb-modern-login-create:hover,
+.auth-dialog .mb-windows-login-create:hover {
     background: #f1f5f9 !important;
     border-color: #94a3b8 !important;
 }
 
-.mb-modern-login-create .x-btn-inner,
-.mb-windows-login-create .x-btn-inner {
+.auth-dialog .mb-modern-login-create .x-btn-inner,
+.auth-dialog .mb-windows-login-create .x-btn-inner {
     color: #2563eb !important;
     font-size: 14px !important;
     font-weight: 600 !important;
 }
 
-.mb-modern-login-create .x-btn-icon-el,
-.mb-windows-login-create .x-btn-icon-el {
-    color: #2563eb !important;
+/* 8. Separator */
+.auth-dialog .mb-modern-login-separator {
+    margin: 12px 0 !important;
 }
 
-/* Separator */
-.mb-modern-login-separator .outer-div:before,
-.mb-modern-login-separator .outer-div:after,
-.mb-windows-login-separator .outer-div:before,
-.mb-windows-login-separator .outer-div:after {
+.auth-dialog .outer-div:before,
+.auth-dialog .outer-div:after {
     border-color: #e2e8f0 !important;
 }
 
-.mb-modern-login-separator .seperator,
-.mb-windows-login-separator .seperator {
+.auth-dialog .seperator {
     background: #ffffff !important;
     color: #94a3b8 !important;
     font-size: 12px !important;
     font-weight: 600 !important;
 }
 
-/* Footer Links & Locale */
-.mb-modern-login-links,
-.mb-windows-login-links {
-    background: transparent !important;
-    margin-top: 6px !important;
+/* 9. Locale Selector & Forgot Password Row */
+.mb-modern-login-links {
+    margin-top: 16px !important;
     align-items: center !important;
+    width: 100% !important;
 }
 
-.mb-modern-forgot-link,
-.mb-modern-login-forgot,
-.mb-windows-login-forgot {
-    color: #2563eb !important;
-    cursor: pointer !important;
+.auth-dialog .x-btn.x-btn-default-small,
+.auth-dialog .x-split-button {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    height: 36px !important;
+    padding: 0 6px !important;
+    transition: all 0.15s ease !important;
+}
+
+.auth-dialog .x-btn.x-btn-default-small:hover {
+    background: #f8fafc !important;
+    border-color: #cbd5e1 !important;
+}
+
+.auth-dialog .x-btn.x-btn-default-small .x-btn-inner {
+    color: #475569 !important;
     font-size: 13px !important;
-    font-weight: 600 !important;
-    transition: color 0.15s ease-in-out !important;
+    font-weight: 500 !important;
 }
 
-.mb-modern-forgot-link:hover,
-.mb-modern-login-forgot:hover,
-.mb-windows-login-forgot:hover {
+.mb-modern-forgot-link {
+    color: #2563eb !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    text-align: right !important;
+    cursor: pointer !important;
+    transition: color 0.15s ease !important;
+    user-select: none;
+    line-height: 36px !important;
+}
+
+.mb-modern-forgot-link:hover {
     color: #1d4ed8 !important;
     text-decoration: underline !important;
 }
 
-/* System Signature Tagline */
+/* 10. Platform Footer Signature */
 .mb-modern-login-footer-tag {
     text-align: center !important;
-    margin-top: 14px !important;
-    padding-top: 12px !important;
-    border-top: 1px solid #f1f5f9 !important;
+    margin-top: 22px !important;
+    padding-top: 16px !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.8) !important;
+    width: 100% !important;
 }
 
 .mb-modern-login-footer-text {
-    color: #94a3b8 !important;
-    font-size: 11.5px !important;
+    color: #64748b !important;
+    font-size: 12px !important;
     font-weight: 500 !important;
-    letter-spacing: 0.2px;
+    letter-spacing: 0.1px;
 }
 
+/* 11. Mobile Responsiveness */
 @media (max-width: 520px) {
+    .auth-locked-window .auth-dialog,
     .mb-windows-login-card,
     .mb-modern-login-card {
-        border-radius: 12px !important;
-        padding: 24px 20px 20px !important;
+        border-radius: 14px !important;
+        padding: 28px 24px 24px !important;
+        width: 92vw !important;
+        max-width: 92vw !important;
     }
 
-    .mb-modern-login-product,
-    .mb-windows-login-product {
-        font-size: 17px !important;
+    .mb-login-brand-title {
+        font-size: 18px !important;
     }
 }
 

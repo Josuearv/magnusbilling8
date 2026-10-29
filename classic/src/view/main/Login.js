@@ -9,7 +9,7 @@ Ext.define('MBilling.view.main.Login', {
     requires: ['MBilling.view.main.ForgetPassword', 'MBilling.view.main.Signup', 'MBilling.view.main.LoginController'],
     xtype: 'login',
     controller: 'login',
-    cls: window.isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window',
+    cls: window.isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window mb-modern-login-window',
     closable: false,
     resizable: false,
     autoShow: true,
@@ -70,45 +70,46 @@ Ext.define('MBilling.view.main.Login', {
         } else {
             loginItems.push({
                 xtype: 'component',
-                cls: 'mb-windows-login-brand mb-modern-login-brand',
+                cls: 'mb-login-brand-wrapper',
                 html: '<div class="mb-login-brand-logo-wrap">' +
-                    '<img class="mb-windows-login-logo mb-modern-login-logo" src="' + Ext.String.htmlEncode(loginLogo) + '" alt="' + Ext.String.htmlEncode(windowsProductName) + '" />' +
+                    '<img class="mb-login-brand-logo" src="' + Ext.String.htmlEncode(loginLogo) + '" alt="' + Ext.String.htmlEncode(windowsProductName) + '" />' +
                     '</div>' +
-                    '<div class="mb-windows-login-product mb-modern-login-product">' + Ext.String.htmlEncode(windowsProductName) + '</div>'
+                    '<h1 class="mb-login-brand-title">' + Ext.String.htmlEncode(windowsProductName) + '</h1>' +
+                    '<p class="mb-login-brand-subtitle">' + Ext.String.htmlEncode(t('Sign into your account')) + '</p>'
             });
         }
         loginItems.push({
-            xtype: 'label',
-            cls: isMac ? 'mb-mac-login-heading' : 'mb-windows-login-heading mb-modern-login-heading',
-            text: t('Sign into your account')
+            xtype: 'component',
+            cls: 'mb-login-field-label-wrap',
+            html: '<label class="mb-login-field-label" for="login-userid-input">' + Ext.String.htmlEncode(t('Username or email')) + '</label>'
         }, {
             xtype: 'textfield',
-            cls: isMac ? 'auth-textbox mb-mac-login-field mb-mac-login-user' : 'auth-textbox mb-windows-login-field mb-modern-login-field mb-modern-login-user',
+            cls: 'auth-textbox mb-modern-input-field mb-field-user',
+            inputId: 'login-userid-input',
             name: 'userid',
             reference: 'user',
-            fieldLabel: t('Username or email'),
-            labelAlign: 'top',
-            labelSeparator: '',
-            labelCls: 'mb-login-field-label',
+            hideLabel: true,
             allowBlank: false,
             emptyText: t('Username or email'),
             inputAttrTpl: ' autocomplete="username" spellcheck="false" autocapitalize="none" '
         }, {
+            xtype: 'component',
+            cls: 'mb-login-field-label-wrap',
+            html: '<label class="mb-login-field-label" for="login-password-input">' + Ext.String.htmlEncode(t('Password')) + '</label>'
+        }, {
             xtype: 'textfield',
-            cls: isMac ? 'auth-textbox mb-mac-login-field mb-mac-login-password' : 'auth-textbox mb-windows-login-field mb-modern-login-field mb-modern-login-password',
-            fieldLabel: t('Password'),
-            labelAlign: 'top',
-            labelSeparator: '',
-            labelCls: 'mb-login-field-label',
+            cls: 'auth-textbox mb-modern-input-field mb-field-password',
+            inputId: 'login-password-input',
             reference: 'password',
             emptyText: t('Password'),
             inputType: 'password',
             name: 'password',
+            hideLabel: true,
             allowBlank: false,
             inputAttrTpl: ' autocomplete="current-password" ',
             triggers: {
                 reveal: {
-                    cls: 'x-fa fa-eye mb-trigger-password-reveal',
+                    cls: 'x-fa fa-eye mb-trigger-reveal-eye',
                     tooltip: t('Show / hide password'),
                     weight: 1,
                     handler: function () {
@@ -138,9 +139,9 @@ Ext.define('MBilling.view.main.Login', {
             reference: 'loginButton',
             cls: isMac ? 'mb-mac-login-submit' : 'mb-windows-login-submit mb-modern-login-submit',
             scale: 'large',
-            height: 46,
+            height: 48,
             iconAlign: 'right',
-            iconCls: 'x-fa fa-sign-in',
+            iconCls: 'x-fa fa-arrow-right',
             text: t('Login'),
             formBind: true,
             handler: 'onLogin'
@@ -210,15 +211,15 @@ Ext.define('MBilling.view.main.Login', {
             cls: isMac ? 'auth-dialog mb-mac-login-card' : 'auth-dialog mb-windows-login-card mb-modern-login-card',
             defaultButton: 'loginButton',
             autoComplete: true,
-            bodyPadding: isMac ? '34 38 28' : '36 40 28',
+            bodyPadding: isMac ? '34 38 28' : '36 40 32',
             header: false,
-            width: isMac ? Math.min(440, Ext.Element.getViewportWidth() - 32) : Math.min(460, Ext.Element.getViewportWidth() - 32),
+            width: Math.min(440, Ext.Element.getViewportWidth() - 32),
             layout: {
                 type: 'vbox',
                 align: 'stretch'
             },
             defaults: {
-                margin: '7 0'
+                margin: '0'
             },
             items: loginItems
         }];
