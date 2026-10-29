@@ -189,13 +189,15 @@ html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-trigger-wrap-focus 
     box-shadow: none !important;
 }
 
-/* ===== FORM CONTAINER (mantém branco, apenas suaviza) ===== */
+/* ===== FORM CONTAINER (Modern SaaS Card Base) ===== */
 html:not(.mb-macos) .auth-locked-window .auth-dialog {
-    background: #ffffff !important;
-    border-radius: 14px;
-    padding: 28px 36px;
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.10);
-    border: 1px solid #f0f0f0;
+    background: rgba(255, 255, 255, 0.97) !important;
+    border-radius: 16px !important;
+    padding: 36px 40px 28px !important;
+    box-shadow: 0 24px 50px -12px rgba(15, 23, 42, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.6) inset !important;
+    border: 1px solid rgba(226, 232, 240, 0.8) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
 }
 
 /* Remove sub-containers do ExtJS que geram caixas duplicadas */
@@ -207,45 +209,51 @@ html:not(.mb-macos) .auth-locked-window .auth-dialog .x-panel-body {
 
 /* ===== TÍTULO ===== */
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-component {
-    color: #1f2937 !important;
-    font-size: 15px;
+    color: #1e293b !important;
+    font-size: 14px;
     font-weight: 500;
-    margin-bottom: 10px;
 }
 
 /* ===== INPUTS - estilo moderno e clean ===== */
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-text-default {
-    background: #f9fafb !important;
-    border-radius: 10px !important;
-    border: 1px solid #d1d5db !important;
-    color: #111827 !important;
-    height: 42px !important;
-    padding: 0 12px !important;
+    background: #f8fafc !important;
+    border-radius: 8px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    color: #0f172a !important;
+    height: 44px !important;
+    padding: 0 14px !important;
     font-size: 14px !important;
+    transition: all 0.15s ease-in-out !important;
 }
 
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-text-default::placeholder {
-    color: #9ca3af !important;
+    color: #94a3b8 !important;
 }
 
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-form-text-default.x-form-focus {
-    border-color: #3b82f6 !important;
-    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.4);
+    background: #ffffff !important;
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
 }
 
 /* ===== BOTÃO LOGIN ===== */
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-btn-default-large {
-    background: linear-gradient(135deg, #0094d9, #00c9a9) !important;
-    border-radius: 10px !important;
-    height: 42px !important;
-    border: none !important;
+    background: #2563eb !important;
+    border-radius: 8px !important;
+    height: 46px !important;
+    border: 1px solid #1d4ed8 !important;
     font-size: 15px !important;
     color: #ffffff !important;
     font-weight: 600 !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32) !important;
+    transition: all 0.15s ease-in-out !important;
 }
 
+html:not(.mb-macos) .auth-locked-window .auth-dialog .x-btn-default-large:hover,
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-btn-over {
-    filter: brightness(1.06);
+    background: #1d4ed8 !important;
+    border-color: #1e40af !important;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.42) !important;
 }
 
 /* ===== RODAPÉ (idioma + forgot) ===== */
@@ -254,8 +262,9 @@ html:not(.mb-macos) .auth-locked-window .auth-dialog .x-container .x-box-inner {
 }
 
 html:not(.mb-macos) .auth-locked-window .auth-dialog .x-container .x-box-item:last-child div {
-    color: #374151 !important;
+    color: #2563eb !important;
     font-size: 13px;
+    font-weight: 500;
 }
 
 /* ===== Remover “cantinhos” do ExtJS ===== */
@@ -3037,7 +3046,9 @@ div.ux-taskbar div.x-toolbar {
     }
 }
 
-/* Windows 11 / Microsoft-inspired login. */
+/* ==========================================================================
+   Modern SaaS / Windows Login Interface Redesign
+   ========================================================================== */
 .mb-windows-login-window.x-window-default {
     border: 0 !important;
     border-radius: 0 !important;
@@ -3045,200 +3056,296 @@ div.ux-taskbar div.x-toolbar {
 }
 
 .mb-windows-login-window>.x-window-body,
-.mb-windows-login-window .x-window-body-default {
+.mb-windows-login-window .x-window-body-default,
+.mb-modern-login-window>.x-window-body,
+.mb-modern-login-window .x-window-body-default {
     background:
-        radial-gradient(ellipse at 12% 96%, rgba(18, 125, 238, 0.76) 0 11%, transparent 42%),
-        radial-gradient(ellipse at 92% 12%, rgba(87, 195, 255, 0.7) 0 10%, transparent 41%),
-        radial-gradient(ellipse at 73% 78%, rgba(33, 94, 204, 0.72) 0 9%, transparent 38%),
-        linear-gradient(138deg, #071b3d 0%, #0b4385 38%, #0b81cf 67%, #173f86 100%) !important;
-    font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
+        radial-gradient(ellipse at 15% 15%, rgba(37, 99, 235, 0.40) 0%, transparent 45%),
+        radial-gradient(ellipse at 85% 85%, rgba(14, 165, 233, 0.25) 0%, transparent 40%),
+        radial-gradient(ellipse at 50% 50%, rgba(30, 41, 59, 0.50) 0%, transparent 60%),
+        linear-gradient(135deg, #090e17 0%, #0f172a 45%, #1e293b 100%) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     position: relative;
 }
 
-.mb-windows-login-card {
-    background: rgba(255, 255, 255, 0.94) !important;
-    border: 1px solid rgba(255, 255, 255, 0.76) !important;
-    border-radius: 8px !important;
-    box-shadow: 0 24px 64px rgba(0, 24, 68, 0.34), 0 2px 8px rgba(0, 25, 72, 0.16);
+.mb-windows-login-card,
+.mb-modern-login-card {
+    background: rgba(255, 255, 255, 0.97) !important;
+    border: 1px solid rgba(226, 232, 240, 0.85) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 10, 30, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.6) inset !important;
     overflow: hidden;
-    -webkit-backdrop-filter: blur(24px) saturate(120%);
-    backdrop-filter: blur(24px) saturate(120%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
 }
 
 .mb-windows-login-card>.x-panel-body,
-.mb-windows-login-card>.x-container-body {
+.mb-windows-login-card>.x-container-body,
+.mb-modern-login-card>.x-panel-body,
+.mb-modern-login-card>.x-container-body {
     background: transparent !important;
 }
 
+/* Brand header & Proportional Logo */
+.mb-modern-login-brand,
 .mb-windows-login-brand {
-    align-items: center;
-    display: flex;
-    margin-bottom: 17px !important;
+    text-align: center;
+    margin-bottom: 8px !important;
 }
 
+.mb-login-brand-logo-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    margin-bottom: 12px;
+}
+
+.mb-modern-login-logo,
 .mb-windows-login-logo {
     display: block !important;
-    flex: 0 0 32px;
-    height: 32px !important;
-    margin-right: 11px;
-    max-height: 32px !important;
-    max-width: 32px !important;
+    max-height: 48px !important;
+    max-width: 280px !important;
+    width: auto !important;
+    height: auto !important;
     object-fit: contain !important;
-    width: 32px !important;
+    margin: 0 auto !important;
 }
 
+.mb-modern-login-product,
 .mb-windows-login-product {
-    color: #1b1b1b;
-    flex: 1 1 auto;
-    font-family: "Segoe UI Variable Display", "Segoe UI", Arial, sans-serif;
-    font-size: 20px;
-    font-weight: 600;
-    letter-spacing: -0.25px;
-    line-height: 32px;
-    max-width: 330px;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    color: #0f172a !important;
+    font-size: 19px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.3px;
+    line-height: 1.3 !important;
+    text-align: center !important;
+    max-width: 100% !important;
 }
 
+/* Heading / Subtitle */
+.mb-modern-login-heading,
 .mb-windows-login-heading {
-    color: #1b1b1b !important;
-    font-family: "Segoe UI Variable Display", "Segoe UI", Arial, sans-serif;
-    font-size: 25px !important;
+    color: #64748b !important;
+    font-size: 13.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.15px;
+    line-height: 1.4 !important;
+    text-align: center !important;
+    margin-bottom: 14px !important;
+    display: block !important;
+}
+
+/* Field Top Labels (WCAG 3.3.2) */
+.mb-login-field-label {
+    color: #334155 !important;
+    font-size: 13px !important;
     font-weight: 600 !important;
-    letter-spacing: -0.45px;
-    line-height: 33px !important;
-    margin-bottom: 13px !important;
+    line-height: 1.3 !important;
+    margin-bottom: 5px !important;
+    display: block !important;
 }
 
+/* Fields & Trigger Wrappers */
+.mb-modern-login-field,
 .mb-windows-login-field {
-    margin-bottom: 2px !important;
+    margin-bottom: 6px !important;
 }
 
+.mb-modern-login-field .x-form-text-wrap,
+.mb-modern-login-field .x-form-trigger-wrap,
 .mb-windows-login-field .x-form-text-wrap,
 .mb-windows-login-field .x-form-trigger-wrap {
-    background: rgba(255, 255, 255, 0.88) !important;
-    border: 1px solid #8a8886 !important;
-    border-bottom-color: #5d5b59 !important;
-    border-radius: 4px !important;
+    background: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 8px !important;
     box-shadow: none !important;
+    transition: all 0.15s ease-in-out !important;
 }
 
+.mb-modern-login-field input,
 .mb-windows-login-field input {
-    color: #242424 !important;
-    font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif !important;
+    color: #0f172a !important;
     font-size: 14px !important;
-    padding: 0 13px !important;
+    font-weight: 400 !important;
+    padding: 0 14px !important;
+    height: 42px !important;
+    line-height: 42px !important;
 }
 
+.mb-modern-login-field input::placeholder,
 .mb-windows-login-field input::placeholder {
-    color: #616161;
+    color: #94a3b8 !important;
     opacity: 1;
 }
 
+.mb-modern-login-field.x-field-focus .x-form-text-wrap,
+.mb-modern-login-field.x-field-focus .x-form-trigger-wrap,
 .mb-windows-login-field.x-field-focus .x-form-text-wrap,
 .mb-windows-login-field.x-field-focus .x-form-trigger-wrap {
-    border-color: #0f6cbd !important;
-    border-bottom-width: 2px !important;
-    box-shadow: 0 0 0 1px rgba(15, 108, 189, 0.18) !important;
+    border-color: #2563eb !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.15) !important;
 }
 
+/* Password Reveal Trigger */
+.mb-trigger-password-reveal {
+    color: #64748b !important;
+    cursor: pointer !important;
+    font-size: 15px !important;
+    width: 38px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    transition: color 0.15s ease-in-out !important;
+}
+
+.mb-trigger-password-reveal:hover {
+    color: #0f172a !important;
+}
+
+/* Submit Action Button */
+.mb-modern-login-submit,
 .mb-windows-login-submit {
-    background: #0f6cbd !important;
-    border: 1px solid #0f6cbd !important;
-    border-radius: 4px !important;
-    box-shadow: 0 2px 4px rgba(0, 74, 145, 0.24);
-    height: 44px !important;
-    margin-top: 13px !important;
-    transition: background-color 120ms ease, border-color 120ms ease;
+    background: #2563eb !important;
+    border: 1px solid #1d4ed8 !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.32) !important;
+    height: 46px !important;
+    margin-top: 10px !important;
+    cursor: pointer !important;
+    transition: all 0.15s ease-in-out !important;
 }
 
+.mb-modern-login-submit:hover,
+.mb-modern-login-submit.x-btn-over,
 .mb-windows-login-submit:hover,
 .mb-windows-login-submit.x-btn-over {
-    background: #115ea3 !important;
-    border-color: #115ea3 !important;
+    background: #1d4ed8 !important;
+    border-color: #1e40af !important;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.42) !important;
+    transform: translateY(-1px);
 }
 
+.mb-modern-login-submit:active,
+.mb-modern-login-submit.x-btn-pressed,
 .mb-windows-login-submit:active,
 .mb-windows-login-submit.x-btn-pressed {
-    background: #0c3b5e !important;
-    border-color: #0c3b5e !important;
+    background: #1e40af !important;
+    border-color: #1e3a8a !important;
+    transform: translateY(0);
 }
 
-.mb-windows-login-submit .x-btn-inner,
+.mb-modern-login-submit .x-btn-inner,
+.mb-windows-login-submit .x-btn-inner {
+    color: #ffffff !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
+    letter-spacing: -0.2px;
+}
+
+.mb-modern-login-submit .x-btn-icon-el,
 .mb-windows-login-submit .x-btn-icon-el {
-    color: #fff !important;
-    font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
-    font-size: 14px !important;
-    font-weight: 600;
+    color: #ffffff !important;
+    font-size: 16px !important;
 }
 
-.mb-windows-login-submit .x-btn-icon-el:before {
-    font-size: 18px !important;
-    right: 12px !important;
-    top: 8px !important;
-}
-
+/* Create Account / Signup Button */
+.mb-modern-login-create,
 .mb-windows-login-create {
-    background: #fff !important;
-    border: 1px solid #8a8886 !important;
-    border-radius: 4px !important;
-    height: 42px !important;
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    height: 44px !important;
+    transition: all 0.15s ease-in-out !important;
 }
 
+.mb-modern-login-create:hover,
+.mb-modern-login-create.x-btn-over,
 .mb-windows-login-create:hover,
 .mb-windows-login-create.x-btn-over {
-    background: #f5f5f5 !important;
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
 }
 
-.mb-windows-login-create .x-btn-inner,
+.mb-modern-login-create .x-btn-inner,
+.mb-windows-login-create .x-btn-inner {
+    color: #2563eb !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+.mb-modern-login-create .x-btn-icon-el,
 .mb-windows-login-create .x-btn-icon-el {
-    color: #0f6cbd !important;
-    font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
-    font-weight: 600;
+    color: #2563eb !important;
 }
 
+/* Separator */
+.mb-modern-login-separator .outer-div:before,
+.mb-modern-login-separator .outer-div:after,
 .mb-windows-login-separator .outer-div:before,
 .mb-windows-login-separator .outer-div:after {
-    border-color: #d1d1d1 !important;
+    border-color: #e2e8f0 !important;
 }
 
+.mb-modern-login-separator .seperator,
 .mb-windows-login-separator .seperator {
-    background: #fbfbfb !important;
-    color: #616161 !important;
-    font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif !important;
+    background: #ffffff !important;
+    color: #94a3b8 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
 }
 
+/* Footer Links & Locale */
+.mb-modern-login-links,
 .mb-windows-login-links {
     background: transparent !important;
-    margin-top: 8px !important;
+    margin-top: 6px !important;
+    align-items: center !important;
 }
 
+.mb-modern-forgot-link,
+.mb-modern-login-forgot,
 .mb-windows-login-forgot {
-    color: #0f6cbd;
-    cursor: pointer;
-    font-family: "Segoe UI Variable Text", "Segoe UI", Arial, sans-serif;
-    font-size: 13px;
-    font-weight: 600;
+    color: #2563eb !important;
+    cursor: pointer !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    transition: color 0.15s ease-in-out !important;
 }
 
+.mb-modern-forgot-link:hover,
+.mb-modern-login-forgot:hover,
 .mb-windows-login-forgot:hover {
-    color: #115ea3;
-    text-decoration: underline;
+    color: #1d4ed8 !important;
+    text-decoration: underline !important;
+}
+
+/* System Signature Tagline */
+.mb-modern-login-footer-tag {
+    text-align: center !important;
+    margin-top: 14px !important;
+    padding-top: 12px !important;
+    border-top: 1px solid #f1f5f9 !important;
+}
+
+.mb-modern-login-footer-text {
+    color: #94a3b8 !important;
+    font-size: 11.5px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.2px;
 }
 
 @media (max-width: 520px) {
-    .mb-windows-login-card {
-        border-radius: 7px !important;
+    .mb-windows-login-card,
+    .mb-modern-login-card {
+        border-radius: 12px !important;
+        padding: 24px 20px 20px !important;
     }
 
+    .mb-modern-login-product,
     .mb-windows-login-product {
-        max-width: 240px;
-    }
-
-    .mb-windows-login-heading {
-        font-size: 23px !important;
+        font-size: 17px !important;
     }
 }
 

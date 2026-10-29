@@ -55,7 +55,7 @@ Ext.define('MBilling.view.main.Login', {
             loginLogo = customLogo;
         }
 
-        me.cls = isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window';
+        me.cls = isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window mb-modern-login-window';
         me.title = window.loginheader ? window.loginheader : t("Log in");
         me.header = false;
         if (isMac) {
@@ -67,75 +67,111 @@ Ext.define('MBilling.view.main.Login', {
                     '<span class="x-fa fa-cloud"></span>') + '</div>' +
                     '<div class="mb-mac-login-product">' + Ext.String.htmlEncode(productName) + '</div>'
             });
-        } else if (isWindows) {
+        } else {
             loginItems.push({
                 xtype: 'component',
-                cls: 'mb-windows-login-brand',
-                html: '<img class="mb-windows-login-logo" src="' + Ext.String.htmlEncode(loginLogo) + '" alt="" width="32" height="32" ' +
-                    'style="display:block;width:32px!important;height:32px!important;max-width:32px!important;max-height:32px!important;object-fit:contain;" />' +
-                    '<div class="mb-windows-login-product">' + Ext.String.htmlEncode(windowsProductName) + '</div>'
+                cls: 'mb-windows-login-brand mb-modern-login-brand',
+                html: '<div class="mb-login-brand-logo-wrap">' +
+                    '<img class="mb-windows-login-logo mb-modern-login-logo" src="' + Ext.String.htmlEncode(loginLogo) + '" alt="' + Ext.String.htmlEncode(windowsProductName) + '" />' +
+                    '</div>' +
+                    '<div class="mb-windows-login-product mb-modern-login-product">' + Ext.String.htmlEncode(windowsProductName) + '</div>'
             });
         }
         loginItems.push({
             xtype: 'label',
-            cls: isMac ? 'mb-mac-login-heading' : (isWindows ? 'mb-windows-login-heading' : ''),
+            cls: isMac ? 'mb-mac-login-heading' : 'mb-windows-login-heading mb-modern-login-heading',
             text: t('Sign into your account')
         }, {
             xtype: 'textfield',
-            cls: isMac ? 'auth-textbox mb-mac-login-field mb-mac-login-user' : (isWindows ? 'auth-textbox mb-windows-login-field' : 'auth-textbox'),
+            cls: isMac ? 'auth-textbox mb-mac-login-field mb-mac-login-user' : 'auth-textbox mb-windows-login-field mb-modern-login-field mb-modern-login-user',
             name: 'userid',
             reference: 'user',
-            height: isMac ? 52 : (isWindows ? 50 : 55),
-            hideLabel: true,
+            fieldLabel: t('Username or email'),
+            labelAlign: 'top',
+            labelSeparator: '',
+            labelCls: 'mb-login-field-label',
             allowBlank: false,
-            emptyText: t('Username or email')
+            emptyText: t('Username or email'),
+            inputAttrTpl: ' autocomplete="username" spellcheck="false" autocapitalize="none" '
         }, {
             xtype: 'textfield',
-            cls: isMac ? 'auth-textbox mb-mac-login-field mb-mac-login-password' : (isWindows ? 'auth-textbox mb-windows-login-field' : 'auth-textbox'),
-            height: isMac ? 52 : (isWindows ? 50 : 55),
-            hideLabel: true,
+            cls: isMac ? 'auth-textbox mb-mac-login-field mb-mac-login-password' : 'auth-textbox mb-windows-login-field mb-modern-login-field mb-modern-login-password',
+            fieldLabel: t('Password'),
+            labelAlign: 'top',
+            labelSeparator: '',
+            labelCls: 'mb-login-field-label',
             reference: 'password',
             emptyText: t('Password'),
             inputType: 'password',
             name: 'password',
-            allowBlank: false
+            allowBlank: false,
+            inputAttrTpl: ' autocomplete="current-password" ',
+            triggers: {
+                reveal: {
+                    cls: 'x-fa fa-eye mb-trigger-password-reveal',
+                    tooltip: t('Show / hide password'),
+                    weight: 1,
+                    handler: function () {
+                        var field = this;
+                        var input = field.inputEl ? field.inputEl.dom : null;
+                        if (!input) {
+                            return;
+                        }
+                        var trig = field.getTrigger('reveal');
+                        var trigEl = trig && trig.el ? trig.el : null;
+                        if (input.type === 'password') {
+                            input.type = 'text';
+                            if (trigEl) {
+                                trigEl.removeCls('fa-eye').addCls('fa-eye-slash');
+                            }
+                        } else {
+                            input.type = 'password';
+                            if (trigEl) {
+                                trigEl.removeCls('fa-eye-slash').addCls('fa-eye');
+                            }
+                        }
+                    }
+                }
+            }
         }, {
             xtype: 'button',
             reference: 'loginButton',
-            cls: isMac ? 'mb-mac-login-submit' : (isWindows ? 'mb-windows-login-submit' : ''),
+            cls: isMac ? 'mb-mac-login-submit' : 'mb-windows-login-submit mb-modern-login-submit',
             scale: 'large',
+            height: 46,
             iconAlign: 'right',
-            iconCls: 'x-fa fa-angle-right',
+            iconCls: 'x-fa fa-sign-in',
             text: t('Login'),
             formBind: true,
             handler: 'onLogin'
         }, {
             xtype: 'box',
-            cls: isMac ? 'mb-mac-login-separator' : (isWindows ? 'mb-windows-login-separator' : ''),
+            cls: isMac ? 'mb-mac-login-separator' : 'mb-windows-login-separator mb-modern-login-separator',
             html: '<div class="outer-div"><div class="seperator">' + t('OR') + '</div></div > ',
             hidden: !window.show_signup_button,
             margin: '10 0'
         }, {
             xtype: 'button',
-            cls: isMac ? 'mb-mac-login-create' : (isWindows ? 'mb-windows-login-create' : ''),
+            cls: isMac ? 'mb-mac-login-create' : 'mb-windows-login-create mb-modern-login-create',
             scale: 'large',
+            height: 44,
             iconAlign: 'right',
             iconCls: 'x-fa fa-user-plus',
             text: t('Create an account'),
             handler: 'onSignup',
             hidden: !window.show_signup_button
         }, {
-            cls: isMac ? 'mb-mac-login-links' : (isWindows ? 'mb-windows-login-links' : ''),
+            cls: isMac ? 'mb-mac-login-links' : 'mb-windows-login-links mb-modern-login-links',
             layout: 'hbox',
             items: [{
                 xtype: 'locale',
-                flex: 1,
+                width: 140,
                 margin: '5 0 0 0'
             }, {
-                flex: 4,
-                cls: isMac ? 'mb-mac-login-forgot' : (isWindows ? 'mb-windows-login-forgot' : ''),
-                margin: isMac ? '5 0 0 24' : (isWindows ? '5 0 0 22' : '5 0 0 80'),
-                html: '<div style="text-align: right;">' + t('Forgot your password?') + '</div>',
+                flex: 1,
+                cls: isMac ? 'mb-mac-login-forgot' : 'mb-windows-login-forgot mb-modern-login-forgot',
+                margin: '14 0 0 16',
+                html: '<div class="mb-modern-forgot-link" style="text-align: right; cursor: pointer;">' + Ext.String.htmlEncode(t('Forgot your password?')) + '</div>',
                 listeners: {
                     render: function (c) {
                         c.getEl().on({
@@ -146,6 +182,10 @@ Ext.define('MBilling.view.main.Login', {
                     }
                 }
             }]
+        }, {
+            xtype: 'component',
+            cls: 'mb-modern-login-footer-tag',
+            html: '<div class="mb-modern-login-footer-text">MagnusBilling 8 &bull; Enterprise VoIP Platform</div>'
         }, {
             xtype: 'box',
             id: 'myCaptcha',
@@ -167,18 +207,18 @@ Ext.define('MBilling.view.main.Login', {
         });
         me.items = [{
             defaultFocus: 'textfield:focusable:not([hidden]):not([disabled]):not([value])',
-            cls: isMac ? 'auth-dialog mb-mac-login-card' : (isWindows ? 'auth-dialog mb-windows-login-card' : 'auth-dialog'),
+            cls: isMac ? 'auth-dialog mb-mac-login-card' : 'auth-dialog mb-windows-login-card mb-modern-login-card',
             defaultButton: 'loginButton',
             autoComplete: true,
-            bodyPadding: isMac ? '34 38 28' : (isWindows ? '38 42 32' : '20 20'),
+            bodyPadding: isMac ? '34 38 28' : '36 40 28',
             header: false,
-            width: isMac ? Math.min(440, Ext.Element.getViewportWidth() - 32) : (isWindows ? Math.min(448, Ext.Element.getViewportWidth() - 32) : 415),
+            width: isMac ? Math.min(440, Ext.Element.getViewportWidth() - 32) : Math.min(460, Ext.Element.getViewportWidth() - 32),
             layout: {
                 type: 'vbox',
                 align: 'stretch'
             },
             defaults: {
-                margin: isMac ? '6 0' : (isWindows ? '7 0' : '5 0')
+                margin: '7 0'
             },
             items: loginItems
         }];
