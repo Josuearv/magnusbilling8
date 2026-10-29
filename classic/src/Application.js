@@ -13,7 +13,9 @@ Ext.define('MBilling.Application', {
     stores: ['UserHistory', 'CampaignDashBoard', 'DidHistory', 'TrunkSipCodes', 'CampaignReport', 'TrunkGroup', 'TrunkChart', 'Alarm', 'Holidays', 'StatusSystem', 'ProviderCNL', 'CallOnlineChart', 'Help', 'Api', 'CallSummaryMonthTrunk', 'CallArchive', 'CallSummaryMonthUser', 'CallSummaryMonthDid', 'RateProvider', 'GroupModule', 'GroupUser', 'CallSummaryDayTrunk', 'CallSummaryDayAgent', 'CallSummaryDayUser', 'Module', 'User', 'Configuration', 'TemplateMail', 'LogUsers', 'Provider', 'Plan', 'Trunk', 'Prefix', 'PrefixCombo', 'Sip', 'Sip2', 'Iax', 'Sipuras', 'CallOnLine', 'Callerid', 'RestrictedPhonenumber', 'Did', 'Diddestination', 'DidUse', 'Ivr', 'Queue', 'QueueMember', 'QueueDashBoard', 'QueueMemberDashBoard', 'Refill', 'RefillChart', 'MethodPay', 'Voucher', 'Refillprovider', 'Offer', 'OfferCdr', 'OfferUse', 'Campaign', 'CampaignLog', 'CampaignPoll', 'CallSummaryPerTrunk', 'PhoneBook', 'Rate', 'PhoneNumber', 'Call', 'CallFailed', 'CallSummaryPerDay', 'CallSummaryPerMonth', 'Sms', 'CampaignPollInfo', 'CampaignPollInfoChart', 'CampaignRestrictPhone', 'CallShop', 'CallShopCdr', 'SipTrace', 'RateCallshop', 'CallSummaryCallShop', 'Firewall', 'UserRate', 'Smtps', 'Servers', 'CallSummaryPerUser', 'Backup', 'GAuthenticator', 'GroupUserGroup', 'Services', 'ServicesUse', 'CallBack'],
     mainView: 'MBilling.view.main.Start',
     init: function () {
-        Ext.Boot.load('resources/locale/ext-locale-' + window.lang + '.js');
+        Ext.Boot.load(window.lang === 'de'
+            ? 'ext/classic/locale/overrides/de/ext-locale-de.js'
+            : 'resources/locale/ext-locale-' + window.lang + '.js');
         Ext.setGlyphFontFamily('icons');
         Ext.ariaWarn = Ext.emptyFn;
         Ext.enableAriaButtons = false;
@@ -46,7 +48,11 @@ Ext.define('MBilling.Application', {
             url: 'index.php/authentication/check',
             scope: this,
             success: function (response) {
-                response = Ext.decode(response.responseText);
+                response = Ext.decode(response.responseText, true);
+                if (!response || typeof response.success !== 'boolean') {
+                    window.MBillingBoot && window.MBillingBoot.fail('BOOT_AUTH_RESPONSE');
+                    return;
+                }
                 App.user.logged = response.success;
                 window.logo = response.logo;
                 if (App.user.logged) {
@@ -71,7 +77,8 @@ Ext.define('MBilling.Application', {
                     App.user.decimalPrecision = response.decimal;
                     App.user.userCount = response.userCount;
                     App.user.asteriskVersion = response.asterisk_version;
-                    App.user.l = response[k];
+                    // MagnusBilling 8 returns hash; older installations returned license.
+                    App.user.l = String(response.hash || response[k] || '');
                     App.user.version = response.version;
                     App.user.email = response.email;
                     App.user.social_media_network = response.social_media_network;
@@ -180,7 +187,7 @@ Ext.define('MBilling.Application', {
                 }
             },
             failure: function (response) {
-                document.getElementById('loading-mask').innerHTML = '<center><font color=red>ERROR <br>' + response.responseText + '</font></center>';
+                window.MBillingBoot && window.MBillingBoot.fail('BOOT_AUTH_HTTP_' + response.status);
             }
         });
     },
@@ -234,6 +241,7 @@ Ext.define('MBilling.Application', {
         return lt;
     },
     removeMask: function () {
+        window.MBillingBoot && window.MBillingBoot.complete();
         var loading = Ext.get('loading');
         if (!loading) {
             return;

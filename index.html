@@ -11,6 +11,39 @@
     </title>
 
     <script type="text/javascript">
+        // Surface boot failures before ExtJS exists, including dependency load errors.
+        (function () {
+            var done = false, failure = null;
+            function render() {
+                var message = document.getElementById('loading-msg');
+                if (!message || !failure || done) return;
+                var text = 'Unable to start MagnusBilling. Reload the page or contact the administrator.';
+                message.textContent = (typeof t === 'function' ? t(text) : text) + ' [' + failure + ']';
+                message.setAttribute('role', 'alert');
+                message.style.color = '#ffb4b4';
+                message.style.whiteSpace = 'normal';
+            }
+            var timer = setTimeout(function () { window.MBillingBoot.fail('BOOT_TIMEOUT'); }, 120000);
+            window.MBillingBoot = {
+                fail: function (code) {
+                    if (done || failure) return;
+                    failure = code;
+                    clearTimeout(timer);
+                    render();
+                },
+                complete: function () { done = true; clearTimeout(timer); },
+                getFailure: function () { return failure; }
+            };
+            window.addEventListener('error', function (event) {
+                var target = event.target;
+                var source = target && (target.src || target.href) || event.filename;
+                if (!source || source.indexOf(location.origin + '/') !== 0) return;
+                if (target !== window && target.tagName !== 'SCRIPT' && target.tagName !== 'LINK') return;
+                window.MBillingBoot.fail('BOOT_SCRIPT: ' + source.split('?')[0].substring(location.origin.length));
+            }, true);
+            document.addEventListener('DOMContentLoaded', render);
+        }());
+
         // 1. Purge obsolete ExtJS Microloader localStorage cache to prevent loading stale 2019 bundle manifests
         try {
             if (window.localStorage) {
@@ -41,11 +74,12 @@
         }
     </script>
 
-    <script src="index.php"></script>
+    <script src="index.php?v=8.0.0.6"></script>
     <script src="locale.js"></script>
     <script src="icons.js"></script>
 
     <link href="resources/init.css" rel="stylesheet" />
+    <link href="resources/MBilling-all.css?v=8.0.0.6" rel="stylesheet" />
     <script>
         if (window.agentTitle) {
             window.show_signup_button = false;
@@ -130,6 +164,6 @@
         };
     </script>
 
-    <script data-app="69eb1359-905e-4f4c-9e1e-2841e3ec1bda" id="microloader" src="bootstrap.js?v=8.0.0.5" type="text/javascript"></script>
+    <script data-app="69eb1359-905e-4f4c-9e1e-2841e3ec1bda" id="microloader" src="bootstrap.js?v=8.0.0.6" type="text/javascript"></script>
 </body>
 </html>

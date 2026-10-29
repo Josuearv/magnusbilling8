@@ -14,6 +14,7 @@
  * 2026
  */
 Locale.load({
+    "Unable to start MagnusBilling. Reload the page or contact the administrator.": "Impossibile avviare MagnusBilling. Ricaricare la pagina o contattare l’amministratore.",
     'Endpoint Details': 'Dettagli dell’endpoint',
     "Invalid request parameters. Check the submitted values.": "Parametri della richiesta non validi. Verificare i valori inviati.",
     "Access denied for module \"{module}\".": "Accesso negato al modulo \"{module}\".",
