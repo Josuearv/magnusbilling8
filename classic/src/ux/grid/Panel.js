@@ -78,7 +78,7 @@ Ext.define('Ext.ux.grid.Panel', {
         loadMask: {
             msg: t('Loading...')
         },
-        emptyText: '<center class="grid-empty">' + t('No record found') + '</center>'
+        emptyText: '<div class="mb-empty-state"><i class="x-fa fa-inbox mb-empty-icon"></i><div class="mb-empty-title">' + t('No record found') + '</div><div class="mb-empty-desc">' + t('No records match your filter criteria or the database is currently empty.') + '</div></div>'
     },
     initComponent: function () {
         var me = this,
@@ -120,7 +120,7 @@ Ext.define('Ext.ux.grid.Panel', {
                 filterOnClick: me.filterFieldOnClick,
                 store: me.store,
                 comparison: me.comparisonfilter,
-                width: isMobileLayout ? 80 : 130
+                width: isMobileLayout ? 110 : 180
             });
         }
         if (me.allowCreate) {

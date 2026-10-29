@@ -4897,3 +4897,351 @@ div.ux-taskbar div.x-toolbar {
 .fa-vimeo:before { content: "\f27d" !important; }
 .fa-black-tie:before { content: "\f27e" !important; }
 .fa-fonticons:before { content: "\f280" !important; }
+
+/* ==========================================================================
+   MagnusBilling 8 - Modern Enterprise SaaS UX/UI Theme Enhancements
+   ========================================================================== */
+
+/* 1. Global Font Smoothing & Typography */
+body,
+.x-body,
+.x-panel-body,
+.x-grid-cell,
+.x-btn,
+.x-tab,
+.x-toolbar,
+.x-window,
+.x-form-item-label,
+.x-form-field {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 2. Top Header Navigation Bar */
+.mb-main-header-toolbar {
+    background: #1e293b !important;
+    border-bottom: 1px solid #334155 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12) !important;
+    padding: 4px 14px 4px 8px !important;
+}
+
+.mb-main-header-toolbar .x-btn-default-toolbar-small {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.14) !important;
+    border-radius: 6px !important;
+    color: #f1f5f9 !important;
+    font-weight: 500 !important;
+    transition: all 0.2s ease !important;
+}
+
+.mb-main-header-toolbar .x-btn-default-toolbar-small:hover {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.mb-main-header-toolbar .x-btn-inner-default-toolbar-small {
+    color: #f8fafc !important;
+    font-weight: 500 !important;
+    font-size: 13px !important;
+}
+
+.mb-main-header-toolbar .x-btn-icon-el {
+    color: #94a3b8 !important;
+}
+
+/* 3. Modern Semantic Status Badges / Pills */
+.mb-badge {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    padding: 3px 9px !important;
+    border-radius: 9999px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 1.2 !important;
+    letter-spacing: 0.3px !important;
+    text-transform: uppercase !important;
+    white-space: nowrap !important;
+}
+
+.mb-badge i,
+.mb-badge .x-fa {
+    font-size: 10px !important;
+    line-height: 1 !important;
+}
+
+.mb-badge-success {
+    background-color: #ecfdf5 !important;
+    color: #065f46 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+
+.mb-badge-warning {
+    background-color: #fffbeb !important;
+    color: #92400e !important;
+    border: 1px solid #fde68a !important;
+}
+
+.mb-badge-danger {
+    background-color: #fef2f2 !important;
+    color: #991b1b !important;
+    border: 1px solid #fecaca !important;
+}
+
+.mb-badge-info {
+    background-color: #eff6ff !important;
+    color: #1e40af !important;
+    border: 1px solid #bfdbfe !important;
+}
+
+.mb-badge-neutral {
+    background-color: #f8fafc !important;
+    color: #475569 !important;
+    border: 1px solid #e2e8f0 !important;
+}
+
+/* Text utility classes */
+.text-success { color: #10b981 !important; }
+.text-primary { color: #2563eb !important; }
+.text-danger  { color: #ef4444 !important; }
+.text-warning { color: #f59e0b !important; }
+
+/* 4. Modern Grid Empty State */
+.mb-empty-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 48px 24px !important;
+    text-align: center !important;
+    margin: 20px auto !important;
+}
+
+.mb-empty-icon {
+    font-size: 42px !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 12px !important;
+    display: block !important;
+}
+
+.mb-empty-title {
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    color: #334155 !important;
+    margin-bottom: 6px !important;
+}
+
+.mb-empty-desc {
+    font-size: 13px !important;
+    color: #64748b !important;
+    max-width: 380px !important;
+    line-height: 1.5 !important;
+}
+
+/* 5. Modern Flat Tab Bar */
+.x-tab-bar-top {
+    background: #f1f5f9 !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding-top: 3px !important;
+}
+
+.x-tab-default-top {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 6px 6px 0 0 !important;
+    margin-right: 4px !important;
+    padding: 7px 14px !important;
+    transition: all 0.15s ease !important;
+    box-shadow: none !important;
+}
+
+.x-tab-default-top .x-tab-inner-default {
+    color: #64748b !important;
+    font-weight: 500 !important;
+    font-size: 12px !important;
+}
+
+.x-tab-default-top.x-tab-active {
+    background: #ffffff !important;
+    border-top: 2px solid #2563eb !important;
+    border-left: 1px solid #e2e8f0 !important;
+    border-right: 1px solid #e2e8f0 !important;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.04) !important;
+}
+
+.x-tab-default-top.x-tab-active .x-tab-inner-default {
+    color: #0f172a !important;
+    font-weight: 600 !important;
+}
+
+.x-tab-default-top:hover:not(.x-tab-active) {
+    background: #e2e8f0 !important;
+}
+
+.x-tab-default-top:hover:not(.x-tab-active) .x-tab-inner-default {
+    color: #1e293b !important;
+}
+
+.x-tab-close-btn {
+    opacity: 0.5 !important;
+    transition: opacity 0.15s ease !important;
+}
+
+.x-tab-close-btn:hover {
+    opacity: 1 !important;
+}
+
+/* 6. Modern Grid Toolbar & Search Field */
+.x-toolbar-default {
+    background: #fafbfc !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+    padding: 6px 10px !important;
+}
+
+.x-toolbar-default .x-btn-default-toolbar-small {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 5px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    padding: 3px 10px !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    transition: all 0.15s ease !important;
+}
+
+.x-toolbar-default .x-btn-default-toolbar-small:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+}
+
+.x-toolbar-default .x-btn-default-toolbar-small.x-btn-pressed {
+    background: #f1f5f9 !important;
+    border-color: #64748b !important;
+}
+
+.x-form-text-default {
+    border-radius: 5px !important;
+    border: 1px solid #cbd5e1 !important;
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+
+.x-form-text-default:focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* 7. Modern Data Grid Headers and Cells */
+.x-column-header {
+    background: #f8fafc !important;
+    border-right: 1px solid #e2e8f0 !important;
+    border-bottom: 1px solid #cbd5e1 !important;
+    color: #475569 !important;
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.4px !important;
+    padding: 8px 8px !important;
+}
+
+.x-column-header-over {
+    background: #f1f5f9 !important;
+}
+
+.x-column-header-text {
+    font-weight: 600 !important;
+}
+
+.x-grid-item {
+    color: #1e293b !important;
+    font-size: 12px !important;
+}
+
+.x-grid-item-alt {
+    background-color: #fcfdfe !important;
+}
+
+.x-grid-item-over {
+    background-color: #f0f7ff !important;
+}
+
+.x-grid-item-selected {
+    background-color: #e0f2fe !important;
+    color: #0369a1 !important;
+}
+
+.x-grid-cell-inner {
+    padding: 7px 10px !important;
+    line-height: 18px !important;
+}
+
+/* 8. Modern Left Sidebar Accordion & Tree Navigation */
+.x-accordion-item .x-accordion-hd {
+    background: #1e293b !important;
+    border-bottom: 1px solid #334155 !important;
+    padding: 10px 14px !important;
+    cursor: pointer !important;
+    transition: background 0.15s ease !important;
+}
+
+.x-accordion-item .x-accordion-hd:hover {
+    background: #273549 !important;
+}
+
+.x-accordion-item .x-panel-header-title-default {
+    color: #f8fafc !important;
+    font-weight: 600 !important;
+    font-size: 13px !important;
+    letter-spacing: 0.3px !important;
+}
+
+.x-tree-view {
+    background: #0f172a !important;
+    padding: 4px 0 !important;
+}
+
+.x-tree-view .x-grid-item {
+    background: transparent !important;
+    color: #94a3b8 !important;
+}
+
+.x-tree-view .x-grid-cell-inner {
+    padding: 7px 12px !important;
+}
+
+.x-tree-view .x-grid-item-over {
+    background-color: #1e293b !important;
+    color: #ffffff !important;
+}
+
+.x-tree-view .x-grid-item-selected {
+    background-color: #2563eb !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    border-radius: 4px !important;
+}
+
+.x-tree-view .x-grid-item-selected .x-tree-icon.x-fa {
+    color: #ffffff !important;
+}
+
+/* 9. Modern Windows & Modals */
+.x-window-default {
+    border-radius: 8px !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden !important;
+}
+
+.x-window-header-default {
+    background: #1e293b !important;
+    padding: 11px 16px !important;
+}
+
+.x-window-header-title-default {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+}

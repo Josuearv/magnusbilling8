@@ -33,15 +33,24 @@ Ext.define('MBilling.view.main.Main', {
             reference: 'header',
             dockedItems: [{
                 xtype: 'toolbar',
+                cls: 'mb-main-header-toolbar',
+                height: 48,
                 style: {
                     'padding-left': '0px',
-                    'padding-top': '0px',
-                    'padding-bottom': '0px'
+                    'padding-top': '4px',
+                    'padding-bottom': '4px',
+                    'padding-right': '12px'
                 },
                 items: [{
                     xtype: 'image',
                     src: window.logo,
-                    height: 60,
+                    height: 38,
+                    style: {
+                        'max-height': '38px',
+                        'width': 'auto',
+                        'object-fit': 'contain',
+                        'margin-left': '12px'
+                    },
                     hidden: window.isTablet || window.isTablets
                 }, '->', {
                     xtype: 'credit',
@@ -51,40 +60,40 @@ Ext.define('MBilling.view.main.Main', {
                     hidden: window.isTablets || window.isTable
                 }, '-', {
                     xtype: 'splitbutton',
-                    scale: window.isTablet || window.isTablets ? 'small' : 'medium',
-                    iconAlign: 'top',
-                    glyph: window.isTablet || window.isTablets ? '' : icons.user,
+                    scale: 'small',
+                    iconAlign: 'left',
+                    iconCls: 'x-fa fa-user-circle',
                     handler: function() {
                         this.showMenu()
                     },
                     text: App.user.username,
                     menu: [{
                         handler: 'openChangePassword',
-                        iconCls: 'icon-change-password',
+                        iconCls: 'x-fa fa-key',
                         text: t('Change password'),
                         hidden: !App.user.isAdmin
                     }, {
                         text: t('Import logo'),
-                        glyph: icons.cog,
+                        iconCls: 'x-fa fa-picture-o',
                         handler: 'importLogo',
                         hidden: App.user.isClient || window.isTablet || window.isTablets
                     }, {
                         text: t('Import Login Background'),
-                        glyph: icons.cog,
+                        iconCls: 'x-fa fa-image',
                         handler: 'importLoginBackground',
                         hidden: !App.user.isAdmin || window.isTablet || window.isTablets
                     }, {
                         text: t('Theme settings'),
-                        glyph: icons.cog,
+                        iconCls: 'x-fa fa-paint-brush',
                         handler: 'openSettings',
                         hidden: !App.user.isAdmin || window.isTablet || window.isTablets
                     }, {
                         text: t('About'),
-                        glyph: icons.info,
+                        iconCls: 'x-fa fa-info-circle',
                         handler: 'openAbout',
                         hidden: window.isTablets || App.user.l.slice(4, 7) == 'syn'
                     }, '-', {
-                        glyph: icons.exit,
+                        iconCls: 'x-fa fa-sign-out text-danger',
                         text: t('Exit'),
                         handler: 'logout'
                     }]
@@ -93,7 +102,7 @@ Ext.define('MBilling.view.main.Main', {
         }, {
             reference: 'tabPanelMenu',
             region: 'west',
-            width: window.isTablet ? '100%' : 230,
+            width: window.isTablet ? '100%' : 240,
             minWidth: 150,
             cls: isMobileLayout ? 'mb-mobile-main-menu' : '',
             bodyCls: isMobileLayout ? 'mb-mobile-main-menu-body' : '',

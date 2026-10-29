@@ -91,48 +91,6 @@ Ext.define('MBilling.Application', {
                     me.onload();
                     App.user.mmagnus = 3;
                     if (response.checkGoogleAuthenticator == false || App.user.loggedGoogle === true) {
-                        windowURLwidth = 380;
-                        heightView = Ext.Element.getViewportHeight() - 137;
-                        heightViewFace = heightView + 23;
-                        facebookhtml = '<br><iframe src="//www.magnusbilling.org/iframe.php?lang=' + localStorage.getItem('lang') + '&heightViewFace=' + heightViewFace + '" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:100%; height:600px; margin-top:0px" allowTransparency="true"></iframe>';
-                        if (!App.user.isAdmin && App.user.social_media_network.length > 10) {
-                            facebookhtml = '<br><iframe src="' + App.user.social_media_network + '" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:100%; height:600px; margin-top:0px" allowTransparency="true"></iframe>';
-                        }
-                        windowURL = Ext.widget('window', {
-                            title: App.user.isAdmin ? 'MAGNUSBILLING ' + t('NEWS') : t('NEWS'),
-                            layout: 'fit',
-                            autoShow: !window.isTablet && App.user.l.slice(4, 7) != 'syn' && (App.user.isAdmin || (!App.user.isAdmin && App.user.social_media_network.length > 10)),
-                            resizable: false,
-                            closable: false,
-                            collapsible: true,
-                            collapsed: false,
-                            collapseDirection: 'top',
-                            frame: false,
-                            width: windowURLwidth,
-                            height: Ext.Element.getViewportHeight() - 200,
-                            y: 12,
-                            autoScroll: true,
-                            style: 'background-color:transparent;',
-                            bodyStyle: 'background-color:transparent !important;',
-                            items: {
-                                autoScroll: true,
-                                reference: 'url',
-                                margin: '-10 -10',
-                                html: facebookhtml
-                            },
-                            listeners: {
-                                show: function () {
-                                    if (window.isThemeTriton) {
-                                        this.setX(Ext.Element.getViewportWidth() - windowURLwidth - 230);
-                                    } else {
-                                        this.setX(Ext.Element.getViewportWidth() - windowURLwidth - 200);
-                                    }
-                                    setTimeout(function () {
-                                        windowURL.collapse();
-                                    }, 10000);
-                                }
-                            }
-                        });
                         App.mainView = Ext.widget(window.isDesktop ? 'maindesktop' : 'main', {
                             user: App.user.name,
                             listeners: {

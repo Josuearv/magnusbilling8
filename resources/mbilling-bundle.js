@@ -2103,15 +2103,24 @@ Ext.define('MBilling.view.main.Main', {
             reference: 'header',
             dockedItems: [{
                 xtype: 'toolbar',
+                cls: 'mb-main-header-toolbar',
+                height: 48,
                 style: {
                     'padding-left': '0px',
-                    'padding-top': '0px',
-                    'padding-bottom': '0px'
+                    'padding-top': '4px',
+                    'padding-bottom': '4px',
+                    'padding-right': '12px'
                 },
                 items: [{
                     xtype: 'image',
                     src: window.logo,
-                    height: 60,
+                    height: 38,
+                    style: {
+                        'max-height': '38px',
+                        'width': 'auto',
+                        'object-fit': 'contain',
+                        'margin-left': '12px'
+                    },
                     hidden: window.isTablet || window.isTablets
                 }, '->', {
                     xtype: 'credit',
@@ -2121,40 +2130,40 @@ Ext.define('MBilling.view.main.Main', {
                     hidden: window.isTablets || window.isTable
                 }, '-', {
                     xtype: 'splitbutton',
-                    scale: window.isTablet || window.isTablets ? 'small' : 'medium',
-                    iconAlign: 'top',
-                    glyph: window.isTablet || window.isTablets ? '' : icons.user,
+                    scale: 'small',
+                    iconAlign: 'left',
+                    iconCls: 'x-fa fa-user-circle',
                     handler: function() {
                         this.showMenu()
                     },
                     text: App.user.username,
                     menu: [{
                         handler: 'openChangePassword',
-                        iconCls: 'icon-change-password',
+                        iconCls: 'x-fa fa-key',
                         text: t('Change password'),
                         hidden: !App.user.isAdmin
                     }, {
                         text: t('Import logo'),
-                        glyph: icons.cog,
+                        iconCls: 'x-fa fa-picture-o',
                         handler: 'importLogo',
                         hidden: App.user.isClient || window.isTablet || window.isTablets
                     }, {
                         text: t('Import Login Background'),
-                        glyph: icons.cog,
+                        iconCls: 'x-fa fa-image',
                         handler: 'importLoginBackground',
                         hidden: !App.user.isAdmin || window.isTablet || window.isTablets
                     }, {
                         text: t('Theme settings'),
-                        glyph: icons.cog,
+                        iconCls: 'x-fa fa-paint-brush',
                         handler: 'openSettings',
                         hidden: !App.user.isAdmin || window.isTablet || window.isTablets
                     }, {
                         text: t('About'),
-                        glyph: icons.info,
+                        iconCls: 'x-fa fa-info-circle',
                         handler: 'openAbout',
                         hidden: window.isTablets || App.user.l.slice(4, 7) == 'syn'
                     }, '-', {
-                        glyph: icons.exit,
+                        iconCls: 'x-fa fa-sign-out text-danger',
                         text: t('Exit'),
                         handler: 'logout'
                     }]
@@ -2163,7 +2172,7 @@ Ext.define('MBilling.view.main.Main', {
         }, {
             reference: 'tabPanelMenu',
             region: 'west',
-            width: window.isTablet ? '100%' : 230,
+            width: window.isTablet ? '100%' : 240,
             minWidth: 150,
             cls: isMobileLayout ? 'mb-mobile-main-menu' : '',
             bodyCls: isMobileLayout ? 'mb-mobile-main-menu-body' : '',
@@ -26218,7 +26227,7 @@ Ext.define('Ext.ux.grid.Panel', {
         loadMask: {
             msg: t('Loading...')
         },
-        emptyText: '<center class="grid-empty">' + t('No record found') + '</center>'
+        emptyText: '<div class="mb-empty-state"><i class="x-fa fa-inbox mb-empty-icon"></i><div class="mb-empty-title">' + t('No record found') + '</div><div class="mb-empty-desc">' + t('No records match your filter criteria or the database is currently empty.') + '</div></div>'
     },
     initComponent: function () {
         var me = this,
@@ -26260,7 +26269,7 @@ Ext.define('Ext.ux.grid.Panel', {
                 filterOnClick: me.filterFieldOnClick,
                 store: me.store,
                 comparison: me.comparisonfilter,
-                width: isMobileLayout ? 80 : 130
+                width: isMobileLayout ? 110 : 180
             });
         }
         if (me.allowCreate) {
@@ -31247,40 +31256,58 @@ Ext.define('MBilling.view.campaignoptimizerconfig.List', {
 
         me.extraButtons = [
             {
-                text: t('Run Optimizer Now'),
-                iconCls: 'x-fa fa-play',
+                xtype: 'splitbutton',
+                text: t('Optimizer Tools'),
+                iconCls: 'x-fa fa-cogs',
                 handler: 'onRunNow',
-                tooltip: t('Ejecuta sincronización de horarios, rotación de audio y conciliación de intentos')
+                tooltip: t('Herramientas de sincronización y rotación en vivo'),
+                menu: [
+                    {
+                        text: t('Run Optimizer Now'),
+                        iconCls: 'x-fa fa-play',
+                        handler: 'onRunNow',
+                        tooltip: t('Ejecuta sincronización de horarios, rotación de audio y conciliación de intentos')
+                    },
+                    {
+                        text: t('Rotate Audio Now'),
+                        iconCls: 'x-fa fa-music',
+                        handler: 'onRotateAudioNow',
+                        tooltip: t('Descubre directorios de audio y activa la siguiente versión')
+                    }
+                ]
             },
             {
-                text: t('Rotate Audio Now'),
-                iconCls: 'x-fa fa-music',
-                handler: 'onRotateAudioNow',
-                tooltip: t('Descubre directorios de audio y activa la siguiente versión')
-            },
-            {
-                text: t('Failed Analytics & Actions'),
+                xtype: 'button',
+                text: t('Analytics & Logs'),
                 iconCls: 'x-fa fa-bar-chart',
-                handler: 'onOpenFailedAnalytics',
-                tooltip: t('Inspeccionar analítica de fallos, códigos SIP y gestionar reactivaciones')
-            },
-            {
-                text: t('Active Suspensions'),
-                iconCls: 'x-fa fa-ban',
-                handler: 'onOpenSuspensions',
-                tooltip: t('Ver números suspendidos temporalmente o bloqueados permanentemente')
-            },
-            {
-                text: t('Audio Versions'),
-                iconCls: 'x-fa fa-volume-up',
-                handler: 'onOpenAudios',
-                tooltip: t('Ver versiones de audio descubiertas y validadas con SHA-256')
-            },
-            {
-                text: t('Execution Logs'),
-                iconCls: 'x-fa fa-history',
-                handler: 'onOpenLogs',
-                tooltip: t('Historial de ejecuciones, duraciones y métricas del optimizador')
+                tooltip: t('Inspección de fallos, suspensiones y registros de auditoría'),
+                menu: [
+                    {
+                        text: t('Failed Analytics & Actions'),
+                        iconCls: 'x-fa fa-bar-chart',
+                        handler: 'onOpenFailedAnalytics',
+                        tooltip: t('Inspeccionar analítica de fallos, códigos SIP y gestionar reactivaciones')
+                    },
+                    {
+                        text: t('Active Suspensions'),
+                        iconCls: 'x-fa fa-ban',
+                        handler: 'onOpenSuspensions',
+                        tooltip: t('Ver números suspendidos temporalmente o bloqueados permanentemente')
+                    },
+                    {
+                        text: t('Audio Versions'),
+                        iconCls: 'x-fa fa-volume-up',
+                        handler: 'onOpenAudios',
+                        tooltip: t('Ver versiones de audio descubiertas y validadas con SHA-256')
+                    },
+                    '-',
+                    {
+                        text: t('Execution Logs'),
+                        iconCls: 'x-fa fa-history',
+                        handler: 'onOpenLogs',
+                        tooltip: t('Historial de ejecuciones, duraciones y métricas del optimizador')
+                    }
+                ]
             }
         ];
 
@@ -31295,41 +31322,47 @@ Ext.define('MBilling.view.campaignoptimizerconfig.List', {
                 header: t('Campaign'),
                 dataIndex: 'idCampaignname',
                 flex: 2,
+                minWidth: 150,
                 sortable: true
             },
             {
                 header: t('Status'),
                 dataIndex: 'activated',
-                width: 90,
-                renderer: Helper.Util.formatBooleanActive,
+                width: 105,
+                sortable: true,
                 comboRelated: 'booleancombo',
-                sortable: true
+                renderer: function (val) {
+                    if (val == 1 || val === true || val === '1') {
+                        return '<span class="mb-badge mb-badge-success"><i class="x-fa fa-check"></i> ' + t('Active') + '</span>';
+                    }
+                    return '<span class="mb-badge mb-badge-danger"><i class="x-fa fa-times"></i> ' + t('Inactive') + '</span>';
+                }
             },
             {
                 header: t('Mode'),
                 dataIndex: 'mode',
-                width: 125,
+                width: 135,
                 sortable: true,
                 renderer: function (val) {
                     if (val === 'ENFORCING') {
-                        return '<span style="color:#059669; font-weight:bold;"><i class="x-fa fa-shield"></i> ENFORCING</span>';
+                        return '<span class="mb-badge mb-badge-success"><i class="x-fa fa-shield"></i> ENFORCING</span>';
                     } else if (val === 'OBSERVATION') {
-                        return '<span style="color:#d97706; font-weight:bold;"><i class="x-fa fa-eye"></i> OBSERVATION</span>';
+                        return '<span class="mb-badge mb-badge-warning"><i class="x-fa fa-eye"></i> OBSERVATION</span>';
                     }
-                    return '<span style="color:#6b7280; font-weight:bold;">OFF</span>';
+                    return '<span class="mb-badge mb-badge-neutral"><i class="x-fa fa-power-off"></i> OFF</span>';
                 }
             },
             {
                 header: t('Max Calls/Day'),
                 dataIndex: 'max_calls_daily_per_recipient',
-                width: 110,
+                width: 120,
                 align: 'center',
                 sortable: true
             },
             {
                 header: t('Fail Block Threshold'),
                 dataIndex: 'min_failures_temp_block',
-                width: 130,
+                width: 155,
                 align: 'center',
                 sortable: true
             },
@@ -31366,19 +31399,20 @@ Ext.define('MBilling.view.campaignoptimizerconfig.List', {
                 header: t('Audio Directory'),
                 dataIndex: 'audio_pool_directory',
                 flex: 2,
+                minWidth: 150,
                 sortable: true
             },
             {
                 header: t('Audio Interval (m)'),
                 dataIndex: 'audio_rotation_interval_minutes',
-                width: 120,
+                width: 145,
                 align: 'center',
                 sortable: true
             },
             {
                 header: t('Last Updated'),
                 dataIndex: 'updated_at',
-                width: 145,
+                width: 155,
                 sortable: true
             }
         ];
@@ -80151,48 +80185,6 @@ Ext.define('MBilling.Application', {
                     me.onload();
                     App.user.mmagnus = 3;
                     if (response.checkGoogleAuthenticator == false || App.user.loggedGoogle === true) {
-                        windowURLwidth = 380;
-                        heightView = Ext.Element.getViewportHeight() - 137;
-                        heightViewFace = heightView + 23;
-                        facebookhtml = '<br><iframe src="//www.magnusbilling.org/iframe.php?lang=' + localStorage.getItem('lang') + '&heightViewFace=' + heightViewFace + '" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:100%; height:600px; margin-top:0px" allowTransparency="true"></iframe>';
-                        if (!App.user.isAdmin && App.user.social_media_network.length > 10) {
-                            facebookhtml = '<br><iframe src="' + App.user.social_media_network + '" scrolling="no" frameborder="0" style="border:none; overflow:hidden; width:100%; height:600px; margin-top:0px" allowTransparency="true"></iframe>';
-                        }
-                        windowURL = Ext.widget('window', {
-                            title: App.user.isAdmin ? 'MAGNUSBILLING ' + t('NEWS') : t('NEWS'),
-                            layout: 'fit',
-                            autoShow: !window.isTablet && App.user.l.slice(4, 7) != 'syn' && (App.user.isAdmin || (!App.user.isAdmin && App.user.social_media_network.length > 10)),
-                            resizable: false,
-                            closable: false,
-                            collapsible: true,
-                            collapsed: false,
-                            collapseDirection: 'top',
-                            frame: false,
-                            width: windowURLwidth,
-                            height: Ext.Element.getViewportHeight() - 200,
-                            y: 12,
-                            autoScroll: true,
-                            style: 'background-color:transparent;',
-                            bodyStyle: 'background-color:transparent !important;',
-                            items: {
-                                autoScroll: true,
-                                reference: 'url',
-                                margin: '-10 -10',
-                                html: facebookhtml
-                            },
-                            listeners: {
-                                show: function () {
-                                    if (window.isThemeTriton) {
-                                        this.setX(Ext.Element.getViewportWidth() - windowURLwidth - 230);
-                                    } else {
-                                        this.setX(Ext.Element.getViewportWidth() - windowURLwidth - 200);
-                                    }
-                                    setTimeout(function () {
-                                        windowURL.collapse();
-                                    }, 10000);
-                                }
-                            }
-                        });
                         App.mainView = Ext.widget(window.isDesktop ? 'maindesktop' : 'main', {
                             user: App.user.name,
                             listeners: {
