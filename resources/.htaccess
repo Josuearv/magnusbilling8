@@ -3,7 +3,7 @@ Options -Indexes
 Order Deny,Allow
 Deny from all
 
-<FilesMatch "init\.css$|mobile\.css$|ip\.blacklist|MBilling-all\.css|.*\.js|.*\.svg|.*\.woff|.*\.woff2|.*\.png|.*\.jpeg|.*\.jpg|.*\.gif|.*\.ico">
+<FilesMatch "(\.css|\.js|\.svg|\.woff|\.woff2|\.ttf|\.eot|\.otf|\.png|\.jpe?g|\.gif|\.ico)$|ip\.blacklist">
     Order deny,allow
     Allow from all
 </FilesMatch>
