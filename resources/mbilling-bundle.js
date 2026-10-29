@@ -34344,13 +34344,14 @@ Ext.define('MBilling.view.main.Login', {
     requires: ['MBilling.view.main.ForgetPassword', 'MBilling.view.main.Signup', 'MBilling.view.main.LoginController'],
     xtype: 'login',
     controller: 'login',
-    cls: window.isMac ? 'auth-locked-window mb-mac-login-window' : (window.isDesktop === true ? 'auth-locked-window mb-windows-login-window' : 'auth-locked-window'),
+    cls: window.isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window',
     closable: false,
     resizable: false,
     autoShow: true,
     titleAlign: 'center',
     maximized: true,
     modal: true,
+    header: false,
     layout: {
         type: 'vbox',
         align: 'center',
@@ -34359,7 +34360,7 @@ Ext.define('MBilling.view.main.Login', {
     initComponent: function () {
         var me = this,
             isMac = window.isMac === true,
-            isWindows = window.isDesktop === true && window.isMac !== true,
+            isWindows = !isMac,
             customName = me.getCustomWindowValue(window.cn),
             customLogo = me.getCustomLogoPath(window.cl),
             loginItems = [];
@@ -34368,7 +34369,7 @@ Ext.define('MBilling.view.main.Login', {
         } else {
             var productName = window.agentTitle || 'MagnusBilling';
         }
-        if ((isMac || isWindows) && customName) {
+        if (customName) {
             productName = customName;
         }
         if (window.productCustom) {
@@ -34376,25 +34377,22 @@ Ext.define('MBilling.view.main.Login', {
         } else {
             var windowsProductName = window.agentTitle || t('MagnusBilling System');
         }
-        if ((isMac || isWindows) && customName) {
+        if (customName) {
             windowsProductName = customName;
         }
 
         if (window.logoCustom) {
             var loginLogo = window.logoCustom;
         } else {
-            var loginLogo = window.agentTitle ? 'resources/images/logo_custom_' + window.agentId + '.png' : 'resources/images/loading.gif';
+            var loginLogo = window.agentTitle ? 'resources/images/logo_custom_' + window.agentId + '.png' : 'resources/images/logo.png';
         }
-        if ((isMac || isWindows) && customLogo) {
+        if (customLogo) {
             loginLogo = customLogo;
         }
 
-
-        me.cls = isMac ? 'auth-locked-window mb-mac-login-window' : (isWindows ? 'auth-locked-window mb-windows-login-window' : 'auth-locked-window');
+        me.cls = isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window';
         me.title = window.loginheader ? window.loginheader : t("Log in");
-        if (isMac || isWindows) {
-            me.header = false;
-        }
+        me.header = false;
         if (isMac) {
             loginItems.push({
                 xtype: 'component',
