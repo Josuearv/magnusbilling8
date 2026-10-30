@@ -102,8 +102,12 @@ Ext.define('MBilling.view.user.Controller', {
             scope: me,
             success: function(response) {
                 response = Ext.decode(response.responseText);
-                console.log(response);
-                fieldUsername.setValue(response.newUsername);
+                if (response && response.newUsername) {
+                    var curVal = fieldUsername.getValue();
+                    if (!curVal || curVal === '') {
+                        fieldUsername.setValue(response.newUsername);
+                    }
+                }
             }
         });
     },

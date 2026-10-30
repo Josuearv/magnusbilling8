@@ -33,8 +33,7 @@ Ext.define('MBilling.view.user.Form', {
                     labelAlign: 'right',
                     plugins: 'markallowblank',
                     allowBlank: false,
-                    anchor: '100%',
-                    enableKeyEvents: true
+                    anchor: '100%'
                 }
             },
             items: [{
@@ -135,7 +134,6 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
-                    enableKeyEvents: true,
                     labelWidth: 145
                 },
                 title: t('Personal data'),
@@ -153,12 +151,12 @@ Ext.define('MBilling.view.user.Form', {
                     name: 'commercial_name',
                     fieldLabel: t('Commercial name'),
                     allowBlank: true,
-                    hidden: App.user.base_country = !'BRL'
+                    hidden: App.user.base_country !== 'BRL'
                 }, {
                     name: 'state_number',
                     fieldLabel: t('State number'),
                     allowBlank: true,
-                    hidden: App.user.base_country = !'BRL'
+                    hidden: App.user.base_country !== 'BRL'
                 }, {
                     name: 'lastname',
                     fieldLabel: t('Last name'),
@@ -299,7 +297,6 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
-                    enableKeyEvents: true,
                     labelWidth: 145
                 },
                 items: [{

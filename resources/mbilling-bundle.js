@@ -6793,7 +6793,7 @@ Ext.define('Ext.ux.app.ViewController', {
     isSubmitForm: false,
     control: {
         'form field': {
-            keyup: 'onKeyUpField'
+            specialkey: 'onSpecialKeyField'
         }
     },
     msgConfirmation: 'Confirm delete',
@@ -7482,6 +7482,11 @@ Ext.define('Ext.ux.app.ViewController', {
         var me = this,
             fieldFocus = me.formPanel.down('field[disabled=false]');
         fieldFocus && fieldFocus.focus(false, 10);
+    },
+    onSpecialKeyField: function (field, evt) {
+        if (evt.getKey() === evt.ENTER && field.xtype !== 'textarea') {
+            this.onSave();
+        }
     },
     onKeyUpField: function (field, evt) {
         if (evt.getKey() === evt.ENTER && field.xtype !== 'textarea') {
@@ -14036,8 +14041,12 @@ Ext.define('MBilling.view.user.Controller', {
             scope: me,
             success: function(response) {
                 response = Ext.decode(response.responseText);
-                console.log(response);
-                fieldUsername.setValue(response.newUsername);
+                if (response && response.newUsername) {
+                    var curVal = fieldUsername.getValue();
+                    if (!curVal || curVal === '') {
+                        fieldUsername.setValue(response.newUsername);
+                    }
+                }
             }
         });
     },
@@ -41495,8 +41504,7 @@ Ext.define('Ext.ux.form.Panel', {
     defaults: {
         plugins: 'markallowblank',
         allowBlank: false,
-        anchor: '100%',
-        enableKeyEvents: true
+        anchor: '100%'
     },
     buttonsTbar: [],
     labelWidthFields: 100,
@@ -41609,7 +41617,6 @@ Ext.define('Ext.ux.form.Panel', {
         }
         Ext.applyIf(me.defaults, {
             anchor: '0',
-            enableKeyEvents: true,
             labelAlign: me.labelAlignFields,
             labelWidth: me.labelWidthFields,
             msgTarget: 'side',
@@ -41865,8 +41872,7 @@ Ext.define('MBilling.view.user.Form', {
                     labelAlign: 'right',
                     plugins: 'markallowblank',
                     allowBlank: false,
-                    anchor: '100%',
-                    enableKeyEvents: true
+                    anchor: '100%'
                 }
             },
             items: [{
@@ -41967,7 +41973,6 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
-                    enableKeyEvents: true,
                     labelWidth: 145
                 },
                 title: t('Personal data'),
@@ -41985,12 +41990,12 @@ Ext.define('MBilling.view.user.Form', {
                     name: 'commercial_name',
                     fieldLabel: t('Commercial name'),
                     allowBlank: true,
-                    hidden: App.user.base_country = !'BRL'
+                    hidden: App.user.base_country !== 'BRL'
                 }, {
                     name: 'state_number',
                     fieldLabel: t('State number'),
                     allowBlank: true,
-                    hidden: App.user.base_country = !'BRL'
+                    hidden: App.user.base_country !== 'BRL'
                 }, {
                     name: 'lastname',
                     fieldLabel: t('Last name'),
@@ -42131,7 +42136,6 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
-                    enableKeyEvents: true,
                     labelWidth: 145
                 },
                 items: [{

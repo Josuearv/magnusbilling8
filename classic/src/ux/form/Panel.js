@@ -25,8 +25,7 @@ Ext.define('Ext.ux.form.Panel', {
     defaults: {
         plugins: 'markallowblank',
         allowBlank: false,
-        anchor: '100%',
-        enableKeyEvents: true
+        anchor: '100%'
     },
     buttonsTbar: [],
     labelWidthFields: 100,
@@ -139,7 +138,6 @@ Ext.define('Ext.ux.form.Panel', {
         }
         Ext.applyIf(me.defaults, {
             anchor: '0',
-            enableKeyEvents: true,
             labelAlign: me.labelAlignFields,
             labelWidth: me.labelWidthFields,
             msgTarget: 'side',

@@ -32,7 +32,7 @@ Ext.define('Ext.ux.app.ViewController', {
     isSubmitForm: false,
     control: {
         'form field': {
-            keyup: 'onKeyUpField'
+            specialkey: 'onSpecialKeyField'
         }
     },
     msgConfirmation: 'Confirm delete',
@@ -721,6 +721,11 @@ Ext.define('Ext.ux.app.ViewController', {
         var me = this,
             fieldFocus = me.formPanel.down('field[disabled=false]');
         fieldFocus && fieldFocus.focus(false, 10);
+    },
+    onSpecialKeyField: function (field, evt) {
+        if (evt.getKey() === evt.ENTER && field.xtype !== 'textarea') {
+            this.onSave();
+        }
     },
     onKeyUpField: function (field, evt) {
         if (evt.getKey() === evt.ENTER && field.xtype !== 'textarea') {

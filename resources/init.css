@@ -5558,11 +5558,18 @@ body,
 /* 6. Modern Grid Toolbar & Search Field */
 .x-toolbar-default {
     background: #fafbfc !important;
-    border-bottom: 1px solid #e2e8f0 !important;
-    padding: 6px 10px !important;
+    border-color: #e2e8f0 !important;
 }
 
-.x-toolbar-default .x-btn-default-toolbar-small {
+/* Top Action Toolbar */
+.x-toolbar-default.x-docked-top,
+.x-toolbar.x-docked-top {
+    padding: 6px 10px !important;
+    border-bottom: 1px solid #e2e8f0 !important;
+}
+
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small,
+.x-toolbar:not(.x-docked-bottom) .x-btn-default-toolbar-small {
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
     border-radius: 5px !important;
@@ -5570,25 +5577,82 @@ body,
     padding: 3px 10px !important;
     font-size: 12px !important;
     font-weight: 500 !important;
-    transition: all 0.15s ease !important;
+    color: #334155 !important;
 }
 
-.x-toolbar-default .x-btn-default-toolbar-small:hover {
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small:hover,
+.x-toolbar:not(.x-docked-bottom) .x-btn-default-toolbar-small:hover {
     background: #f8fafc !important;
     border-color: #94a3b8 !important;
 }
 
-.x-toolbar-default .x-btn-default-toolbar-small.x-btn-pressed {
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small.x-btn-pressed,
+.x-toolbar:not(.x-docked-bottom) .x-btn-default-toolbar-small.x-btn-pressed {
     background: #f1f5f9 !important;
     border-color: #64748b !important;
 }
 
-.x-form-text-default {
-    border-radius: 5px !important;
+/* Bottom Paging Toolbar */
+.x-toolbar.x-docked-bottom,
+.x-toolbar-paging,
+.x-toolbar-default.x-docked-bottom {
+    background: #fafbfc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-bottom: none !important;
+    padding: 2px 8px !important;
+}
+
+.x-toolbar.x-docked-bottom .x-btn-default-toolbar-small,
+.x-toolbar-paging .x-btn-default-toolbar-small {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 4px !important;
+    box-shadow: none !important;
+    padding: 2px !important;
+    min-width: 24px !important;
+    width: 24px !important;
+    height: 24px !important;
+    color: #475569 !important;
+}
+
+.x-toolbar.x-docked-bottom .x-btn-default-toolbar-small:hover,
+.x-toolbar-paging .x-btn-default-toolbar-small:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+}
+
+.x-toolbar.x-docked-bottom .x-btn-default-toolbar-small.x-btn-disabled,
+.x-toolbar-paging .x-btn-default-toolbar-small.x-btn-disabled {
+    background: transparent !important;
+    border-color: transparent !important;
+    opacity: 0.35 !important;
+}
+
+.x-toolbar.x-docked-bottom .x-form-text,
+.x-toolbar-paging .x-form-text {
+    padding: 2px 4px !important;
+    height: 22px !important;
+    width: 34px !important;
+    font-size: 11.5px !important;
+    text-align: center !important;
+    border-radius: 4px !important;
     border: 1px solid #cbd5e1 !important;
+    background: #ffffff !important;
+}
+
+.x-toolbar.x-docked-bottom .x-toolbar-text,
+.x-toolbar-paging .x-toolbar-text {
     font-size: 12px !important;
-    padding: 4px 8px !important;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+    color: #64748b !important;
+    line-height: 24px !important;
+    padding: 0 4px !important;
+}
+
+/* Form text fields - styled without overriding layout dimensions */
+.x-form-text-default {
+    border-radius: 4px !important;
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
 }
 
 .x-form-text-default:focus {
@@ -5602,19 +5666,27 @@ body,
     border-right: 1px solid #e2e8f0 !important;
     border-bottom: 1px solid #cbd5e1 !important;
     color: #475569 !important;
-    font-weight: 600 !important;
-    font-size: 11px !important;
-    text-transform: uppercase !important;
-    letter-spacing: 0.4px !important;
-    padding: 8px 8px !important;
+    padding: 0 !important;
 }
 
 .x-column-header-over {
     background: #f1f5f9 !important;
 }
 
+.x-column-header-inner {
+    padding: 6px 8px !important;
+}
+
+.x-column-header-checkbox,
+.x-column-header-checkbox .x-column-header-inner {
+    padding: 0 !important;
+    text-align: center !important;
+}
+
 .x-column-header-text {
     font-weight: 600 !important;
+    font-size: 11.5px !important;
+    color: #475569 !important;
 }
 
 .x-grid-item {
@@ -5636,8 +5708,15 @@ body,
 }
 
 .x-grid-cell-inner {
-    padding: 7px 10px !important;
+    padding: 6px 8px !important;
     line-height: 18px !important;
+}
+
+.x-grid-cell-row-checker .x-grid-cell-inner,
+.x-grid-cell-special .x-grid-cell-inner,
+.x-grid-row-checker {
+    padding: 0 !important;
+    text-align: center !important;
 }
 
 /* 8. Modern Left Sidebar Accordion & Tree Navigation */
