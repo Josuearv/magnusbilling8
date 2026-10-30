@@ -9,7 +9,7 @@ Ext.define('MBilling.view.main.Login', {
     requires: ['MBilling.view.main.ForgetPassword', 'MBilling.view.main.Signup', 'MBilling.view.main.LoginController'],
     xtype: 'login',
     controller: 'login',
-    cls: window.isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window mb-modern-login-window',
+    cls: 'auth-locked-window mb-modern-login-window',
     closable: false,
     resizable: false,
     autoShow: true,
@@ -24,93 +24,76 @@ Ext.define('MBilling.view.main.Login', {
     },
     initComponent: function () {
         var me = this,
-            isMac = window.isMac === true,
-            isWindows = !isMac,
             customName = me.getCustomWindowValue(window.cn),
             customLogo = me.getCustomLogoPath(window.cl),
             loginItems = [];
-        if (window.nameCustom) {
-            var productName = window.nameCustom;
-        } else {
-            var productName = window.agentTitle || 'MagnusBilling';
-        }
+
+        var productName = window.nameCustom || window.agentTitle || 'MagnusBilling';
         if (customName) {
             productName = customName;
         }
-        if (window.productCustom) {
-            var windowsProductName = window.productCustom;
-        } else {
-            var windowsProductName = window.agentTitle || t('MagnusBilling System');
-        }
+
+        var windowsProductName = window.productCustom || window.agentTitle || t('MagnusBilling System');
         if (customName) {
             windowsProductName = customName;
         }
 
+        var loginLogo = 'resources/images/infinyte_logo.svg';
         if (window.logoCustom) {
-            var loginLogo = window.logoCustom;
-        } else {
-            var loginLogo = window.agentTitle ? 'resources/images/logo_custom_' + window.agentId + '.png' : 'resources/images/logo.png';
-        }
-        if (customLogo) {
+            loginLogo = window.logoCustom;
+        } else if (customLogo) {
             loginLogo = customLogo;
+        } else if (window.agentTitle) {
+            loginLogo = 'resources/images/logo_custom_' + window.agentId + '.png';
         }
 
-        me.cls = isMac ? 'auth-locked-window mb-mac-login-window' : 'auth-locked-window mb-windows-login-window mb-modern-login-window';
-        me.title = window.loginheader ? window.loginheader : t("Log in");
+        me.cls = 'auth-locked-window mb-modern-login-window';
+        me.title = window.loginheader ? window.loginheader : t("Sign In");
         me.header = false;
-        if (isMac) {
-            loginItems.push({
-                xtype: 'component',
-                cls: 'mb-mac-login-brand',
-                html: '<div class="mb-mac-login-app-icon">' + (customLogo ?
-                    '<img class="mb-mac-login-logo" src="' + Ext.String.htmlEncode(customLogo) + '" alt="" />' :
-                    '<span class="x-fa fa-cloud"></span>') + '</div>' +
-                    '<div class="mb-mac-login-product">' + Ext.String.htmlEncode(productName) + '</div>'
-            });
-        } else {
-            loginItems.push({
-                xtype: 'component',
-                cls: 'mb-login-brand-wrapper',
-                html: '<div class="mb-login-brand-logo-wrap">' +
-                    '<img class="mb-login-brand-logo" src="' + Ext.String.htmlEncode(loginLogo) + '" alt="' + Ext.String.htmlEncode(windowsProductName) + '" />' +
-                    '</div>' +
-                    '<h1 class="mb-login-brand-title">' + Ext.String.htmlEncode(windowsProductName) + '</h1>' +
-                    '<p class="mb-login-brand-subtitle">' + Ext.String.htmlEncode(t('Sign into your account')) + '</p>'
-            });
-        }
+
+        loginItems.push({
+            xtype: 'component',
+            cls: 'mb-login-brand-wrapper',
+            html: '<div class="mb-login-brand-logo-wrap">' +
+                '<img class="mb-login-brand-logo" src="' + Ext.String.htmlEncode(loginLogo) + '" alt="' + Ext.String.htmlEncode(windowsProductName) + '" onerror="if(this.src.indexOf(\'infinyte_logo.svg\')===-1){this.src=\'resources/images/infinyte_logo.svg\';}" />' +
+                '</div>' +
+                '<h1 class="mb-login-brand-title">' + Ext.String.htmlEncode(t('Great to see you here')) + ' &#128075;</h1>' +
+                '<p class="mb-login-brand-subtitle">' + Ext.String.htmlEncode(t("Let's get you signed in. Enter your credentials to continue.")) + '</p>'
+        });
+
         loginItems.push({
             xtype: 'textfield',
             cls: 'auth-textbox mb-modern-input-field mb-field-user',
             inputId: 'login-userid-input',
             name: 'userid',
             reference: 'user',
-            fieldLabel: t('Username or email'),
+            fieldLabel: t('Username or email') + ' <span class="mb-login-required">*</span>',
             labelAlign: 'top',
             labelSeparator: '',
             labelPad: 6,
-            height: 78,
+            height: 74,
             width: '100%',
             allowBlank: false,
-            emptyText: t('Username or email'),
+            emptyText: 'admin@example.com',
             inputAttrTpl: ' autocomplete="username" spellcheck="false" autocapitalize="none" ',
-            margin: '0 0 12 0'
+            margin: '0 0 14 0'
         }, {
             xtype: 'textfield',
             cls: 'auth-textbox mb-modern-input-field mb-field-password',
             inputId: 'login-password-input',
             reference: 'password',
-            fieldLabel: t('Password'),
+            fieldLabel: t('Password') + ' <span class="mb-login-required">*</span>',
             labelAlign: 'top',
             labelSeparator: '',
             labelPad: 6,
-            height: 78,
+            height: 74,
             width: '100%',
-            emptyText: t('Password'),
+            emptyText: '••••••••',
             inputType: 'password',
             name: 'password',
             allowBlank: false,
             inputAttrTpl: ' autocomplete="current-password" ',
-            margin: '0 0 16 0',
+            margin: '0 0 12 0',
             triggers: {
                 reveal: {
                     cls: 'x-fa fa-eye mb-trigger-reveal-eye',
@@ -138,38 +121,10 @@ Ext.define('MBilling.view.main.Login', {
                     }
                 }
             }
-        }, {
-            xtype: 'button',
-            reference: 'loginButton',
-            cls: isMac ? 'mb-mac-login-submit' : 'mb-windows-login-submit mb-modern-login-submit',
-            scale: 'large',
-            height: 48,
-            width: '100%',
-            iconAlign: 'right',
-            iconCls: 'x-fa fa-arrow-right',
-            text: t('Login'),
-            formBind: true,
-            handler: 'onLogin',
-            margin: '4 0 0 0'
-        }, {
-            xtype: 'box',
-            cls: isMac ? 'mb-mac-login-separator' : 'mb-windows-login-separator mb-modern-login-separator',
-            html: '<div class="outer-div"><div class="seperator">' + t('OR') + '</div></div > ',
-            hidden: !window.show_signup_button,
-            margin: '10 0'
-        }, {
-            xtype: 'button',
-            cls: isMac ? 'mb-mac-login-create' : 'mb-windows-login-create mb-modern-login-create',
-            scale: 'large',
-            height: 44,
-            width: '100%',
-            iconAlign: 'right',
-            iconCls: 'x-fa fa-user-plus',
-            text: t('Create an account'),
-            handler: 'onSignup',
-            hidden: !window.show_signup_button
-        }, {
-            cls: isMac ? 'mb-mac-login-links' : 'mb-windows-login-links mb-modern-login-links',
+        });
+
+        loginItems.push({
+            cls: 'mb-modern-login-links',
             border: false,
             bodyBorder: false,
             layout: {
@@ -177,19 +132,19 @@ Ext.define('MBilling.view.main.Login', {
                 align: 'middle'
             },
             width: '100%',
-            margin: '16 0 0 0',
+            margin: '2 0 18 0',
             items: [{
                 xtype: 'locale',
-                width: 130,
+                width: 140,
                 border: false,
                 margin: '0'
             }, {
+                xtype: 'component',
                 flex: 1,
                 border: false,
-                bodyBorder: false,
-                cls: isMac ? 'mb-mac-login-forgot' : 'mb-windows-login-forgot mb-modern-login-forgot',
+                cls: 'mb-modern-login-forgot',
                 margin: '0 0 0 12',
-                html: '<div class="mb-modern-forgot-link" style="text-align: right; cursor: pointer; white-space: nowrap;">' + Ext.String.htmlEncode(t('Forgot your password?')) + '</div>',
+                html: '<div class="mb-modern-forgot-link">' + Ext.String.htmlEncode(t('Forgot Password?')) + '</div>',
                 listeners: {
                     render: function (c) {
                         c.getEl().on({
@@ -200,11 +155,47 @@ Ext.define('MBilling.view.main.Login', {
                     }
                 }
             }]
-        }, {
-            xtype: 'component',
-            cls: 'mb-modern-login-footer-tag',
-            html: '<div class="mb-modern-login-footer-text">MagnusBilling 8 &bull; Enterprise VoIP Platform</div>'
-        }, {
+        });
+
+        loginItems.push({
+            xtype: 'button',
+            reference: 'loginButton',
+            cls: 'mb-modern-login-submit',
+            scale: 'large',
+            height: 44,
+            width: '100%',
+            text: t('Sign In'),
+            formBind: true,
+            handler: 'onLogin',
+            margin: '4 0 0 0'
+        });
+
+        if (window.show_signup_button) {
+            loginItems.push({
+                xtype: 'component',
+                cls: 'mb-modern-login-signup-wrap',
+                margin: '18 0 0 0',
+                html: '<div class="mb-modern-signup-text">' +
+                    Ext.String.htmlEncode(t('New here?')) + ' ' +
+                    '<a class="mb-modern-signup-link" href="javascript:void(0);">' +
+                    Ext.String.htmlEncode(t('Create an account')) +
+                    '</a>' +
+                    '</div>',
+                listeners: {
+                    render: function (c) {
+                        var linkEl = c.getEl().down('.mb-modern-signup-link');
+                        if (linkEl) {
+                            linkEl.on('click', function (e) {
+                                e.preventDefault();
+                                me.getController().onSignup();
+                            });
+                        }
+                    }
+                }
+            });
+        }
+
+        loginItems.push({
             xtype: 'box',
             id: 'myCaptcha',
             name: 'captcha',
@@ -223,16 +214,17 @@ Ext.define('MBilling.view.main.Login', {
                 }
             }
         });
+
         me.items = [{
             defaultFocus: 'textfield:focusable:not([hidden]):not([disabled]):not([value])',
-            cls: isMac ? 'auth-dialog mb-mac-login-card' : 'auth-dialog mb-windows-login-card mb-modern-login-card',
+            cls: 'auth-dialog mb-modern-login-card',
             defaultButton: 'loginButton',
             autoComplete: true,
             border: false,
             bodyBorder: false,
-            bodyPadding: isMac ? '32 36 28' : '36 40 32',
+            bodyPadding: '40 44 32',
             header: false,
-            width: Math.min(440, Ext.Element.getViewportWidth() - 32),
+            width: Math.min(460, Ext.Element.getViewportWidth() - 32),
             layout: {
                 type: 'vbox',
                 align: 'stretch'
@@ -241,6 +233,11 @@ Ext.define('MBilling.view.main.Login', {
                 border: false
             },
             items: loginItems
+        }, {
+            xtype: 'component',
+            cls: 'mb-modern-login-outer-footer',
+            html: '<div class="mb-modern-outer-footer-text">&copy; ' + new Date().getFullYear() + ' ' + Ext.String.htmlEncode(productName) + ' &mdash; by Infinyte</div>',
+            margin: '22 0 0 0'
         }];
         me.callParent(arguments);
     },

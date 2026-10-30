@@ -1287,4 +1287,9 @@ Locale.load({
     'Starting SIP capture': 'Iniciando captura SIP',
     'The SIP capture could not be started.': 'No se pudo iniciar la captura SIP.',
     'The SIP capture status could not be read.': 'No se pudo consultar el estado de la captura SIP.',
+    'Great to see you here': '¡Qué bueno verte por aquí!',
+    "Let's get you signed in. Enter your credentials to continue.": 'Inicie sesión en su cuenta. Ingrese sus credenciales para continuar.',
+    'Sign In': 'Iniciar Sesión',
+    'Forgot Password?': '¿Olvidaste tu contraseña?',
+    'New here?': '¿Nuevo aquí?',
 });

@@ -1802,4 +1802,9 @@ Locale.load({
     'Collection coverage': 'Collection coverage',
     'Collected configuration scopes': 'Collected configuration scopes',
     'Sanitized configuration hashes': 'Sanitized configuration hashes',
+    'Great to see you here': 'Great to see you here',
+    "Let's get you signed in. Enter your credentials to continue.": "Let's get you signed in. Enter your credentials to continue.",
+    'Sign In': 'Sign In',
+    'Forgot Password?': 'Forgot Password?',
+    'New here?': 'New here?',
 });
