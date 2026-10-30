@@ -11,9 +11,9 @@ Ext.define('Ext.ux.window.ImportCsv', {
     layout: 'fit',
     iconCls: 'icon-import-csv',
     title: t('Import CSV'),
-    width: 400,
-    height: window.isThemeTriton ? 220 : 175,
-    labelWidthFields: 75,
+    width: 480,
+    height: 230,
+    labelWidthFields: 90,
     htmlTipInfo: '',
     fieldsImport: [],
     listeners: {
@@ -30,11 +30,16 @@ Ext.define('Ext.ux.window.ImportCsv', {
             }]);
         me.items = [{
             xtype: 'form',
-            bodyPadding: 5,
-            labelWidthFields: me.labelWidthFields,
+            bodyPadding: '16 20',
+            defaults: {
+                anchor: '100%',
+                labelWidth: me.labelWidthFields
+            },
             items: fieldsImport
         }];
-        me.title = me.title + (me.titleModule ? ' - ' + me.titleModule : '');
+        if (!me.title || me.title === '') {
+            me.title = t('Import CSV') + (me.titleModule ? ' - ' + me.titleModule : '');
+        }
         me.bbar = [{
             xtype: 'tbtext',
             text: t('Max size file') + ' ' + window.uploadFaxFilesize

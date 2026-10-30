@@ -496,9 +496,10 @@ Ext.define('Ext.ux.app.ViewController', {
     },
     onImportCsv: function () {
         var me = this,
-            module = me.getView();
+            module = me.getView(),
+            modTitle = module.titleModule || module.title || me.titleReport || '';
         Ext.widget(module.module + 'importcsv', {
-            title: module.titleModule,
+            title: t('Import CSV') + (modTitle ? ' - ' + modTitle : ''),
             list: me.list
         });
     },

@@ -7257,9 +7257,10 @@ Ext.define('Ext.ux.app.ViewController', {
     },
     onImportCsv: function () {
         var me = this,
-            module = me.getView();
+            module = me.getView(),
+            modTitle = module.titleModule || module.title || me.titleReport || '';
         Ext.widget(module.module + 'importcsv', {
-            title: module.titleModule,
+            title: t('Import CSV') + (modTitle ? ' - ' + modTitle : ''),
             list: me.list
         });
     },
@@ -14206,6 +14207,7 @@ Ext.define('Ext.ux.form.field.Lookup', {
             text: isMobileLayout ? '' : t('Search'),
             tooltip: t('Search'),
             width: isMobileLayout ? 48 : 80,
+            margin: '0 0 0 6',
             handler: me.onClickSearch,
             hidden: me.hiddenSearchButton
         });
@@ -40160,9 +40162,9 @@ Ext.define('Ext.ux.window.ImportCsv', {
     layout: 'fit',
     iconCls: 'icon-import-csv',
     title: t('Import CSV'),
-    width: 400,
-    height: window.isThemeTriton ? 220 : 175,
-    labelWidthFields: 75,
+    width: 480,
+    height: 230,
+    labelWidthFields: 90,
     htmlTipInfo: '',
     fieldsImport: [],
     listeners: {
@@ -40179,11 +40181,16 @@ Ext.define('Ext.ux.window.ImportCsv', {
             }]);
         me.items = [{
             xtype: 'form',
-            bodyPadding: 5,
-            labelWidthFields: me.labelWidthFields,
+            bodyPadding: '16 20',
+            defaults: {
+                anchor: '100%',
+                labelWidth: me.labelWidthFields
+            },
             items: fieldsImport
         }];
-        me.title = me.title + (me.titleModule ? ' - ' + me.titleModule : '');
+        if (!me.title || me.title === '') {
+            me.title = t('Import CSV') + (me.titleModule ? ' - ' + me.titleModule : '');
+        }
         me.bbar = [{
             xtype: 'tbtext',
             text: t('Max size file') + ' ' + window.uploadFaxFilesize

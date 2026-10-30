@@ -5640,17 +5640,14 @@ body,
     opacity: 1;
 }
 
-/* Bottom Paging Toolbar */
-.x-toolbar.x-docked-bottom,
-.x-toolbar-paging,
-.x-toolbar-default.x-docked-bottom {
+/* Grid Bottom Paging Toolbar ONLY (Do not touch window/modal toolbars) */
+.x-toolbar-paging {
     background: #fafbfc !important;
     border-top: 1px solid #e2e8f0 !important;
     border-bottom: none !important;
     padding: 2px 6px !important;
 }
 
-.x-toolbar.x-docked-bottom .x-btn-default-toolbar-small,
 .x-toolbar-paging .x-btn-default-toolbar-small {
     background: transparent !important;
     border: 1px solid transparent !important;
@@ -5662,27 +5659,23 @@ body,
     color: #475569 !important;
 }
 
-.x-toolbar.x-docked-bottom .x-btn-default-toolbar-small:hover,
 .x-toolbar-paging .x-btn-default-toolbar-small:hover {
     background: #f1f5f9 !important;
     border-color: #cbd5e1 !important;
 }
 
-.x-toolbar.x-docked-bottom .x-btn-default-toolbar-small.x-btn-disabled,
 .x-toolbar-paging .x-btn-default-toolbar-small.x-btn-disabled {
     background: transparent !important;
     border-color: transparent !important;
     opacity: 0.35 !important;
 }
 
-.x-toolbar.x-docked-bottom .x-form-text-wrap-default,
 .x-toolbar-paging .x-form-text-wrap-default {
     border-radius: 3px !important;
     height: 22px !important;
     width: 34px !important;
 }
 
-.x-toolbar.x-docked-bottom .x-form-text,
 .x-toolbar-paging .x-form-text {
     height: 20px !important;
     width: 32px !important;
@@ -5692,7 +5685,6 @@ body,
     line-height: 20px !important;
 }
 
-.x-toolbar.x-docked-bottom .x-toolbar-text,
 .x-toolbar-paging .x-toolbar-text {
     font-size: 12px !important;
     color: #64748b !important;
@@ -5984,17 +5976,123 @@ body,
 .x-window-default {
     border-radius: 8px !important;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    border: 1px solid #cbd5e1 !important;
+    background-color: #ffffff !important;
     overflow: hidden !important;
 }
 
 .x-window-header-default {
     background: #1e293b !important;
-    padding: 11px 16px !important;
+    border-bottom: 1px solid #0f172a !important;
+    padding: 10px 14px !important;
 }
 
-.x-window-header-title-default {
+.x-window-header-default .x-window-header-title-default,
+.x-window-header-default .x-title-text,
+.x-window-header-default .x-title-text-default {
     color: #ffffff !important;
     font-weight: 600 !important;
-    font-size: 14px !important;
+    font-size: 13.5px !important;
+    letter-spacing: 0.2px !important;
+}
+
+.x-window-header-default .x-tool-tool-el {
+    color: #94a3b8 !important;
+}
+
+.x-window-header-default .x-tool-tool-el:hover {
+    color: #ffffff !important;
+}
+
+.x-window-body-default {
+    background: #ffffff !important;
+    color: #1e293b !important;
+}
+
+/* Window Docked Bottom Toolbar (Actions / Import / Save) */
+.x-window .x-toolbar.x-docked-bottom,
+.x-window .x-toolbar-default.x-docked-bottom {
+    background: #f8fafc !important;
+    border-top: 1px solid #e2e8f0 !important;
+    border-bottom: none !important;
+    padding: 8px 16px !important;
+}
+
+.x-window .x-toolbar.x-docked-bottom .x-toolbar-text,
+.x-window .x-toolbar-default.x-docked-bottom .x-toolbar-text {
+    color: #64748b !important;
+    font-size: 12px !important;
+    line-height: 28px !important;
+}
+
+.x-window .x-toolbar.x-docked-bottom .x-btn-default-toolbar-small,
+.x-window .x-toolbar-default.x-docked-bottom .x-btn-default-toolbar-small {
+    background: #2563eb !important;
+    border: 1px solid #1d4ed8 !important;
+    border-radius: 5px !important;
+    box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2) !important;
+    padding: 4px 16px !important;
+    min-width: 90px !important;
+    height: auto !important;
+    cursor: pointer !important;
+}
+
+.x-window .x-toolbar.x-docked-bottom .x-btn-default-toolbar-small:hover,
+.x-window .x-toolbar-default.x-docked-bottom .x-btn-default-toolbar-small:hover {
+    background: #1d4ed8 !important;
+    border-color: #1e40af !important;
+}
+
+.x-window .x-toolbar.x-docked-bottom .x-btn-default-toolbar-small .x-btn-inner,
+.x-window .x-toolbar-default.x-docked-bottom .x-btn-default-toolbar-small .x-btn-inner {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 12.5px !important;
+    padding: 0 4px !important;
+}
+
+.x-window .x-toolbar.x-docked-bottom .x-btn-default-toolbar-small .x-btn-icon-el,
+.x-window .x-toolbar-default.x-docked-bottom .x-btn-default-toolbar-small .x-btn-icon-el {
+    color: #ffffff !important;
+}
+
+/* ExtJS File Upload Field - concealing native input and modernizing button */
+.x-form-file-btn {
+    overflow: hidden !important;
+    position: relative !important;
+    vertical-align: top !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    padding: 2px 8px !important;
+    cursor: pointer !important;
+}
+
+.x-form-file-btn:hover {
+    background: #e2e8f0 !important;
+    border-color: #94a3b8 !important;
+}
+
+.x-form-file-input {
+    position: absolute !important;
+    top: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    opacity: 0 !important;
+    filter: alpha(opacity=0) !important;
+    cursor: pointer !important;
+    font-size: 100px !important;
+    border: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    z-index: 2 !important;
+}
+
+.x-form-item-label-default {
+    color: #475569 !important;
+    font-size: 12px !important;
+    font-weight: 500 !important;
 }

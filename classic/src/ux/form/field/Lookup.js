@@ -51,6 +51,7 @@ Ext.define('Ext.ux.form.field.Lookup', {
             text: isMobileLayout ? '' : t('Search'),
             tooltip: t('Search'),
             width: isMobileLayout ? 48 : 80,
+            margin: '0 0 0 6',
             handler: me.onClickSearch,
             hidden: me.hiddenSearchButton
         });
