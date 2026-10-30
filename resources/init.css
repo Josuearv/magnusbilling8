@@ -5566,7 +5566,13 @@ body,
 .x-toolbar.x-docked-top {
     background: #fafbfc !important;
     border-bottom: 1px solid #e2e8f0 !important;
-    padding: 3px 6px !important;
+    padding: 5px 8px !important;
+}
+
+/* Margin between toolbar items (search field, new, delete, batch update, bulk user) */
+.x-toolbar-default.x-docked-top .x-toolbar-item,
+.x-toolbar.x-docked-top .x-toolbar-item {
+    margin: 0 6px 0 0 !important;
 }
 
 /* Toolbar Buttons - Clean styling preserving ExtJS layout geometry */
@@ -5591,6 +5597,7 @@ body,
     font-size: 12px !important;
     font-weight: 500 !important;
     color: #334155 !important;
+    padding: 0 6px !important;
 }
 
 /* Form Fields & Search Field Container (Wrap) */
@@ -5606,7 +5613,7 @@ body,
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
 }
 
-/* The inner input inside the wrap - borderless, seamless */
+/* The inner input inside the wrap - borderless, seamless with comfortable padding */
 .x-form-text-default {
     border: none !important;
     border-radius: 0 !important;
@@ -5614,6 +5621,7 @@ body,
     box-shadow: none !important;
     color: #1e293b !important;
     font-size: 12px !important;
+    padding: 2px 8px !important;
 }
 
 .x-form-text-default:focus {

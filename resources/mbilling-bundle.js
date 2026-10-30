@@ -26399,7 +26399,7 @@ Ext.define('Ext.ux.grid.Panel', {
                 filterOnClick: me.filterFieldOnClick,
                 store: me.store,
                 comparison: me.comparisonfilter,
-                width: isMobileLayout ? 110 : 180
+                width: isMobileLayout ? 120 : 250
             });
         }
         if (me.allowCreate) {
