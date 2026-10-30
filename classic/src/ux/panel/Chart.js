@@ -382,8 +382,16 @@ Ext.define('Ext.ux.panel.Chart', {
         me.tbar = me.tbarChart;
         me.bbar = me.bbarChart;
         me.callParent(arguments);
-        me.activeItem = me.down('#' + me.defaultChart);
-        me.down('button[chart=' + me.defaultChart + ']').pressed = true;
+        if (me.getLayout() && typeof me.getLayout().setActiveItem === 'function') {
+            var targetChart = me.down('#' + me.defaultChart);
+            if (targetChart) {
+                me.getLayout().setActiveItem(targetChart);
+            }
+        }
+        var defaultBtn = me.down('button[chart=' + me.defaultChart + ']');
+        if (defaultBtn) {
+            defaultBtn.pressed = true;
+        }
     },
     onDownload: function() {
         var me = this;

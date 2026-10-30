@@ -4335,6 +4335,28 @@ div.ux-taskbar div.x-toolbar {
     color: #0f172a !important;
     font-weight: 600 !important;
     text-align: right !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    font-variant-numeric: tabular-nums !important;
+    letter-spacing: -0.2px !important;
+}
+
+/* Eradicate harsh interior ExtJS borders in dashboard */
+.dashboard-main-chart,
+.service-type,
+.dashboardmodule .x-panel,
+.dashboardmodule .x-panel-default,
+.dashboardmodule .x-panel-body-default,
+.dashboard-main-chart .x-panel-body,
+.dashboard-main-chart .x-panel-body-default,
+.service-type .x-panel-body,
+.service-type .x-panel-body-default {
+    border-color: #f1f5f9 !important;
+}
+
+.dashboard-main-chart .x-panel-body,
+.service-type .x-panel-body {
+    border: none !important;
 }
 
 /* ==========================================================================
@@ -4351,6 +4373,87 @@ div.ux-taskbar div.x-toolbar {
 .service-type .x-panel-body-default {
     background: #ffffff !important;
     color: #0f172a !important;
+}
+
+/* Modern SaaS Empty State */
+.mb-empty-state {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    height: 100% !important;
+    min-height: 220px !important;
+    padding: 24px 20px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+}
+
+.mb-empty-icon-wrap {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 50% !important;
+    background: #f1f5f9 !important;
+    border: 1px solid #e2e8f0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin-bottom: 12px !important;
+}
+
+.mb-empty-icon {
+    font-size: 20px !important;
+    color: #94a3b8 !important;
+}
+
+.mb-empty-title {
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
+    color: #1e293b !important;
+    margin-bottom: 4px !important;
+}
+
+.mb-empty-desc {
+    font-size: 12px !important;
+    font-weight: 400 !important;
+    color: #64748b !important;
+    max-width: 250px !important;
+    line-height: 1.4 !important;
+}
+
+/* Modern Chart Time Range Buttons */
+.mb-chart-range-btn.x-btn-default-toolbar-small {
+    background: #f8fafc !important;
+    background-image: none !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 6px !important;
+    padding: 3px 8px !important;
+    margin: 2px !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+    transition: all 0.15s ease !important;
+}
+
+.mb-chart-range-btn.x-btn-default-toolbar-small .x-btn-inner-default-toolbar-small {
+    color: #475569 !important;
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+}
+
+.mb-chart-range-btn.x-btn-default-toolbar-small:hover {
+    background: #f1f5f9 !important;
+    border-color: #cbd5e1 !important;
+}
+
+.mb-chart-range-btn.x-btn-default-toolbar-small:hover .x-btn-inner-default-toolbar-small {
+    color: #0f172a !important;
+}
+
+.mb-chart-range-btn.x-btn-pressed.x-btn-default-toolbar-small {
+    background: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+
+.mb-chart-range-btn.x-btn-pressed.x-btn-default-toolbar-small .x-btn-inner-default-toolbar-small {
+    color: #ffffff !important;
 }
 
 .services-text {
@@ -5529,6 +5632,12 @@ body,
     padding: 11px 16px !important;
     cursor: pointer !important;
     transition: all 0.15s ease !important;
+}
+
+/* Hide archaic square [+] / [-] collapse tools in modern accordion */
+.mb-main-menu-panel .x-accordion-item .x-tool,
+.x-accordion-item .x-accordion-hd .x-tool {
+    display: none !important;
 }
 
 .x-accordion-item .x-accordion-hd:hover,

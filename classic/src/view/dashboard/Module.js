@@ -56,7 +56,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                 }
             }
             width = window.isTablet ? Ext.Element.getViewportWidth() - 240 : Ext.Element.getViewportWidth() - 220;
-            height = (Ext.Element.getViewportHeight() - 130) / 2;
+            height = Math.max(340, Math.round((Ext.Element.getViewportHeight() - 130) / 2));
+            var kpiHeight = Math.max(72, Math.min(88, Math.round((height - 36) / 4)));
             if (App.user.isAdmin) {
                 me.items = [{
                     xtype: 'network',
@@ -69,7 +70,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     bodyPadding: 5,
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'totalusersdiv',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100'
@@ -77,7 +79,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     xtype: 'component',
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'maximumcc',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100'
@@ -85,7 +88,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     xtype: 'component',
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'monthprofitdiv',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100',
@@ -94,7 +98,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     xtype: 'component',
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'totalrefill',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100',

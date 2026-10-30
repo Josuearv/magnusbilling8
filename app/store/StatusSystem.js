@@ -20,5 +20,6 @@
  */
 Ext.define('MBilling.store.StatusSystem', {
     extend: 'Ext.data.Store',
+    storeId: 'StatusSystem',
     model: 'MBilling.model.StatusSystem'
 });

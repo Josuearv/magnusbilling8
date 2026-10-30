@@ -28,6 +28,7 @@ Ext.define('MBilling.view.callOnlineChart.Chart', {
     labelYLine: t('Total / Min'),
     labelXLine: t('Time'),
     reference: 'callonlinechartchart',
+    charts: ['line'],
     defaultChart: 'line',
     btnShowColumn: false,
     btnShowBar: false,
@@ -50,37 +51,44 @@ Ext.define('MBilling.view.callOnlineChart.Chart', {
             return layoutContext.renderer(label);
         };
         me.tbarChart = [{
-            text: '1' + ' ' + t('hour'),
+            text: '1 ' + t('hour'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '1'
         }, {
-            text: '6' + ' ' + t('hours'),
+            text: '6 ' + t('hours'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '6'
         }, {
-            text: '12' + ' ' + t('hours'),
+            text: '12 ' + t('hours'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '12'
         }, {
-            text: '1' + ' ' + t('Day'),
+            text: '1 ' + t('Day'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '24'
         }, {
-            text: '2' + ' ' + t('days'),
+            text: '2 ' + t('days'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '48'
         }, {
-            text: '3' + ' ' + t('days'),
+            text: '3 ' + t('days'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '36'
         }, {
-            text: '1' + ' ' + t('week'),
+            text: '1 ' + t('week'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '168'

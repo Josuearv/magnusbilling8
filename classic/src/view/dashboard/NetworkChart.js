@@ -23,69 +23,60 @@ Ext.define('MBilling.view.dashboard.NetworkChart', {
     alias: 'widget.networkchart',
     controller: 'main',
     store: 'StatusSystem',
+    charts: ['line'],
+    defaultChart: 'line',
     fieldValue: ['networkin', 'networkout'],
     fieldDescription: 'date',
-    labelYLine: '', //t('Network'),
-    labelXLine: t('Network'),
+    labelYLine: '',
+    labelXLine: t('Network usage'),
     reference: 'networkchart',
-    defaultChart: 'line',
     btnShowColumn: false,
     btnShowBar: false,
     btnShowLine: true,
     btnShowPie: false,
     animate: true,
     btnShowLineHidden: true,
-    radius: 1,
+    radius: 2,
     showDownload: false,
     animation: true,
-    insetPadding: 0,
+    insetPadding: '10 10 5 10',
     verticalLinesHidden: true,
     horizontalLinesHidden: false,
     hiddenButtonsCharts: true,
     seriesLine: [{
         type: 'line',
-        colors: ['rgba(103, 144, 199, 0.6)'],
+        colors: ['#3b82f6'],
         useDarkerStrokeColor: false,
         xField: 'date',
         yField: ['networkin'],
+        title: t('Inbound'),
         fill: true,
-        smooth: true
+        smooth: true,
+        style: {
+            lineWidth: 2,
+            stroke: '#3b82f6',
+            fillOpacity: 0.15
+        }
     }, {
         type: 'line',
-        colors: ['rgba(238, 146, 156, 0.6)'],
+        colors: ['#ef4444'],
         useDarkerStrokeColor: false,
         xField: 'date',
         yField: ['networkout'],
+        title: t('Outbound'),
         fill: true,
-        smooth: true
+        smooth: true,
+        style: {
+            lineWidth: 2,
+            stroke: '#ef4444',
+            fillOpacity: 0.15
+        }
     }],
     initComponent: function() {
         var me = this;
         me.rendererFieldValue = function(axis, label, layoutContext) {
-            return layoutContext.renderer(label) + 'kb/s';
+            return (layoutContext ? layoutContext.renderer(label) : label) + ' kb/s';
         };
-        me.sessionLoad = Ext.create('Ext.util.DelayedTask', function() {
-            me.store.load({
-                scope: me,
-                callback: function(record) {}
-            });
-        }, me);
-        me.sprites = [{
-            type: 'text',
-            text: t('Network usage'),
-            fontSize: 10,
-            width: 100,
-            height: 30,
-            x: 100, // the sprite x position
-            y: 150 // the sprite y position
-        }];
         me.callParent(arguments);
-        me.store.on('load', me.onLoadStore, me);
-    },
-    onLoadStore: function() {
-        this.onActivateModule();
-    },
-    onActivateModule: function() {
-        this.sessionLoad && this.sessionLoad.delay(5000);
     }
 });

@@ -27,6 +27,7 @@ Ext.define('MBilling.view.dashboard.TrunkChart', {
     labelYLine: '',
     labelXLine: '',
     reference: 'networkchart',
+    charts: ['pie'],
     defaultChart: 'pie',
     btnShowColumn: false,
     btnShowBar: false,

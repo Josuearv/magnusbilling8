@@ -16435,7 +16435,7 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     onRenderModule: function() {
         var me = this;
         if (App && App.user && App.user.isAdmin) {
-            storeStatusSystem = Ext.create('MBilling.store.StatusSystem');
+            storeStatusSystem = Ext.data.StoreManager.lookup('StatusSystem') || Ext.create('MBilling.store.StatusSystem', { storeId: 'StatusSystem' });
             storeStatusSystem.load({
                 scope: me,
                 callback: function(record, operation, success) {
@@ -16455,11 +16455,11 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
                 });
             }, 10000);
 
-            storeTrunkChart = Ext.create('MBilling.store.TrunkChart');
+            storeTrunkChart = Ext.data.StoreManager.lookup('TrunkChart') || Ext.create('MBilling.store.TrunkChart', { storeId: 'TrunkChart' });
             storeTrunkChart.load({
                 scope: me,
                 callback: function(record, operation, success) {
-                    if (success && record && record.length && record[0]) {
+                    if (success && record && record.length) {
                         me.onUpdateDashboardTrunk(record);
                     }
                 }
@@ -16468,7 +16468,7 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
                 storeTrunkChart.load({
                     scope: me,
                     callback: function(record, operation, success) {
-                        if (success && record && record.length && record[0]) {
+                        if (success && record && record.length) {
                             me.onUpdateDashboardTrunk(record);
                         }
                     }
@@ -16478,10 +16478,21 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     },
     onUpdateDashboardTrunk: function(record) {
         var me = this;
-        if (!record || !record.length || !record[0] || !record[0].data) {
+        var emptyRef = me.lookupReference('trunkEmptyState'),
+            chartsRef = me.lookupReference('trunkChartsContainer'),
+            fieldsRef = me.lookupReference('trunkDashboardFields');
+
+        if (!record || !record.length || !record[0] || !record[0].data || !(record[0].data.sumsessionbill > 0)) {
+            if (emptyRef) emptyRef.show();
+            if (chartsRef) chartsRef.hide();
+            if (fieldsRef) fieldsRef.hide();
             return;
         }
-        var fieldsRef = me.lookupReference('trunkDashboardFields');
+
+        if (emptyRef) emptyRef.hide();
+        if (chartsRef) chartsRef.show();
+        if (fieldsRef) fieldsRef.show();
+
         if (!fieldsRef || !fieldsRef.items || !fieldsRef.items.items) {
             return;
         }
@@ -16520,11 +16531,12 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     },
     onUpdateDashboardNetWork: function(record) {
         var me = this;
-        if (!record || !record.length || !record[0] || !record[0].data) {
+        var recordLatest = (record && record.length) ? (record[record.length - 1] || record[0]) : null;
+        if (!recordLatest || !recordLatest.data) {
             return;
         }
 
-        var data = record[0].data,
+        var data = recordLatest.data,
             cpuPercent = typeof data.cpuPercent === 'number' ? data.cpuPercent : (parseFloat(data.cpuPercent) || 0),
             cpuLoad = typeof data.cpuMediaUso === 'number' ? data.cpuMediaUso : (parseFloat(data.cpuMediaUso) || 0),
             diskPerc = typeof data.disk_perc === 'number' ? data.disk_perc : (parseFloat(data.disk_perc) || 0),
@@ -16534,7 +16546,8 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             uptime = data.uptime || '',
             totalUsers = data.totalActiveUsers != null ? data.totalActiveUsers : 0,
             maxCC = data.maximumcc != null ? data.maximumcc : 'CC 0 | CPS 0',
-            currency = (App && App.user && App.user.currency) || '$',
+            rawCurrency = (App && App.user && App.user.currency) || '$',
+            currency = (rawCurrency.length <= 4) ? rawCurrency.toUpperCase() : rawCurrency,
             monthProfit = data.monthprofit != null ? data.monthprofit : '0.00',
             monthRefill = data.monthRefill != null ? data.monthRefill : '0.00',
             refEl;
@@ -16572,15 +16585,15 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
         // Memory & Uptime
         refEl = me.lookupReference('memTotal');
         if (refEl) {
-            refEl.update(memTotal + ' GB');
+            refEl.update(memTotal ? ((memTotal + '').indexOf('GB') !== -1 ? memTotal : (memTotal + ' GB')) : '-');
         }
         refEl = me.lookupReference('memUsed');
         if (refEl) {
-            refEl.update(memUsed + ' GB');
+            refEl.update(memUsed ? ((memUsed + '').indexOf('GB') !== -1 ? memUsed : (memUsed + ' GB')) : '-');
         }
         refEl = me.lookupReference('uptime');
         if (refEl) {
-            refEl.update(uptime);
+            refEl.update(uptime || '-');
         }
 
         // Modern KPI Badges with vector FontAwesome icons and SaaS pastel badges
@@ -17898,8 +17911,7 @@ Ext.define('MBilling.model.StatusSystem', {
         type: 'int'
     }, {
         name: 'date',
-        type: 'date',
-        dateFormat: 'Y-m-d H:i:s'
+        type: 'string'
     }, {
         name: 'cpuMediaUso',
         type: 'number'
@@ -17946,6 +17958,7 @@ Ext.define('MBilling.model.StatusSystem', {
  */
 Ext.define('MBilling.store.StatusSystem', {
     extend: 'Ext.data.Store',
+    storeId: 'StatusSystem',
     model: 'MBilling.model.StatusSystem'
 });
 
@@ -77285,6 +77298,9 @@ Ext.define('MBilling.view.dashboard.Network', {
     requires: ['Ext.chart.CartesianChart', 'Ext.chart.axis.Category', 'Ext.chart.axis.Numeric', 'Ext.chart.series.Line', 'Ext.chart.interactions.PanZoom', 'Ext.ProgressBar'],
     cls: 'dashboard-main-chart shadow',
     reference: 'networkpanel',
+    border: false,
+    bodyBorder: false,
+    bodyPadding: '4 12 12 12',
     layout: {
         type: 'vbox',
         align: 'stretch'
@@ -77295,18 +77311,24 @@ Ext.define('MBilling.view.dashboard.Network', {
         me.items = [{
             flex: 1,
             layout: 'fit',
-            height: 150,
+            height: 155,
+            border: false,
+            bodyBorder: false,
             items: [{
                 xtype: 'networkchart'
             }]
         }, {
             cls: 'graph-analysis-left',
+            border: false,
+            bodyBorder: false,
             layout: {
                 type: 'hbox',
                 align: 'stretch'
             },
             items: [{
                 flex: 1,
+                border: false,
+                bodyBorder: false,
                 cls: 'dashboard-graph-analysis-left',
                 layout: {
                     type: 'vbox',
@@ -77321,45 +77343,49 @@ Ext.define('MBilling.view.dashboard.Network', {
                     xtype: 'progressbar',
                     cls: 'left-top-text progressbar-no-text',
                     reference: 'cpuPercent',
-                    hideMode: 'offsets'
+                    hideMode: 'offsets',
+                    margin: '3 0 8 0'
                 }, {
                     xtype: 'component',
                     cls: 'left-top-text',
                     reference: 'diskFree',
                     html: '',
-                    padding: '10 0 0 0'
+                    padding: '6 0 0 0'
                 }, {
                     xtype: 'progressbar',
                     cls: 'left-top-text progressbar-no-text',
                     reference: 'diskPerc',
-                    hideMode: 'offsets'
+                    hideMode: 'offsets',
+                    margin: '3 0 0 0'
                 }]
             }, {
                 flex: 1,
+                border: false,
+                bodyBorder: false,
                 cls: 'graph-analysis-right',
-                margin: '15 0 0 0',
-                padding: '0 0 0 15',
+                margin: '10 0 0 0',
+                padding: '0 0 0 16',
                 layout: {
                     type: 'vbox',
                     align: 'stretch'
                 },
-                itemPadding: '0 0 10 0',
                 items: [{
                     flex: 1,
                     layout: {
                         type: 'hbox',
                         align: 'stretch'
                     },
-                    padding: '0 0 10 0',
+                    padding: '0 0 8 0',
                     items: [{
                         xtype: 'component',
-                        flex: 1,
+                        width: 95,
                         cls: 'graph-analysis-right-inner-container',
                         html: t('Mem total')
                     }, {
                         xtype: 'component',
                         flex: 1,
-                        padding: '0 10 0 0',
+                        minWidth: 120,
+                        padding: '0 8 0 0',
                         cls: 'graph-analysis-right-inner-container right-value',
                         html: '0',
                         reference: 'memTotal'
@@ -77370,16 +77396,17 @@ Ext.define('MBilling.view.dashboard.Network', {
                         type: 'hbox',
                         align: 'stretch'
                     },
-                    padding: '0 0 10 0',
+                    padding: '0 0 8 0',
                     items: [{
                         xtype: 'component',
-                        flex: 1,
+                        width: 95,
                         cls: 'graph-analysis-right-inner-container',
                         html: t('Mem used')
                     }, {
                         xtype: 'component',
                         flex: 1,
-                        padding: '0 10 0 0',
+                        minWidth: 120,
+                        padding: '0 8 0 0',
                         cls: 'graph-analysis-right-inner-container right-value',
                         html: '0',
                         reference: 'memUsed'
@@ -77390,23 +77417,24 @@ Ext.define('MBilling.view.dashboard.Network', {
                         type: 'hbox',
                         align: 'stretch'
                     },
-                    padding: '0 0 10 0',
+                    padding: '0 0 8 0',
                     items: [{
                         xtype: 'component',
-                        flex: 1,
+                        width: 95,
                         cls: 'graph-analysis-right-inner-container',
                         html: t('Uptime')
                     }, {
                         xtype: 'component',
                         flex: 1,
-                        padding: '0 10 0 0',
+                        minWidth: 120,
+                        padding: '0 8 0 0',
                         cls: 'graph-analysis-right-inner-container right-value',
                         html: '0',
                         reference: 'uptime'
                     }]
                 }]
             }]
-        }]
+        }];
         me.callParent(arguments);
     }
 });
@@ -78108,8 +78136,16 @@ Ext.define('Ext.ux.panel.Chart', {
         me.tbar = me.tbarChart;
         me.bbar = me.bbarChart;
         me.callParent(arguments);
-        me.activeItem = me.down('#' + me.defaultChart);
-        me.down('button[chart=' + me.defaultChart + ']').pressed = true;
+        if (me.getLayout() && typeof me.getLayout().setActiveItem === 'function') {
+            var targetChart = me.down('#' + me.defaultChart);
+            if (targetChart) {
+                me.getLayout().setActiveItem(targetChart);
+            }
+        }
+        var defaultBtn = me.down('button[chart=' + me.defaultChart + ']');
+        if (defaultBtn) {
+            defaultBtn.pressed = true;
+        }
     },
     onDownload: function() {
         var me = this;
@@ -78392,6 +78428,7 @@ Ext.define('MBilling.view.callOnlineChart.Chart', {
     labelYLine: t('Total / Min'),
     labelXLine: t('Time'),
     reference: 'callonlinechartchart',
+    charts: ['line'],
     defaultChart: 'line',
     btnShowColumn: false,
     btnShowBar: false,
@@ -78414,37 +78451,44 @@ Ext.define('MBilling.view.callOnlineChart.Chart', {
             return layoutContext.renderer(label);
         };
         me.tbarChart = [{
-            text: '1' + ' ' + t('hour'),
+            text: '1 ' + t('hour'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '1'
         }, {
-            text: '6' + ' ' + t('hours'),
+            text: '6 ' + t('hours'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '6'
         }, {
-            text: '12' + ' ' + t('hours'),
+            text: '12 ' + t('hours'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '12'
         }, {
-            text: '1' + ' ' + t('Day'),
+            text: '1 ' + t('Day'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '24'
         }, {
-            text: '2' + ' ' + t('days'),
+            text: '2 ' + t('days'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '48'
         }, {
-            text: '3' + ' ' + t('days'),
+            text: '3 ' + t('days'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '36'
         }, {
-            text: '1' + ' ' + t('week'),
+            text: '1 ' + t('week'),
+            cls: 'mb-chart-range-btn',
             scope: me,
             handler: 'onPerMinute',
             value: '168'
@@ -78506,70 +78550,61 @@ Ext.define('MBilling.view.dashboard.NetworkChart', {
     alias: 'widget.networkchart',
     controller: 'main',
     store: 'StatusSystem',
+    charts: ['line'],
+    defaultChart: 'line',
     fieldValue: ['networkin', 'networkout'],
     fieldDescription: 'date',
-    labelYLine: '', //t('Network'),
-    labelXLine: t('Network'),
+    labelYLine: '',
+    labelXLine: t('Network usage'),
     reference: 'networkchart',
-    defaultChart: 'line',
     btnShowColumn: false,
     btnShowBar: false,
     btnShowLine: true,
     btnShowPie: false,
     animate: true,
     btnShowLineHidden: true,
-    radius: 1,
+    radius: 2,
     showDownload: false,
     animation: true,
-    insetPadding: 0,
+    insetPadding: '10 10 5 10',
     verticalLinesHidden: true,
     horizontalLinesHidden: false,
     hiddenButtonsCharts: true,
     seriesLine: [{
         type: 'line',
-        colors: ['rgba(103, 144, 199, 0.6)'],
+        colors: ['#3b82f6'],
         useDarkerStrokeColor: false,
         xField: 'date',
         yField: ['networkin'],
+        title: t('Inbound'),
         fill: true,
-        smooth: true
+        smooth: true,
+        style: {
+            lineWidth: 2,
+            stroke: '#3b82f6',
+            fillOpacity: 0.15
+        }
     }, {
         type: 'line',
-        colors: ['rgba(238, 146, 156, 0.6)'],
+        colors: ['#ef4444'],
         useDarkerStrokeColor: false,
         xField: 'date',
         yField: ['networkout'],
+        title: t('Outbound'),
         fill: true,
-        smooth: true
+        smooth: true,
+        style: {
+            lineWidth: 2,
+            stroke: '#ef4444',
+            fillOpacity: 0.15
+        }
     }],
     initComponent: function() {
         var me = this;
         me.rendererFieldValue = function(axis, label, layoutContext) {
-            return layoutContext.renderer(label) + 'kb/s';
+            return (layoutContext ? layoutContext.renderer(label) : label) + ' kb/s';
         };
-        me.sessionLoad = Ext.create('Ext.util.DelayedTask', function() {
-            me.store.load({
-                scope: me,
-                callback: function(record) {}
-            });
-        }, me);
-        me.sprites = [{
-            type: 'text',
-            text: t('Network usage'),
-            fontSize: 10,
-            width: 100,
-            height: 30,
-            x: 100, // the sprite x position
-            y: 150 // the sprite y position
-        }];
         me.callParent(arguments);
-        me.store.on('load', me.onLoadStore, me);
-    },
-    onLoadStore: function() {
-        this.onActivateModule();
-    },
-    onActivateModule: function() {
-        this.sessionLoad && this.sessionLoad.delay(5000);
     }
 });
 
@@ -78604,6 +78639,7 @@ Ext.define('MBilling.view.dashboard.TrunkChart', {
     labelYLine: '',
     labelXLine: '',
     reference: 'networkchart',
+    charts: ['pie'],
     defaultChart: 'pie',
     btnShowColumn: false,
     btnShowBar: false,
@@ -78684,7 +78720,9 @@ Ext.define('MBilling.view.dashboard.Trunks', {
     requires: ['MBilling.view.dashboard.TrunkChart', 'Ext.chart.series.Pie', 'Ext.chart.series.sprite.PieSlice', 'Ext.chart.interactions.Rotate'],
     cls: 'service-type shadow',
     height: 320,
-    bodyPadding: 15,
+    border: false,
+    bodyBorder: false,
+    bodyPadding: 16,
     title: t('Trunks'),
     layout: {
         type: 'hbox',
@@ -78693,7 +78731,11 @@ Ext.define('MBilling.view.dashboard.Trunks', {
     initComponent: function() {
         var me = this;
         me.items = [{
+            reference: 'trunkChartsContainer',
             width: 140,
+            border: false,
+            bodyBorder: false,
+            hidden: true,
             items: [{
                 xtype: 'trunkchart',
                 fieldValue: 'nbcall'
@@ -78704,6 +78746,9 @@ Ext.define('MBilling.view.dashboard.Trunks', {
         }, {
             reference: 'trunkDashboardFields',
             flex: 1,
+            border: false,
+            bodyBorder: false,
+            hidden: true,
             layout: {
                 type: 'vbox',
                 align: 'stretch'
@@ -78735,7 +78780,14 @@ Ext.define('MBilling.view.dashboard.Trunks', {
                 xtype: 'component',
                 html: ''
             }]
-        }]
+        }, {
+            reference: 'trunkEmptyState',
+            flex: 1,
+            border: false,
+            bodyBorder: false,
+            hidden: false,
+            html: '<div class="mb-empty-state"><div class="mb-empty-icon-wrap"><i class="x-fa fa-exchange mb-empty-icon"></i></div><div class="mb-empty-title">' + t('No trunk traffic today') + '</div><div class="mb-empty-desc">' + t('Real-time trunk activity and distribution will appear here once calls are placed.') + '</div></div>'
+        }];
         me.callParent(arguments);
     }
 });
@@ -78800,7 +78852,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                 }
             }
             width = window.isTablet ? Ext.Element.getViewportWidth() - 240 : Ext.Element.getViewportWidth() - 220;
-            height = (Ext.Element.getViewportHeight() - 130) / 2;
+            height = Math.max(340, Math.round((Ext.Element.getViewportHeight() - 130) / 2));
+            var kpiHeight = Math.max(72, Math.min(88, Math.round((height - 36) / 4)));
             if (App.user.isAdmin) {
                 me.items = [{
                     xtype: 'network',
@@ -78813,7 +78866,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     bodyPadding: 5,
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'totalusersdiv',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100'
@@ -78821,7 +78875,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     xtype: 'component',
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'maximumcc',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100'
@@ -78829,7 +78884,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     xtype: 'component',
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'monthprofitdiv',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100',
@@ -78838,7 +78894,8 @@ Ext.define('MBilling.view.dashboard.Module', {
                     xtype: 'component',
                     baseCls: 'weather-panel',
                     border: false,
-                    height: (height - 60) / 4,
+                    height: kpiHeight,
+                    margin: '0 0 10 0',
                     reference: 'totalrefill',
                     cls: 'weather-panel shadow',
                     userCls: 'big-40 small-100',

@@ -7,7 +7,7 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     onRenderModule: function() {
         var me = this;
         if (App && App.user && App.user.isAdmin) {
-            storeStatusSystem = Ext.create('MBilling.store.StatusSystem');
+            storeStatusSystem = Ext.data.StoreManager.lookup('StatusSystem') || Ext.create('MBilling.store.StatusSystem', { storeId: 'StatusSystem' });
             storeStatusSystem.load({
                 scope: me,
                 callback: function(record, operation, success) {
@@ -27,11 +27,11 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
                 });
             }, 10000);
 
-            storeTrunkChart = Ext.create('MBilling.store.TrunkChart');
+            storeTrunkChart = Ext.data.StoreManager.lookup('TrunkChart') || Ext.create('MBilling.store.TrunkChart', { storeId: 'TrunkChart' });
             storeTrunkChart.load({
                 scope: me,
                 callback: function(record, operation, success) {
-                    if (success && record && record.length && record[0]) {
+                    if (success && record && record.length) {
                         me.onUpdateDashboardTrunk(record);
                     }
                 }
@@ -40,7 +40,7 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
                 storeTrunkChart.load({
                     scope: me,
                     callback: function(record, operation, success) {
-                        if (success && record && record.length && record[0]) {
+                        if (success && record && record.length) {
                             me.onUpdateDashboardTrunk(record);
                         }
                     }
@@ -50,10 +50,21 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     },
     onUpdateDashboardTrunk: function(record) {
         var me = this;
-        if (!record || !record.length || !record[0] || !record[0].data) {
+        var emptyRef = me.lookupReference('trunkEmptyState'),
+            chartsRef = me.lookupReference('trunkChartsContainer'),
+            fieldsRef = me.lookupReference('trunkDashboardFields');
+
+        if (!record || !record.length || !record[0] || !record[0].data || !(record[0].data.sumsessionbill > 0)) {
+            if (emptyRef) emptyRef.show();
+            if (chartsRef) chartsRef.hide();
+            if (fieldsRef) fieldsRef.hide();
             return;
         }
-        var fieldsRef = me.lookupReference('trunkDashboardFields');
+
+        if (emptyRef) emptyRef.hide();
+        if (chartsRef) chartsRef.show();
+        if (fieldsRef) fieldsRef.show();
+
         if (!fieldsRef || !fieldsRef.items || !fieldsRef.items.items) {
             return;
         }
@@ -92,11 +103,12 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     },
     onUpdateDashboardNetWork: function(record) {
         var me = this;
-        if (!record || !record.length || !record[0] || !record[0].data) {
+        var recordLatest = (record && record.length) ? (record[record.length - 1] || record[0]) : null;
+        if (!recordLatest || !recordLatest.data) {
             return;
         }
 
-        var data = record[0].data,
+        var data = recordLatest.data,
             cpuPercent = typeof data.cpuPercent === 'number' ? data.cpuPercent : (parseFloat(data.cpuPercent) || 0),
             cpuLoad = typeof data.cpuMediaUso === 'number' ? data.cpuMediaUso : (parseFloat(data.cpuMediaUso) || 0),
             diskPerc = typeof data.disk_perc === 'number' ? data.disk_perc : (parseFloat(data.disk_perc) || 0),
@@ -106,7 +118,8 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             uptime = data.uptime || '',
             totalUsers = data.totalActiveUsers != null ? data.totalActiveUsers : 0,
             maxCC = data.maximumcc != null ? data.maximumcc : 'CC 0 | CPS 0',
-            currency = (App && App.user && App.user.currency) || '$',
+            rawCurrency = (App && App.user && App.user.currency) || '$',
+            currency = (rawCurrency.length <= 4) ? rawCurrency.toUpperCase() : rawCurrency,
             monthProfit = data.monthprofit != null ? data.monthprofit : '0.00',
             monthRefill = data.monthRefill != null ? data.monthRefill : '0.00',
             refEl;
@@ -144,15 +157,15 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
         // Memory & Uptime
         refEl = me.lookupReference('memTotal');
         if (refEl) {
-            refEl.update(memTotal + ' GB');
+            refEl.update(memTotal ? ((memTotal + '').indexOf('GB') !== -1 ? memTotal : (memTotal + ' GB')) : '-');
         }
         refEl = me.lookupReference('memUsed');
         if (refEl) {
-            refEl.update(memUsed + ' GB');
+            refEl.update(memUsed ? ((memUsed + '').indexOf('GB') !== -1 ? memUsed : (memUsed + ' GB')) : '-');
         }
         refEl = me.lookupReference('uptime');
         if (refEl) {
-            refEl.update(uptime);
+            refEl.update(uptime || '-');
         }
 
         // Modern KPI Badges with vector FontAwesome icons and SaaS pastel badges

@@ -42,10 +42,23 @@ class StatusSystemController extends Controller
             $attributes = [[]];
         }
 
-        $attributes[0]['totalActiveUsers'] = User::model()->count('active = 1');
-        $modelCallSummaryPerMonth          = CallSummaryPerMonth::model()->find('month = :key', [':key' => date('Ym')]);
+        // Format dates and ensure float metrics for each point
+        for ($i = 0; $i < count($attributes); $i++) {
+            if (!empty($attributes[$i]['date'])) {
+                $attributes[$i]['date'] = date('H:i', strtotime($attributes[$i]['date']));
+            }
+            $attributes[$i]['networkin']  = isset($attributes[$i]['networkin']) ? (float)$attributes[$i]['networkin'] : 0.0;
+            $attributes[$i]['networkout'] = isset($attributes[$i]['networkout']) ? (float)$attributes[$i]['networkout'] : 0.0;
+        }
 
-        $attributes[0]['monthprofit'] = isset($modelCallSummaryPerMonth->lucro) ? number_format($modelCallSummaryPerMonth->lucro, 2) : '0.00';
+        // Reverse so that points flow chronologically (past -> present) on Cartesian axis
+        if (count($attributes) > 1) {
+            $attributes = array_reverse($attributes);
+        }
+
+        $totalActiveUsers = User::model()->count('active = 1');
+        $modelCallSummaryPerMonth = CallSummaryPerMonth::model()->find('month = :key', [':key' => date('Ym')]);
+        $monthprofit = isset($modelCallSummaryPerMonth->lucro) ? number_format($modelCallSummaryPerMonth->lucro, 2) : '0.00';
 
         $modelCallOnlineChart = CallOnlineChart::model()->find([
             'condition' => 'date > :key',
@@ -59,23 +72,33 @@ class StatusSystemController extends Controller
             'order'     => 'cps DESC',
         ]);
         $cpsValue = (isset($totalCPS->cps)) ? $totalCPS->cps : 0;
-        $attributes[0]['maximumcc'] = isset($modelCallOnlineChart->total) ? 'CC ' . $modelCallOnlineChart->total . ' | CPS ' . $cpsValue : 'CC 0 | CPS ' . $cpsValue;
+        $maximumcc = isset($modelCallOnlineChart->total) ? 'CC ' . $modelCallOnlineChart->total . ' | CPS ' . $cpsValue : 'CC 0 | CPS ' . $cpsValue;
 
         $modelRefill = Refill::model()->find([
             'select'    => 'sum(credit) as credit',
             'condition' => 'date > :key',
             'params'    => [':key' => date('Y-m') . '-01'],
         ]);
-        $attributes[0]['monthRefill'] = isset($modelRefill->credit) ? number_format($modelRefill->credit, 2) : '0.00';
+        $monthRefill = isset($modelRefill->credit) ? number_format($modelRefill->credit, 2) : '0.00';
 
-        // Safe fallbacks for hardware metrics
-        $attributes[0]['cpuPercent']  = $attributes[0]['cpuPercent'] ?? 0;
-        $attributes[0]['cpuMediaUso'] = $attributes[0]['cpuMediaUso'] ?? 0;
-        $attributes[0]['disk_perc']   = $attributes[0]['disk_perc'] ?? 0;
-        $attributes[0]['disk_free']   = $attributes[0]['disk_free'] ?? 0;
-        $attributes[0]['memTotal']    = $attributes[0]['memTotal'] ?? 0;
-        $attributes[0]['memUsed']     = $attributes[0]['memUsed'] ?? 0;
-        $attributes[0]['uptime']      = $attributes[0]['uptime'] ?? '';
+        $lastIdx = count($attributes) - 1;
+        $targetIndices = array_unique([0, $lastIdx]);
+
+        foreach ($targetIndices as $idx) {
+            $attributes[$idx]['totalActiveUsers'] = $totalActiveUsers;
+            $attributes[$idx]['monthprofit']      = $monthprofit;
+            $attributes[$idx]['maximumcc']        = $maximumcc;
+            $attributes[$idx]['monthRefill']      = $monthRefill;
+
+            // Safe fallbacks for hardware metrics
+            $attributes[$idx]['cpuPercent']  = $attributes[$idx]['cpuPercent'] ?? 0;
+            $attributes[$idx]['cpuMediaUso'] = $attributes[$idx]['cpuMediaUso'] ?? 0;
+            $attributes[$idx]['disk_perc']   = $attributes[$idx]['disk_perc'] ?? 0;
+            $attributes[$idx]['disk_free']   = $attributes[$idx]['disk_free'] ?? 0;
+            $attributes[$idx]['memTotal']    = $attributes[$idx]['memTotal'] ?? 0;
+            $attributes[$idx]['memUsed']     = $attributes[$idx]['memUsed'] ?? 0;
+            $attributes[$idx]['uptime']      = $attributes[$idx]['uptime'] ?? '';
+        }
 
         return $attributes;
     }
