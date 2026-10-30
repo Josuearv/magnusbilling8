@@ -2949,10 +2949,10 @@ div.ux-taskbar div.x-toolbar {
 }
 
 /* ==========================================================================
-   Modern SaaS Login Interface Redesign - Infinyte Corporate & Paces Style
+   Modern SaaS Login Interface Redesign - Full Harmonization
    ========================================================================== */
 
-/* 1. Backdrop Harmonizer - Soft Canvas with Vector Pastel Deco Capsules */
+/* 1. Backdrop Harmonizer - Soft Vignette on top of any wallpaper */
 .auth-locked-window.x-window-default {
     border: 0 !important;
     border-radius: 0 !important;
@@ -2962,47 +2962,38 @@ div.ux-taskbar div.x-toolbar {
 
 .auth-locked-window>.x-window-body,
 .auth-locked-window .x-window-body-default {
-    background-color: #f8fafc !important;
-    background-image: url('images/login-paces-bg.svg') !important;
-    background-repeat: no-repeat !important;
-    background-position: center center !important;
-    background-size: cover !important;
+    background:
+        radial-gradient(circle at 50% 45%, rgba(15, 23, 42, 0.35) 0%, rgba(15, 23, 42, 0.70) 100%),
+        rgba(0, 0, 0, 0.25) !important;
     display: flex !important;
-    flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
     position: relative !important;
 }
 
-/* 2. Pure White Floating SaaS Card Container */
+/* 2. Glassmorphism Card Container */
 .auth-locked-window .auth-dialog,
-.auth-locked-window .auth-dialog-register,
 .mb-windows-login-card,
 .mb-modern-login-card {
-    background: #ffffff !important;
-    border: 1px solid #edf2f7 !important;
-    border-radius: 16px !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    border: 1px solid rgba(255, 255, 255, 0.85) !important;
+    border-radius: 20px !important;
     box-shadow:
-        0 10px 25px -5px rgba(15, 23, 42, 0.04),
-        0 20px 48px -10px rgba(15, 23, 42, 0.07) !important;
-    -webkit-backdrop-filter: none !important;
-    backdrop-filter: none !important;
+        0 25px 60px -12px rgba(0, 10, 30, 0.45),
+        0 8px 20px -6px rgba(0, 10, 30, 0.2),
+        0 0 0 1px rgba(255, 255, 255, 0.5) inset !important;
+    -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+    backdrop-filter: blur(28px) saturate(190%) !important;
     padding: 0 !important;
     overflow: hidden !important;
-    max-width: 460px !important;
-    width: 460px !important;
+    max-width: 440px !important;
+    width: 440px !important;
     box-sizing: border-box !important;
-}
-
-.auth-locked-window .auth-dialog-register {
-    max-width: 620px !important;
-    width: 620px !important;
 }
 
 .auth-locked-window .auth-dialog>.x-panel-body,
 .auth-locked-window .auth-dialog>.x-container-body,
-.auth-locked-window .auth-dialog-register>.x-panel-body,
 .mb-windows-login-card>.x-panel-body,
 .mb-windows-login-card>.x-container-body,
 .mb-modern-login-card>.x-panel-body,
@@ -3014,10 +3005,10 @@ div.ux-taskbar div.x-toolbar {
     width: 100% !important;
 }
 
-/* 3. Brand Header & Proportional Infinyte Logo */
+/* 3. Brand Header & Proportional Logo */
 .mb-login-brand-wrapper {
     text-align: center !important;
-    margin-bottom: 22px !important;
+    margin-bottom: 20px !important;
     width: 100% !important;
 }
 
@@ -3026,13 +3017,13 @@ div.ux-taskbar div.x-toolbar {
     align-items: center !important;
     justify-content: center !important;
     min-height: 48px !important;
-    margin-bottom: 14px !important;
+    margin-bottom: 12px !important;
 }
 
 .mb-login-brand-logo {
     display: block !important;
-    max-height: 46px !important;
-    max-width: 240px !important;
+    max-height: 48px !important;
+    max-width: 260px !important;
     width: auto !important;
     height: auto !important;
     object-fit: contain !important;
@@ -3041,27 +3032,27 @@ div.ux-taskbar div.x-toolbar {
 
 .mb-login-brand-title {
     color: #0f172a !important;
-    font-size: 21px !important;
+    font-size: 20px !important;
     font-weight: 700 !important;
-    letter-spacing: -0.4px !important;
+    letter-spacing: -0.35px !important;
     line-height: 1.25 !important;
     text-align: center !important;
-    margin: 0 0 6px 0 !important;
+    margin: 0 0 4px 0 !important;
     padding: 0 !important;
 }
 
 .mb-login-brand-subtitle {
     color: #64748b !important;
     font-size: 13.5px !important;
-    font-weight: 400 !important;
+    font-weight: 500 !important;
     letter-spacing: -0.1px !important;
     text-align: center !important;
     margin: 0 !important;
     padding: 0 !important;
-    line-height: 1.45 !important;
+    line-height: 1.4 !important;
 }
 
-/* 4. Top-Aligned Field Labels & Full-Width Containers */
+/* 4. Top-Aligned Field Labels & Full-Width Pill Containers */
 .auth-dialog .x-form-item {
     margin-bottom: 12px !important;
     width: 100% !important;
@@ -3093,17 +3084,11 @@ div.ux-taskbar div.x-toolbar {
     text-align: left !important;
 }
 
-.mb-login-required {
-    color: #ef4444 !important;
-    font-weight: 700 !important;
-    margin-left: 2px !important;
-}
-
-/* 5. Field Body & Unified Input Box (Paces style) */
+/* 5. Field Body & Unified Input Pill (Native ExtJS Table Layout) */
 .auth-dialog .x-form-item-body {
     display: table-row !important;
     width: 100% !important;
-    height: 44px !important;
+    height: 48px !important;
     padding: 0 !important;
     border: none !important;
     background: transparent !important;
@@ -3112,12 +3097,12 @@ div.ux-taskbar div.x-toolbar {
 .auth-dialog .x-form-trigger-wrap,
 .auth-dialog .x-form-trigger-wrap-default {
     background: #ffffff !important;
-    border: 1.5px solid #e2e8f0 !important;
-    border-radius: 8px !important;
-    height: 44px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    height: 48px !important;
     width: 100% !important;
     max-width: 100% !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
     transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
     box-sizing: border-box !important;
     overflow: hidden !important;
@@ -3126,12 +3111,12 @@ div.ux-taskbar div.x-toolbar {
     padding: 0 !important;
 }
 
-/* Glowing Focus Ring on Infinyte Blue */
+/* Glowing Focus Ring on the Pill */
 .auth-dialog .x-field-focus .x-form-trigger-wrap,
 .auth-dialog .x-form-trigger-wrap-focus {
     border-color: #2563eb !important;
     background: #ffffff !important;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+    box-shadow: 0 0 0 3.5px rgba(37, 99, 235, 0.18) !important;
 }
 
 /* Text wrap cell */
@@ -3145,16 +3130,16 @@ div.ux-taskbar div.x-toolbar {
     padding: 0 !important;
 }
 
-/* Raw Input Element inside the Box */
+/* Raw Input Element inside the Pill */
 .auth-dialog input.x-form-text-default,
 .auth-dialog .x-form-text {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    height: 40px !important;
-    line-height: 40px !important;
+    height: 44px !important;
+    line-height: 44px !important;
     padding: 0 14px !important;
-    font-size: 14px !important;
+    font-size: 14.5px !important;
     color: #0f172a !important;
     width: 100% !important;
     outline: none !important;
@@ -3167,7 +3152,7 @@ div.ux-taskbar div.x-toolbar {
     opacity: 1;
 }
 
-/* Eye Reveal Trigger inside the Box */
+/* Eye Reveal Trigger inside the Pill */
 .auth-dialog .x-form-trigger,
 .auth-dialog .x-form-trigger-default {
     display: table-cell !important;
@@ -3175,35 +3160,35 @@ div.ux-taskbar div.x-toolbar {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    width: 42px !important;
-    height: 42px !important;
-    line-height: 42px !important;
+    width: 44px !important;
+    height: 44px !important;
+    line-height: 44px !important;
     text-align: center !important;
-    color: #94a3b8 !important;
+    color: #64748b !important;
     cursor: pointer !important;
-    font-size: 15px !important;
+    font-size: 16px !important;
     transition: color 0.15s ease !important;
     margin: 0 !important;
     padding: 0 !important;
 }
 
 .auth-dialog .x-form-trigger:hover {
-    color: #2563eb !important;
+    color: #0f172a !important;
 }
 
 .auth-dialog .x-form-trigger:before {
     line-height: 1 !important;
 }
 
-/* 6. Primary Action Button - Infinyte Corporate Blue */
+/* 6. Primary Action Button */
 .auth-dialog .x-btn-default-large,
 .mb-modern-login-submit {
-    background: #2563eb !important;
-    border: none !important;
-    border-radius: 8px !important;
-    height: 44px !important;
-    margin-top: 4px !important;
-    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border: 1px solid #1d4ed8 !important;
+    border-radius: 10px !important;
+    height: 48px !important;
+    margin-top: 6px !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
     transition: all 0.15s ease-in-out !important;
     cursor: pointer !important;
     width: 100% !important;
@@ -3213,35 +3198,77 @@ div.ux-taskbar div.x-toolbar {
 .auth-dialog .x-btn-over,
 .mb-modern-login-submit:hover,
 .mb-modern-login-submit.x-btn-over {
-    background: #1d4ed8 !important;
-    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35) !important;
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+    border-color: #1e40af !important;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45) !important;
     transform: translateY(-1px);
 }
 
 .auth-dialog .x-btn-default-large:active,
 .mb-modern-login-submit:active {
-    background: #1e40af !important;
     transform: translateY(0);
+    background: #1e40af !important;
 }
 
 .auth-dialog .x-btn-default-large .x-btn-inner,
 .mb-modern-login-submit .x-btn-inner {
     color: #ffffff !important;
-    font-size: 15px !important;
+    font-size: 15.5px !important;
     font-weight: 600 !important;
-    letter-spacing: -0.1px !important;
+    letter-spacing: -0.2px !important;
 }
 
 .auth-dialog .x-btn-default-large .x-btn-icon-el,
 .mb-modern-login-submit .x-btn-icon-el {
     color: #ffffff !important;
-    font-size: 14px !important;
+    font-size: 15px !important;
 }
 
-/* 7. Locale Selector & Options Row */
+/* 7. Create Account / Signup Button */
+.auth-dialog .mb-modern-login-create,
+.auth-dialog .mb-windows-login-create {
+    background: #f8fafc !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 10px !important;
+    height: 44px !important;
+    margin-top: 6px !important;
+    transition: all 0.15s ease-in-out !important;
+    width: 100% !important;
+}
+
+.auth-dialog .mb-modern-login-create:hover,
+.auth-dialog .mb-windows-login-create:hover {
+    background: #f1f5f9 !important;
+    border-color: #94a3b8 !important;
+}
+
+.auth-dialog .mb-modern-login-create .x-btn-inner,
+.auth-dialog .mb-windows-login-create .x-btn-inner {
+    color: #2563eb !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+}
+
+/* 8. Separator */
+.auth-dialog .mb-modern-login-separator {
+    margin: 12px 0 !important;
+}
+
+.auth-dialog .outer-div:before,
+.auth-dialog .outer-div:after {
+    border-color: #e2e8f0 !important;
+}
+
+.auth-dialog .seperator {
+    background: #ffffff !important;
+    color: #94a3b8 !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+}
+
+/* 9. Locale Selector & Forgot Password Row */
 .mb-modern-login-links {
-    margin-top: 2px !important;
-    margin-bottom: 16px !important;
+    margin-top: 16px !important;
     align-items: center !important;
     width: 100% !important;
 }
@@ -3251,9 +3278,9 @@ div.ux-taskbar div.x-toolbar {
     background: #ffffff !important;
     border: 1.5px solid #e2e8f0 !important;
     border-radius: 8px !important;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02) !important;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
     height: 36px !important;
-    padding: 0 8px !important;
+    padding: 0 6px !important;
     transition: all 0.15s ease !important;
 }
 
@@ -3270,8 +3297,8 @@ div.ux-taskbar div.x-toolbar {
 
 .mb-modern-forgot-link {
     color: #2563eb !important;
-    font-size: 13px !important;
-    font-weight: 500 !important;
+    font-size: 13.5px !important;
+    font-weight: 600 !important;
     text-align: right !important;
     cursor: pointer !important;
     transition: color 0.15s ease !important;
@@ -3285,46 +3312,23 @@ div.ux-taskbar div.x-toolbar {
     text-decoration: underline !important;
 }
 
-/* 8. Modern Signup Link below Submit Button */
-.mb-modern-login-signup-wrap {
+/* 10. Platform Footer Signature */
+.mb-modern-login-footer-tag {
     text-align: center !important;
-    width: 100% !important;
-    margin-top: 18px !important;
-}
-
-.mb-modern-signup-text {
-    color: #64748b !important;
-    font-size: 13.5px !important;
-    font-weight: 400 !important;
-}
-
-.mb-modern-signup-link {
-    color: #2563eb !important;
-    font-weight: 600 !important;
-    text-decoration: underline !important;
-    cursor: pointer !important;
-    transition: color 0.15s ease !important;
-}
-
-.mb-modern-signup-link:hover {
-    color: #1d4ed8 !important;
-}
-
-/* 9. Outer Footer below Card (Paces Template Style) */
-.mb-modern-login-outer-footer {
-    text-align: center !important;
-    width: 100% !important;
     margin-top: 22px !important;
+    padding-top: 16px !important;
+    border-top: 1px solid rgba(226, 232, 240, 0.8) !important;
+    width: 100% !important;
 }
 
-.mb-modern-outer-footer-text {
-    color: #94a3b8 !important;
-    font-size: 12.5px !important;
+.mb-modern-login-footer-text {
+    color: #64748b !important;
+    font-size: 12px !important;
     font-weight: 500 !important;
     letter-spacing: 0.1px;
 }
 
-/* 10. Mobile Responsiveness */
+/* 11. Mobile Responsiveness */
 @media (max-width: 520px) {
     .auth-locked-window .auth-dialog,
     .mb-windows-login-card,
