@@ -5564,32 +5564,72 @@ body,
 /* Top Action Toolbar */
 .x-toolbar-default.x-docked-top,
 .x-toolbar.x-docked-top {
-    padding: 6px 10px !important;
+    background: #fafbfc !important;
     border-bottom: 1px solid #e2e8f0 !important;
+    padding: 3px 6px !important;
 }
 
-.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small,
-.x-toolbar:not(.x-docked-bottom) .x-btn-default-toolbar-small {
+/* Toolbar Buttons - Clean styling preserving ExtJS layout geometry */
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small {
     background: #ffffff !important;
     border: 1px solid #cbd5e1 !important;
-    border-radius: 5px !important;
+    border-radius: 4px !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
-    padding: 3px 10px !important;
+}
+
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small:hover {
+    background: #f8fafc !important;
+    border-color: #94a3b8 !important;
+}
+
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small.x-btn-pressed {
+    background: #eff6ff !important;
+    border-color: #2563eb !important;
+}
+
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small .x-btn-inner {
     font-size: 12px !important;
     font-weight: 500 !important;
     color: #334155 !important;
 }
 
-.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small:hover,
-.x-toolbar:not(.x-docked-bottom) .x-btn-default-toolbar-small:hover {
-    background: #f8fafc !important;
-    border-color: #94a3b8 !important;
+/* Form Fields & Search Field Container (Wrap) */
+.x-form-text-wrap-default {
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 4px !important;
+    background-color: #ffffff !important;
+    overflow: hidden !important;
 }
 
-.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small.x-btn-pressed,
-.x-toolbar:not(.x-docked-bottom) .x-btn-default-toolbar-small.x-btn-pressed {
-    background: #f1f5f9 !important;
-    border-color: #64748b !important;
+.x-form-text-wrap-default.x-form-text-wrap-focus {
+    border-color: #2563eb !important;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
+}
+
+/* The inner input inside the wrap - borderless, seamless */
+.x-form-text-default {
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #1e293b !important;
+    font-size: 12px !important;
+}
+
+.x-form-text-default:focus {
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Triggers inside search field and combos - seamless and aligned */
+.x-form-trigger-default {
+    border: none !important;
+    background-color: transparent !important;
+    opacity: 0.75;
+}
+
+.x-form-trigger-default:hover {
+    opacity: 1;
 }
 
 /* Bottom Paging Toolbar */
@@ -5599,7 +5639,7 @@ body,
     background: #fafbfc !important;
     border-top: 1px solid #e2e8f0 !important;
     border-bottom: none !important;
-    padding: 2px 8px !important;
+    padding: 2px 6px !important;
 }
 
 .x-toolbar.x-docked-bottom .x-btn-default-toolbar-small,
@@ -5608,7 +5648,6 @@ body,
     border: 1px solid transparent !important;
     border-radius: 4px !important;
     box-shadow: none !important;
-    padding: 2px !important;
     min-width: 24px !important;
     width: 24px !important;
     height: 24px !important;
@@ -5628,16 +5667,21 @@ body,
     opacity: 0.35 !important;
 }
 
-.x-toolbar.x-docked-bottom .x-form-text,
-.x-toolbar-paging .x-form-text {
-    padding: 2px 4px !important;
+.x-toolbar.x-docked-bottom .x-form-text-wrap-default,
+.x-toolbar-paging .x-form-text-wrap-default {
+    border-radius: 3px !important;
     height: 22px !important;
     width: 34px !important;
+}
+
+.x-toolbar.x-docked-bottom .x-form-text,
+.x-toolbar-paging .x-form-text {
+    height: 20px !important;
+    width: 32px !important;
     font-size: 11.5px !important;
     text-align: center !important;
-    border-radius: 4px !important;
-    border: 1px solid #cbd5e1 !important;
-    background: #ffffff !important;
+    padding: 0 !important;
+    line-height: 20px !important;
 }
 
 .x-toolbar.x-docked-bottom .x-toolbar-text,
@@ -5646,18 +5690,6 @@ body,
     color: #64748b !important;
     line-height: 24px !important;
     padding: 0 4px !important;
-}
-
-/* Form text fields - styled without overriding layout dimensions */
-.x-form-text-default {
-    border-radius: 4px !important;
-    border: 1px solid #cbd5e1 !important;
-    background-color: #ffffff !important;
-}
-
-.x-form-text-default:focus {
-    border-color: #2563eb !important;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15) !important;
 }
 
 /* 7. Modern Data Grid Headers and Cells */
@@ -5674,18 +5706,25 @@ body,
 }
 
 .x-column-header-inner {
-    padding: 6px 8px !important;
+    padding: 4px 6px 4px 6px !important;
 }
 
 .x-column-header-checkbox,
 .x-column-header-checkbox .x-column-header-inner {
-    padding: 0 !important;
+    padding: 5px 0 4px 0 !important;
     text-align: center !important;
+}
+
+.x-column-header-checkbox .x-column-header-text {
+    display: inline-block !important;
+    width: 13px !important;
+    height: 13px !important;
+    margin: 0 auto !important;
 }
 
 .x-column-header-text {
     font-weight: 600 !important;
-    font-size: 11.5px !important;
+    font-size: 11px !important;
     color: #475569 !important;
 }
 
@@ -5708,7 +5747,7 @@ body,
 }
 
 .x-grid-cell-inner {
-    padding: 6px 8px !important;
+    padding: 5px 8px !important;
     line-height: 18px !important;
 }
 

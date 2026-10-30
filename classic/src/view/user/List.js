@@ -28,6 +28,7 @@ Ext.define('MBilling.view.user.List', {
         }, {
             header: t('Username'),
             dataIndex: 'username',
+            minWidth: 95,
             flex: 2
         }, {
             header: t('Last name'),
@@ -53,6 +54,7 @@ Ext.define('MBilling.view.user.List', {
             header: t('Credit'),
             dataIndex: 'credit',
             renderer: Helper.Util.formatMoneyDecimal,
+            minWidth: 85,
             flex: 2
         }, {
             xtype: 'templatecolumn',
@@ -65,6 +67,7 @@ Ext.define('MBilling.view.user.List', {
         }, {
             header: t('Sip Users'),
             dataIndex: 'sip_count',
+            minWidth: 90,
             flex: 2,
             hidden: !App.user.isAdmin
         }, {
