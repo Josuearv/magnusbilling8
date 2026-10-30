@@ -1079,31 +1079,11 @@ Ext.define('Ext.ux.button.Locale', {
 
 ;
 /* Source: classic/src/ux/button/Credit.js */
-/**
- * Classe que define a model "Callerid"
- *
- * =======================================
- * ###################################
- * MagnusBilling
- *
- * @package MagnusBilling
- * @author Adilson Leffa Magnus.
- * @copyright Copyright (C) 2005 - 2021 MagnusBilling. All rights reserved.
- * ###################################
- *
- * This software is released under the terms of the GNU Lesser General Public License v3
- * A copy of which is available from http://www.gnu.org/copyleft/lesser.html
- *
- * Please submit bug reports, patches, etc to https://github.com/magnussolution/magnusbilling7/issues
- * =======================================
- * Magnusbilling.org <info@magnussolution.com>
- * 19/09/2012
- */
 Ext.define('Ext.ux.button.Credit', {
     extend: 'Ext.Button',
     alias: 'widget.credit',
-    height: window.isThemeNeptune ? 21 : 20,
-    iconCls: 'icon-add-credit',
+    height: 30,
+    iconCls: 'x-fa fa-wallet',
     initComponent: function () {
         var me = this;
         if (!App.user.isAdmin) {
@@ -1132,6 +1112,7 @@ Ext.define('Ext.ux.button.Credit', {
         me.callParent(arguments);
     }
 });
+
 
 ;
 /* Source: classic/src/ux/data/proxy/Ajax.js */
@@ -2104,32 +2085,35 @@ Ext.define('MBilling.view.main.Main', {
             dockedItems: [{
                 xtype: 'toolbar',
                 cls: 'mb-main-header-toolbar',
-                height: 48,
+                height: 50,
                 style: {
                     'padding-left': '0px',
                     'padding-top': '4px',
                     'padding-bottom': '4px',
-                    'padding-right': '12px'
+                    'padding-right': '14px'
                 },
                 items: [{
                     xtype: 'image',
                     src: window.logo,
-                    height: 38,
+                    height: 34,
                     style: {
-                        'max-height': '38px',
+                        'max-height': '34px',
                         'width': 'auto',
                         'object-fit': 'contain',
-                        'margin-left': '12px'
+                        'margin-left': '14px'
                     },
                     hidden: window.isTablet || window.isTablets
                 }, '->', {
                     xtype: 'credit',
+                    cls: 'mb-header-btn-credit',
                     width: '120px'
                 }, {
                     xtype: 'locale',
+                    cls: 'mb-header-btn-locale',
                     hidden: window.isTablets || window.isTable
                 }, '-', {
                     xtype: 'splitbutton',
+                    cls: 'mb-header-btn-user',
                     scale: 'small',
                     iconAlign: 'left',
                     iconCls: 'x-fa fa-user-circle',
@@ -2174,8 +2158,8 @@ Ext.define('MBilling.view.main.Main', {
             region: 'west',
             width: window.isTablet ? '100%' : 240,
             minWidth: 150,
-            cls: isMobileLayout ? 'mb-mobile-main-menu' : '',
-            bodyCls: isMobileLayout ? 'mb-mobile-main-menu-body' : '',
+            cls: isMobileLayout ? 'mb-mobile-main-menu' : 'mb-main-menu-panel',
+            bodyCls: isMobileLayout ? 'mb-mobile-main-menu-body' : 'mb-main-menu-panel-body',
             split: window.isTablet ? false : true,
             collapsible: !window.isTablets || window.isThemeNeptune ? true : false,
             titleCollapse: false,
@@ -16510,32 +16494,73 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
         me.lookupReference('trunkDashboardFields').items.items[6].update(trunkDetails);
     },
     onUpdateDashboardNetWork: function(record) {
-        var me = this;
-        //cpu
-        me.lookupReference('cpuMediaUso').update('<span class="x-fa fa-hdd-o "> &nbsp;' + t('CPU actual usage') + ': ' + record[0].data.cpuPercent + '% </span> &nbsp;&nbsp;&nbsp;&nbsp;<span class="x-fa fa-hdd-o" style="text-align: right;"> ' + t('Load Average') + ': ' + record[0].data.cpuMediaUso + '%</span>');
-        me.lookupReference('cpuPercent').setValue(record[0].data.cpuPercent / 100);
-        if (record[0].data.disk_perc > 90) {
-            me.lookupReference('diskFree').update('<span class="x-fa fa-server"><font color=red>&nbsp; <b>Disk Avail ' + record[0].data.disk_free + 'G. ' + record[0].data.disk_perc + '% USED</b></font></span>');
-        } else {
-            me.lookupReference('diskFree').update('<span class="x-fa fa-server">&nbsp; Disk Avail ' + record[0].data.disk_free + 'G</span>');
-        }
-        me.lookupReference('diskPerc').setValue(record[0].data.disk_perc / 100);
-        //memory
-        me.lookupReference('memTotal').update(record[0].data.memTotal + '&nbsp;GB ');
-        me.lookupReference('memUsed').update(record[0].data.memUsed + '&nbsp;GB ');
+        var me = this,
+            cpuPercent = (record && record[0] && record[0].data.cpuPercent) || 0,
+            cpuLoad = (record && record[0] && record[0].data.cpuMediaUso) || 0,
+            diskPerc = (record && record[0] && record[0].data.disk_perc) || 0,
+            diskFree = (record && record[0] && record[0].data.disk_free) || 0,
+            userstpl;
+
+        // CPU Usage
+        var cpuUsageHtml = '<div class="mb-hw-row">' +
+            '<span class="mb-hw-label"><i class="x-fa fa-microchip text-primary"></i> ' + t('CPU actual usage') + '</span>' +
+            '<span class="mb-hw-val">' + cpuPercent + '% <small class="text-muted">(' + t('Load') + ': ' + cpuLoad + '%)</small></span>' +
+            '</div>';
+        me.lookupReference('cpuMediaUso').update(cpuUsageHtml);
+        me.lookupReference('cpuPercent').setValue(cpuPercent / 100);
+
+        // Disk Usage
+        var diskUsageHtml = '<div class="mb-hw-row">' +
+            '<span class="mb-hw-label"><i class="x-fa fa-database text-info"></i> ' + t('Disk space') + '</span>' +
+            '<span class="mb-hw-val">' + (diskPerc > 90 ? '<span class="mb-badge mb-badge-danger">' + diskPerc + '% ' + t('USED') + '</span> ' : '') + diskFree + ' GB ' + t('Free') + '</span>' +
+            '</div>';
+        me.lookupReference('diskFree').update(diskUsageHtml);
+        me.lookupReference('diskPerc').setValue(diskPerc / 100);
+
+        // Memory & Uptime
+        me.lookupReference('memTotal').update(record[0].data.memTotal + ' GB');
+        me.lookupReference('memUsed').update(record[0].data.memUsed + ' GB');
         me.lookupReference('uptime').update(record[0].data.uptime);
-        //
-        imageContainerHeight = me.lookupReference('totalusersdiv').height;
-        userstpl = '<div class="weather-image-container" style="height: ' + imageContainerHeight + 'px;"><img src="resources/images/icons/users-icon.png" style="height: ' + imageContainerHeight * 0.6 + 'px;" alt="' + t('Active users') + '"/></div>' + '<div class="weather-details-container">' + '<div>' + record[0].data.totalActiveUsers + '</div>' + '<div>' + t('Active users') + '</div>' + '</div>'
+
+        // Modern KPI Badges with vector FontAwesome icons and SaaS pastel badges
+        userstpl = '<div class="weather-image-container kpi-badge-users">' +
+            '<i class="x-fa fa-users weather-kpi-icon"></i>' +
+            '</div>' +
+            '<div class="weather-details-container">' +
+            '<div class="weather-kpi-value">' + (record[0].data.totalActiveUsers || 0) + '</div>' +
+            '<div class="weather-kpi-label">' + t('Active users') + '</div>' +
+            '</div>';
         me.lookupReference('totalusersdiv').update(userstpl);
-        userstpl = '<div class="weather-image-container" style="height: ' + imageContainerHeight + 'px;"><img src="resources/images/icons/profit-icon.png" style="height: ' + imageContainerHeight * 0.6 + 'px;" alt="' + t('Month profit') + '"/></div>' + '<div class="weather-details-container">' + ' <div>' + App.user.currency + ' ' + record[0].data.monthprofit + '</div>' + '<div>' + t('Month profit') + '</div>' + '</div>'
-        me.lookupReference('monthprofitdiv').update(userstpl);
-        userstpl = '<div class="weather-image-container" style="height: ' + imageContainerHeight + 'px;"><img src="resources/images/icons/calls-icon.png" style="height: ' + imageContainerHeight * 0.6 + 'px;" alt="' + t('Today peak') + '"/></div>' + '<div class="weather-details-container">' + ' <div>' + ' ' + record[0].data.maximumcc + '</div>' + '<div>' + t('Today peak') + '</div>' + '</div>'
+
+        userstpl = '<div class="weather-image-container kpi-badge-calls">' +
+            '<i class="x-fa fa-headphones weather-kpi-icon"></i>' +
+            '</div>' +
+            '<div class="weather-details-container">' +
+            '<div class="weather-kpi-value">' + (record[0].data.maximumcc || 0) + '</div>' +
+            '<div class="weather-kpi-label">' + t('Today peak') + '</div>' +
+            '</div>';
         me.lookupReference('maximumcc').update(userstpl);
-        userstpl = '<div class="weather-image-container" style="height: ' + imageContainerHeight + 'px;"><img src="resources/images/icons/profit-icon.png" style="height: ' + imageContainerHeight * 0.6 + 'px;" alt="' + t('Month refill') + '"/></div>' + '<div class="weather-details-container">' + ' <div>' + App.user.currency + ' ' + record[0].data.monthRefill + '</div>' + '<div>' + t('Month refill') + '</div>' + '</div>'
+
+        userstpl = '<div class="weather-image-container kpi-badge-profit">' +
+            '<i class="x-fa fa-line-chart weather-kpi-icon"></i>' +
+            '</div>' +
+            '<div class="weather-details-container">' +
+            '<div class="weather-kpi-value">' + App.user.currency + ' ' + (record[0].data.monthprofit || '0.00') + '</div>' +
+            '<div class="weather-kpi-label">' + t('Month profit') + '</div>' +
+            '</div>';
+        me.lookupReference('monthprofitdiv').update(userstpl);
+
+        userstpl = '<div class="weather-image-container kpi-badge-refill">' +
+            '<i class="x-fa fa-credit-card weather-kpi-icon"></i>' +
+            '</div>' +
+            '<div class="weather-details-container">' +
+            '<div class="weather-kpi-value">' + App.user.currency + ' ' + (record[0].data.monthRefill || '0.00') + '</div>' +
+            '<div class="weather-kpi-label">' + t('Month refill') + '</div>' +
+            '</div>';
         me.lookupReference('totalrefill').update(userstpl);
     }
 });
+
 
 ;
 /* Source: classic/src/view/callFailed/DiagnosticWindow.js */

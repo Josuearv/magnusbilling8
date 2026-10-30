@@ -34,32 +34,35 @@ Ext.define('MBilling.view.main.Main', {
             dockedItems: [{
                 xtype: 'toolbar',
                 cls: 'mb-main-header-toolbar',
-                height: 48,
+                height: 50,
                 style: {
                     'padding-left': '0px',
                     'padding-top': '4px',
                     'padding-bottom': '4px',
-                    'padding-right': '12px'
+                    'padding-right': '14px'
                 },
                 items: [{
                     xtype: 'image',
                     src: window.logo,
-                    height: 38,
+                    height: 34,
                     style: {
-                        'max-height': '38px',
+                        'max-height': '34px',
                         'width': 'auto',
                         'object-fit': 'contain',
-                        'margin-left': '12px'
+                        'margin-left': '14px'
                     },
                     hidden: window.isTablet || window.isTablets
                 }, '->', {
                     xtype: 'credit',
+                    cls: 'mb-header-btn-credit',
                     width: '120px'
                 }, {
                     xtype: 'locale',
+                    cls: 'mb-header-btn-locale',
                     hidden: window.isTablets || window.isTable
                 }, '-', {
                     xtype: 'splitbutton',
+                    cls: 'mb-header-btn-user',
                     scale: 'small',
                     iconAlign: 'left',
                     iconCls: 'x-fa fa-user-circle',
@@ -104,8 +107,8 @@ Ext.define('MBilling.view.main.Main', {
             region: 'west',
             width: window.isTablet ? '100%' : 240,
             minWidth: 150,
-            cls: isMobileLayout ? 'mb-mobile-main-menu' : '',
-            bodyCls: isMobileLayout ? 'mb-mobile-main-menu-body' : '',
+            cls: isMobileLayout ? 'mb-mobile-main-menu' : 'mb-main-menu-panel',
+            bodyCls: isMobileLayout ? 'mb-mobile-main-menu-body' : 'mb-main-menu-panel-body',
             split: window.isTablet ? false : true,
             collapsible: !window.isTablets || window.isThemeNeptune ? true : false,
             titleCollapse: false,
