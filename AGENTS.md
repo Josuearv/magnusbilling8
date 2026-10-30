@@ -1,5 +1,16 @@
 # Guía del Agente y Manual de Desarrollo - MagnusBilling 8 (Fork Josuearv)
 
+> **POLÍTICA OPERATIVA ACTUALIZADA (2026-10-30):** antes de seguir cualquier ejemplo de este documento, leer [docs/engineering/README.md](docs/engineering/README.md) y aplicar sus controles de QA, desarrollo, permisos y release. Las secciones posteriores ilustran patrones existentes, **no** sustituyen las verificaciones del código y el schema. Si hay conflicto, prevalecen estas reglas, el código de la revisión real y las pruebas observadas.
+>
+> **Ramas:** `main` es actualmente la rama predeterminada en GitHub y la que consume `protected/commands/update.sh`; `development` es la rama de personalizaciones y trabajo autorizada; `source` es espejo upstream. No asumir que están sincronizadas. Crear una rama pequeña desde `development` para nuevas tareas, salvo autorización explícita de cambio directo. Nunca ejecutar `git reset --hard`, migrar o desplegar en servidores sin permiso y respaldo.
+>
+> **Pruebas:** `php -l`, el build, o `node script/test-frontend-boot.mjs` no prueban UI autenticada, cobros, ACL, ni llamadas reales. Reportar cada caso como `PASS`, `FAIL`, `NOT RUN` o `BLOCKED` con evidencia. Para cambios de riesgo alto separar QA/AppSec del implementador.
+>
+> **Compatibilidad:** Asterisk 20/PJSIP es baseline para instalación nueva; **no** reemplazar todas las rutas `SIP/` o `$providertech` sin trazar el flujo y probarlo. Ninguna regla o ID de grupos, tablas o columnas debe inferirse solo de ejemplos.
+>
+> **Restricción de alcance:** documentación no autoriza cambios en código, configuración, BD ni servicios. El agente debe comunicar rama/SHA, riesgos, archivos, resultados y rollback.
+>
+
 Este documento es el **manual de referencia técnica, arquitectura y flujo de trabajo** para agentes de IA y desarrolladores que implementen nuevas funcionalidades, resuelvan incidencias o extiendan el sistema **MagnusBilling 8** en este repositorio.
 
 ---
@@ -38,7 +49,7 @@ gitGraph
 
 | Rama | Propósito | Reglas de Obligatorio Cumplimiento |
 | :--- | :--- | :--- |
-| **`development`** | **Rama de desarrollo activa (Default)** | **TODO agente debe trabajar aquí.** Aquí se crean módulos, se modifican controladores, vistas, scripts y se prueba el código. |
+| **`development`** | **Rama de desarrollo activa (no es la default de GitHub)** | **TODO agente debe trabajar aquí.** Aquí se crean módulos, se modifican controladores, vistas, scripts y se prueba el código. |
 | **`main`** | **Rama de despliegue en producción** | Utilizada por `script/install.sh` y `update.sh` en los servidores en vivo. **Solo recibe merges desde `development`** una vez que los cambios han sido probados. |
 | **`source`** | **Espejo limpio del upstream oficial** | **NUNCA modificar archivos directamente en `source`.** Esta rama solo se actualiza vía `Sync fork` (desde `magnussolution/magnusbilling:source`) para inspeccionar parches oficiales sin conflictos. |
 
@@ -357,7 +368,7 @@ Para cualquier desarrollo que toque llamadas, troncales o numeración:
    * Esto escribe en `/var/spool/asterisk/outgoing/.magnusbilling-tmp/` y mueve atómicamente el archivo a `/var/spool/asterisk/outgoing/` para evitar que Asterisk lea archivos a medio escribir.
 3. **Hook MassiveCall (`MassiveCallBeforeDial.php`)**:
    * Toda lógica previa a la salida de una llamada masiva debe integrarse en este archivo.
-   * La rotación de Caller ID se realiza seleccionando números activos con `ORDER BY RAND() LIMIT 1` sobre la tabla `pkg_callerid`.
+   * La rotación actual requiere auditoría: no asumir que una selección global de números ni que la condición del hook son seguras entre clientes. Ver docs/engineering/BACKLOG.md.
 
 ---
 
@@ -405,6 +416,6 @@ Antes de entregar cualquier cambio al usuario o dar por concluida una tarea, el 
 - [ ] **2. Sintaxis PHP**: Todo archivo PHP creado o modificado pasa la validación de sintaxis: `php -l <archivo.php>`.
 - [ ] **3. Saltos de Línea**: Todos los archivos `.sh` tienen terminación **LF** sin caracteres de retorno de carro (`\r`).
 - [ ] **4. Seguridad SQL**: Todas las consultas a base de datos utilizan binding de parámetros PDO (`:param`).
-- [ ] **5. Compatibilidad Asterisk**: No se utilizan cadenas obsoletas `SIP/`; todo canal utiliza `PJSIP/<dest>@<trunk>`.
+- [ ] **5. Compatibilidad Asterisk**: Verificar tecnología y dialstring del flujo real; PJSIP es la referencia de instalación nueva, no un reemplazo global automático.
 - [ ] **6. Integridad de Migración**: Si se agregaron campos o tablas, están documentados y contemplados en `UpdateMysqlCommand.php` y `script/database.sql`.
 - [ ] **7. Push Remoto**: Los commits han sido subidos exitosamente a `origin development` en GitHub.

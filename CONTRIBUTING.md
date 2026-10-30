@@ -15,6 +15,10 @@ contributions should be focused, testable, and easy to review.
 
 Small bug fixes and documentation corrections may be submitted directly.
 
+## Fork-specific engineering workflow
+
+For changes to this fork, also read [AGENTS.md](AGENTS.md) and the [engineering workflow](docs/engineering/README.md). Check the real Git branch and commit, distinguish mocked frontend boot from authenticated/visual tests, and record verification evidence as PASS, FAIL, NOT RUN, or BLOCKED. Updating `development` does not imply production deployment.
+
 ## Development environment
 
 Use a disposable Linux environment. The complete application depends on PHP,
