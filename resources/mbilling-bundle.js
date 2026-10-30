@@ -16434,36 +16434,43 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     },
     onRenderModule: function() {
         var me = this;
-        if (App.user.isAdmin) {
+        if (App && App.user && App.user.isAdmin) {
             storeStatusSystem = Ext.create('MBilling.store.StatusSystem');
             storeStatusSystem.load({
                 scope: me,
-                callback: function(record) {
-                    me.onUpdateDashboardNetWork(record)
+                callback: function(record, operation, success) {
+                    if (success && record && record.length && record[0]) {
+                        me.onUpdateDashboardNetWork(record);
+                    }
                 }
             });
             setInterval(function() {
                 storeStatusSystem.load({
                     scope: me,
-                    callback: function(record) {
-                        me.onUpdateDashboardNetWork(record)
+                    callback: function(record, operation, success) {
+                        if (success && record && record.length && record[0]) {
+                            me.onUpdateDashboardNetWork(record);
+                        }
                     }
                 });
             }, 10000);
+
             storeTrunkChart = Ext.create('MBilling.store.TrunkChart');
             storeTrunkChart.load({
                 scope: me,
-                callback: function(record) {
-                    if (record[0]) {
-                        me.onUpdateDashboardTrunk(record)
+                callback: function(record, operation, success) {
+                    if (success && record && record.length && record[0]) {
+                        me.onUpdateDashboardTrunk(record);
                     }
                 }
             });
             setInterval(function() {
                 storeTrunkChart.load({
                     scope: me,
-                    callback: function(record) {
-                        me.onUpdateDashboardTrunk(record)
+                    callback: function(record, operation, success) {
+                        if (success && record && record.length && record[0]) {
+                            me.onUpdateDashboardTrunk(record);
+                        }
                     }
                 });
             }, 30000);
@@ -16471,93 +16478,163 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
     },
     onUpdateDashboardTrunk: function(record) {
         var me = this;
-        trunkDetails = '<div class="services-text">' + t('Trunk chart') + '</div>' + '<div class="services-legend">';
-        if (record[0]) {
-            avarege = (record[0].data.sessionbill * 100) / record[0].data.sumsessionbill;
-            me.lookupReference('trunkDashboardFields').items.items[0].update('<div class="left-aligned-div">' + record[0].data.idTrunktrunkcode + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
-            me.lookupReference('trunkDashboardFields').items.items[1].setValue(avarege / 100);
-            trunkDetails += '<span><div class="legend-trunk1"></div>' + record[0].data.idTrunktrunkcode + '</span>';
+        if (!record || !record.length || !record[0] || !record[0].data) {
+            return;
         }
-        if (record[1]) {
-            avarege = (record[1].data.sessionbill * 100) / record[0].data.sumsessionbill;
-            me.lookupReference('trunkDashboardFields').items.items[2].update('<div class="left-aligned-div">' + record[1].data.idTrunktrunkcode + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
-            me.lookupReference('trunkDashboardFields').items.items[3].setValue(avarege / 100);
-            trunkDetails += '<span><div class="legend-trunk2"></div>' + record[1].data.idTrunktrunkcode + '</span>';
+        var fieldsRef = me.lookupReference('trunkDashboardFields');
+        if (!fieldsRef || !fieldsRef.items || !fieldsRef.items.items) {
+            return;
         }
-        if (record[2]) {
-            avarege = (record[2].data.sessionbill * 100) / record[0].data.sumsessionbill;
-            me.lookupReference('trunkDashboardFields').items.items[4].update('<div class="left-aligned-div">' + record[2].data.idTrunktrunkcode + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
-            me.lookupReference('trunkDashboardFields').items.items[5].setValue(avarege / 100);
-            trunkDetails += '<span><div class="legend-trunk3"></div>' + record[2].data.idTrunktrunkcode + '</span>';
+        var sumsessionbill = record[0].data.sumsessionbill || 0,
+            trunkDetails = '<div class="services-text">' + t('Trunk chart') + '</div><div class="services-legend">',
+            avarege = 0;
+
+        if (record[0] && record[0].data && fieldsRef.items.items[0] && fieldsRef.items.items[1]) {
+            avarege = sumsessionbill > 0 ? (record[0].data.sessionbill * 100) / sumsessionbill : 0;
+            fieldsRef.items.items[0].update('<div class="left-aligned-div">' + (record[0].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            if (typeof fieldsRef.items.items[1].setValue === 'function') {
+                fieldsRef.items.items[1].setValue(avarege / 100);
+            }
+            trunkDetails += '<span><div class="legend-trunk1"></div>' + (record[0].data.idTrunktrunkcode || '') + '</span>';
         }
-        trunkDetails += '<div>';
-        me.lookupReference('trunkDashboardFields').items.items[6].update(trunkDetails);
+        if (record[1] && record[1].data && fieldsRef.items.items[2] && fieldsRef.items.items[3]) {
+            avarege = sumsessionbill > 0 ? (record[1].data.sessionbill * 100) / sumsessionbill : 0;
+            fieldsRef.items.items[2].update('<div class="left-aligned-div">' + (record[1].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            if (typeof fieldsRef.items.items[3].setValue === 'function') {
+                fieldsRef.items.items[3].setValue(avarege / 100);
+            }
+            trunkDetails += '<span><div class="legend-trunk2"></div>' + (record[1].data.idTrunktrunkcode || '') + '</span>';
+        }
+        if (record[2] && record[2].data && fieldsRef.items.items[4] && fieldsRef.items.items[5]) {
+            avarege = sumsessionbill > 0 ? (record[2].data.sessionbill * 100) / sumsessionbill : 0;
+            fieldsRef.items.items[4].update('<div class="left-aligned-div">' + (record[2].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            if (typeof fieldsRef.items.items[5].setValue === 'function') {
+                fieldsRef.items.items[5].setValue(avarege / 100);
+            }
+            trunkDetails += '<span><div class="legend-trunk3"></div>' + (record[2].data.idTrunktrunkcode || '') + '</span>';
+        }
+        trunkDetails += '</div>';
+        if (fieldsRef.items.items[6]) {
+            fieldsRef.items.items[6].update(trunkDetails);
+        }
     },
     onUpdateDashboardNetWork: function(record) {
-        var me = this,
-            cpuPercent = (record && record[0] && record[0].data.cpuPercent) || 0,
-            cpuLoad = (record && record[0] && record[0].data.cpuMediaUso) || 0,
-            diskPerc = (record && record[0] && record[0].data.disk_perc) || 0,
-            diskFree = (record && record[0] && record[0].data.disk_free) || 0,
-            userstpl;
+        var me = this;
+        if (!record || !record.length || !record[0] || !record[0].data) {
+            return;
+        }
+
+        var data = record[0].data,
+            cpuPercent = typeof data.cpuPercent === 'number' ? data.cpuPercent : (parseFloat(data.cpuPercent) || 0),
+            cpuLoad = typeof data.cpuMediaUso === 'number' ? data.cpuMediaUso : (parseFloat(data.cpuMediaUso) || 0),
+            diskPerc = typeof data.disk_perc === 'number' ? data.disk_perc : (parseFloat(data.disk_perc) || 0),
+            diskFree = typeof data.disk_free === 'number' ? data.disk_free : (parseFloat(data.disk_free) || 0),
+            memTotal = data.memTotal != null ? data.memTotal : 0,
+            memUsed = data.memUsed != null ? data.memUsed : 0,
+            uptime = data.uptime || '',
+            totalUsers = data.totalActiveUsers != null ? data.totalActiveUsers : 0,
+            maxCC = data.maximumcc != null ? data.maximumcc : 'CC 0 | CPS 0',
+            currency = (App && App.user && App.user.currency) || '$',
+            monthProfit = data.monthprofit != null ? data.monthprofit : '0.00',
+            monthRefill = data.monthRefill != null ? data.monthRefill : '0.00',
+            refEl;
 
         // CPU Usage
-        var cpuUsageHtml = '<div class="mb-hw-row">' +
-            '<span class="mb-hw-label"><i class="x-fa fa-microchip text-primary"></i> ' + t('CPU actual usage') + '</span>' +
-            '<span class="mb-hw-val">' + cpuPercent + '% <small class="text-muted">(' + t('Load') + ': ' + cpuLoad + '%)</small></span>' +
-            '</div>';
-        me.lookupReference('cpuMediaUso').update(cpuUsageHtml);
-        me.lookupReference('cpuPercent').setValue(cpuPercent / 100);
+        refEl = me.lookupReference('cpuMediaUso');
+        if (refEl) {
+            refEl.update(
+                '<div class="mb-hw-row">' +
+                '<span class="mb-hw-label"><i class="x-fa fa-microchip text-primary"></i> ' + t('CPU actual usage') + '</span>' +
+                '<span class="mb-hw-val">' + cpuPercent + '% <small class="text-muted">(' + t('Load') + ': ' + cpuLoad + '%)</small></span>' +
+                '</div>'
+            );
+        }
+        refEl = me.lookupReference('cpuPercent');
+        if (refEl && typeof refEl.setValue === 'function') {
+            refEl.setValue(cpuPercent / 100);
+        }
 
         // Disk Usage
-        var diskUsageHtml = '<div class="mb-hw-row">' +
-            '<span class="mb-hw-label"><i class="x-fa fa-database text-info"></i> ' + t('Disk space') + '</span>' +
-            '<span class="mb-hw-val">' + (diskPerc > 90 ? '<span class="mb-badge mb-badge-danger">' + diskPerc + '% ' + t('USED') + '</span> ' : '') + diskFree + ' GB ' + t('Free') + '</span>' +
-            '</div>';
-        me.lookupReference('diskFree').update(diskUsageHtml);
-        me.lookupReference('diskPerc').setValue(diskPerc / 100);
+        refEl = me.lookupReference('diskFree');
+        if (refEl) {
+            refEl.update(
+                '<div class="mb-hw-row">' +
+                '<span class="mb-hw-label"><i class="x-fa fa-database text-info"></i> ' + t('Disk space') + '</span>' +
+                '<span class="mb-hw-val">' + (diskPerc > 90 ? '<span class="mb-badge mb-badge-danger">' + diskPerc + '% ' + t('USED') + '</span> ' : '') + diskFree + ' GB ' + t('Free') + '</span>' +
+                '</div>'
+            );
+        }
+        refEl = me.lookupReference('diskPerc');
+        if (refEl && typeof refEl.setValue === 'function') {
+            refEl.setValue(diskPerc / 100);
+        }
 
         // Memory & Uptime
-        me.lookupReference('memTotal').update(record[0].data.memTotal + ' GB');
-        me.lookupReference('memUsed').update(record[0].data.memUsed + ' GB');
-        me.lookupReference('uptime').update(record[0].data.uptime);
+        refEl = me.lookupReference('memTotal');
+        if (refEl) {
+            refEl.update(memTotal + ' GB');
+        }
+        refEl = me.lookupReference('memUsed');
+        if (refEl) {
+            refEl.update(memUsed + ' GB');
+        }
+        refEl = me.lookupReference('uptime');
+        if (refEl) {
+            refEl.update(uptime);
+        }
 
         // Modern KPI Badges with vector FontAwesome icons and SaaS pastel badges
-        userstpl = '<div class="weather-image-container kpi-badge-users">' +
-            '<i class="x-fa fa-users weather-kpi-icon"></i>' +
-            '</div>' +
-            '<div class="weather-details-container">' +
-            '<div class="weather-kpi-value">' + (record[0].data.totalActiveUsers || 0) + '</div>' +
-            '<div class="weather-kpi-label">' + t('Active users') + '</div>' +
-            '</div>';
-        me.lookupReference('totalusersdiv').update(userstpl);
+        refEl = me.lookupReference('totalusersdiv');
+        if (refEl) {
+            refEl.update(
+                '<div class="weather-image-container kpi-badge-users">' +
+                '<i class="x-fa fa-users weather-kpi-icon"></i>' +
+                '</div>' +
+                '<div class="weather-details-container">' +
+                '<div class="weather-kpi-value">' + totalUsers + '</div>' +
+                '<div class="weather-kpi-label">' + t('Active users') + '</div>' +
+                '</div>'
+            );
+        }
 
-        userstpl = '<div class="weather-image-container kpi-badge-calls">' +
-            '<i class="x-fa fa-headphones weather-kpi-icon"></i>' +
-            '</div>' +
-            '<div class="weather-details-container">' +
-            '<div class="weather-kpi-value">' + (record[0].data.maximumcc || 0) + '</div>' +
-            '<div class="weather-kpi-label">' + t('Today peak') + '</div>' +
-            '</div>';
-        me.lookupReference('maximumcc').update(userstpl);
+        refEl = me.lookupReference('maximumcc');
+        if (refEl) {
+            refEl.update(
+                '<div class="weather-image-container kpi-badge-calls">' +
+                '<i class="x-fa fa-headphones weather-kpi-icon"></i>' +
+                '</div>' +
+                '<div class="weather-details-container">' +
+                '<div class="weather-kpi-value">' + maxCC + '</div>' +
+                '<div class="weather-kpi-label">' + t('Today peak') + '</div>' +
+                '</div>'
+            );
+        }
 
-        userstpl = '<div class="weather-image-container kpi-badge-profit">' +
-            '<i class="x-fa fa-line-chart weather-kpi-icon"></i>' +
-            '</div>' +
-            '<div class="weather-details-container">' +
-            '<div class="weather-kpi-value">' + App.user.currency + ' ' + (record[0].data.monthprofit || '0.00') + '</div>' +
-            '<div class="weather-kpi-label">' + t('Month profit') + '</div>' +
-            '</div>';
-        me.lookupReference('monthprofitdiv').update(userstpl);
+        refEl = me.lookupReference('monthprofitdiv');
+        if (refEl) {
+            refEl.update(
+                '<div class="weather-image-container kpi-badge-profit">' +
+                '<i class="x-fa fa-line-chart weather-kpi-icon"></i>' +
+                '</div>' +
+                '<div class="weather-details-container">' +
+                '<div class="weather-kpi-value">' + currency + ' ' + monthProfit + '</div>' +
+                '<div class="weather-kpi-label">' + t('Month profit') + '</div>' +
+                '</div>'
+            );
+        }
 
-        userstpl = '<div class="weather-image-container kpi-badge-refill">' +
-            '<i class="x-fa fa-credit-card weather-kpi-icon"></i>' +
-            '</div>' +
-            '<div class="weather-details-container">' +
-            '<div class="weather-kpi-value">' + App.user.currency + ' ' + (record[0].data.monthRefill || '0.00') + '</div>' +
-            '<div class="weather-kpi-label">' + t('Month refill') + '</div>' +
-            '</div>';
-        me.lookupReference('totalrefill').update(userstpl);
+        refEl = me.lookupReference('totalrefill');
+        if (refEl) {
+            refEl.update(
+                '<div class="weather-image-container kpi-badge-refill">' +
+                '<i class="x-fa fa-credit-card weather-kpi-icon"></i>' +
+                '</div>' +
+                '<div class="weather-details-container">' +
+                '<div class="weather-kpi-value">' + currency + ' ' + monthRefill + '</div>' +
+                '<div class="weather-kpi-label">' + t('Month refill') + '</div>' +
+                '</div>'
+            );
+        }
     }
 });
 
@@ -38003,8 +38080,9 @@ Ext.define('MBilling.model.Menu', {
  */
 Ext.define('MBilling.store.Menu', {
     extend: 'Ext.data.Store',
-    model: 'MagnusBilling.model.Menu'
+    model: 'MBilling.model.Menu'
 });
+
 
 ;
 /* Source: app/model/SendCreditProducts.js */
@@ -58749,7 +58827,10 @@ Ext.define('Ext.draw.engine.Canvas', {
                 if (k >= canvases.length) {
                     me.createCanvas();
                 }
-                dom = canvases[k].dom;
+                dom = canvases[k] && canvases[k].dom;
+                if (!dom) {
+                    continue;
+                }
 
                 dom.style.left = offsetX + 'px';
                 dom.style.top  = offsetY + 'px';
@@ -58780,6 +58861,11 @@ Ext.define('Ext.draw.engine.Canvas', {
 
         while (canvases.length > k) {
             canvases.pop().destroy();
+        }
+        if (me.contexts) {
+            while (me.contexts.length > k) {
+                me.contexts.pop();
+            }
         }
 
         me.clear();
@@ -58940,14 +59026,20 @@ Ext.define('Ext.draw.engine.Canvas', {
      */
     clear: function () {
         var me = this,
-            activeCanvases = me.activeCanvases,
+            activeCanvases = me.activeCanvases || 0,
             i, canvas, ctx;
 
+        if (!me.canvases || !me.contexts) {
+            return;
+        }
+
         for (i = 0; i < activeCanvases; i++) {
-            canvas = me.canvases[i].dom;
+            canvas = me.canvases[i] && me.canvases[i].dom;
             ctx = me.contexts[i];
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (canvas && ctx && typeof canvas.width === 'number' && typeof canvas.height === 'number') {
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
         }
 
         me.setDirty(true);
@@ -80397,7 +80489,16 @@ Ext.define('MBilling.Application', {
         var session = Ext.create('Ext.util.DelayedTask', function () {
             if (App.user.logged) {
                 sessionStorage.setItem('session', '1');
-                this.getController('Main').callLogout();
+                if (typeof App.callLogout === 'function') {
+                    App.callLogout();
+                } else {
+                    Ext.Ajax.request({
+                        url: 'index.php/authentication/logoff',
+                        success: function () {
+                            window.location.reload();
+                        }
+                    });
+                }
             } else {
                 session.cancel();
             }

@@ -746,7 +746,10 @@ Ext.define('Ext.draw.engine.Canvas', {
                 if (k >= canvases.length) {
                     me.createCanvas();
                 }
-                dom = canvases[k].dom;
+                dom = canvases[k] && canvases[k].dom;
+                if (!dom) {
+                    continue;
+                }
 
                 dom.style.left = offsetX + 'px';
                 dom.style.top  = offsetY + 'px';
@@ -777,6 +780,11 @@ Ext.define('Ext.draw.engine.Canvas', {
 
         while (canvases.length > k) {
             canvases.pop().destroy();
+        }
+        if (me.contexts) {
+            while (me.contexts.length > k) {
+                me.contexts.pop();
+            }
         }
 
         me.clear();
@@ -937,14 +945,20 @@ Ext.define('Ext.draw.engine.Canvas', {
      */
     clear: function () {
         var me = this,
-            activeCanvases = me.activeCanvases,
+            activeCanvases = me.activeCanvases || 0,
             i, canvas, ctx;
 
+        if (!me.canvases || !me.contexts) {
+            return;
+        }
+
         for (i = 0; i < activeCanvases; i++) {
-            canvas = me.canvases[i].dom;
+            canvas = me.canvases[i] && me.canvases[i].dom;
             ctx = me.contexts[i];
-            ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (canvas && ctx && typeof canvas.width === 'number' && typeof canvas.height === 'number') {
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
         }
 
         me.setDirty(true);

@@ -38,11 +38,14 @@ class StatusSystemController extends Controller
 
     public function setAttributesModels($attributes, $models)
     {
+        if (empty($attributes)) {
+            $attributes = [[]];
+        }
 
         $attributes[0]['totalActiveUsers'] = User::model()->count('active = 1');
         $modelCallSummaryPerMonth          = CallSummaryPerMonth::model()->find('month = :key', [':key' => date('Ym')]);
 
-        $attributes[0]['monthprofit'] = isset($modelCallSummaryPerMonth->lucro) ? number_format($modelCallSummaryPerMonth->lucro, 2) : 0;
+        $attributes[0]['monthprofit'] = isset($modelCallSummaryPerMonth->lucro) ? number_format($modelCallSummaryPerMonth->lucro, 2) : '0.00';
 
         $modelCallOnlineChart = CallOnlineChart::model()->find([
             'condition' => 'date > :key',
@@ -63,7 +66,16 @@ class StatusSystemController extends Controller
             'condition' => 'date > :key',
             'params'    => [':key' => date('Y-m') . '-01'],
         ]);
-        $attributes[0]['monthRefill'] = isset($modelRefill->credit) ? number_format($modelRefill->credit, 2) : 0;
+        $attributes[0]['monthRefill'] = isset($modelRefill->credit) ? number_format($modelRefill->credit, 2) : '0.00';
+
+        // Safe fallbacks for hardware metrics
+        $attributes[0]['cpuPercent']  = $attributes[0]['cpuPercent'] ?? 0;
+        $attributes[0]['cpuMediaUso'] = $attributes[0]['cpuMediaUso'] ?? 0;
+        $attributes[0]['disk_perc']   = $attributes[0]['disk_perc'] ?? 0;
+        $attributes[0]['disk_free']   = $attributes[0]['disk_free'] ?? 0;
+        $attributes[0]['memTotal']    = $attributes[0]['memTotal'] ?? 0;
+        $attributes[0]['memUsed']     = $attributes[0]['memUsed'] ?? 0;
+        $attributes[0]['uptime']      = $attributes[0]['uptime'] ?? '';
 
         return $attributes;
     }

@@ -218,7 +218,16 @@ Ext.define('MBilling.Application', {
         var session = Ext.create('Ext.util.DelayedTask', function () {
             if (App.user.logged) {
                 sessionStorage.setItem('session', '1');
-                this.getController('Main').callLogout();
+                if (typeof App.callLogout === 'function') {
+                    App.callLogout();
+                } else {
+                    Ext.Ajax.request({
+                        url: 'index.php/authentication/logoff',
+                        success: function () {
+                            window.location.reload();
+                        }
+                    });
+                }
             } else {
                 session.cancel();
             }
