@@ -49,7 +49,7 @@ gitGraph
 
 | Rama | Propósito | Reglas de Obligatorio Cumplimiento |
 | :--- | :--- | :--- |
-| **`development`** | **Rama de desarrollo activa (no es la default de GitHub)** | **TODO agente debe trabajar aquí.** Aquí se crean módulos, se modifican controladores, vistas, scripts y se prueba el código. |
+| **`development`** | **Rama de desarrollo activa (no es la default de GitHub)** | **Base prevista para cambios propios; preferir una rama `feat/*` o `fix/*` desde `development`.** Modificar directamente `development` solo con permiso explícito. |
 | **`main`** | **Rama de despliegue en producción** | Utilizada por `script/install.sh` y `update.sh` en los servidores en vivo. **Solo recibe merges desde `development`** una vez que los cambios han sido probados. |
 | **`source`** | **Espejo limpio del upstream oficial** | **NUNCA modificar archivos directamente en `source`.** Esta rama solo se actualiza vía `Sync fork` (desde `magnussolution/magnusbilling:source`) para inspeccionar parches oficiales sin conflictos. |
 
@@ -223,7 +223,7 @@ class ModulonuevoController extends Controller
 
 ### Paso 3: Registro en el Menú y Permisos (ACL)
 
-Para que el módulo sea visible y accesible en la interfaz web de MagnusBilling, se debe registrar en dos tablas:
+Para que el módulo sea visible y accesible se deben revisar el registro de módulo y los permisos existentes. **Los IDs y nombres siguientes son solo ejemplos, no valores universales: consultar el esquema y los registros reales antes de insertar; no ejecutarlos directamente en producción.**
 
 1. **`pkg_module`** (Registro del menú):
    * Insertar el módulo indicando el menú padre (`id_module`), ícono FontAwesome (`iconCls`), y orden:
@@ -351,14 +351,14 @@ Si la funcionalidad requiere ejecución periódica o en segundo plano:
 
 Para cualquier desarrollo que toque llamadas, troncales o numeración:
 
-1. **Canal Saliente Obligatorio (PJSIP)**:
+1. **Tecnología del canal saliente (según trunk y configuración)**:
    ```php
-   // CORRECTO en Asterisk 20:
+   // Ejemplo orientativo para un trunk PJSIP:
    $dialstr = "PJSIP/$destination@$trunkcode";
-
-   // INCORRECTO (Legacy Asterisk 13/16 chan_sip - NO USAR):
-   // $dialstr = "SIP/$trunkcode/$destination";
+   // Otros flujos existentes construyen el canal desde $providertech.
+   // No reemplazar globalmente dialstrings sin validar la ruta real.
    ```
+   Asterisk 20/PJSIP es la referencia de instalaciones nuevas. Para cambios en llamadas, comprobar el protocolo realmente configurado, el flujo de routing y la compatibilidad antes de editar.
 2. **Archivos de Llamada (`.call`)**:
    * Usar siempre el generador atómico:
      ```php
