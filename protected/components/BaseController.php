@@ -2385,6 +2385,46 @@ class BaseController extends CController
             exit();
         }
 
+        if (! isset($_FILES['file']) || empty($_FILES['file']['name'])) {
+            $msg = Yii::t('zii', 'Please select a CSV file to upload.');
+            echo json_encode([
+                $this->nameSuccess   => false,
+                $this->nameMsgErrors => $msg,
+                $this->nameMsg       => $msg,
+            ]);
+            exit;
+        }
+
+        if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            $uploadErrors = [
+                UPLOAD_ERR_INI_SIZE   => Yii::t('zii', 'The uploaded file exceeds the upload_max_filesize limit in PHP (current limit: ') . ini_get('upload_max_filesize') . ').',
+                UPLOAD_ERR_FORM_SIZE  => Yii::t('zii', 'The uploaded file exceeds the MAX_FILE_SIZE directive in the form.'),
+                UPLOAD_ERR_PARTIAL    => Yii::t('zii', 'The uploaded file was only partially uploaded.'),
+                UPLOAD_ERR_NO_FILE    => Yii::t('zii', 'No file was uploaded. Please select a CSV file.'),
+                UPLOAD_ERR_NO_TMP_DIR => Yii::t('zii', 'Missing temporary upload directory on the server.'),
+                UPLOAD_ERR_CANT_WRITE => Yii::t('zii', 'Failed to write upload file to disk. Check permissions for www-data on the temporary directory.'),
+                UPLOAD_ERR_EXTENSION  => Yii::t('zii', 'A PHP extension stopped the file upload.'),
+            ];
+            $errCode = (int) $_FILES['file']['error'];
+            $msg = $uploadErrors[$errCode] ?? (Yii::t('zii', 'Upload failed with error code: ') . $errCode);
+            echo json_encode([
+                $this->nameSuccess   => false,
+                $this->nameMsgErrors => $msg,
+                $this->nameMsg       => $msg,
+            ]);
+            exit;
+        }
+
+        if (empty($_FILES['file']['tmp_name']) || ! file_exists($_FILES['file']['tmp_name'])) {
+            $msg = Yii::t('zii', 'Uploaded temporary file not found. Check www-data write permissions on the server temporary folder.');
+            echo json_encode([
+                $this->nameSuccess   => false,
+                $this->nameMsgErrors => $msg,
+                $this->nameMsg       => $msg,
+            ]);
+            exit;
+        }
+
         $values = $this->getAttributesRequest();
 
         $interpreter = new CSVInterpreter($_FILES['file']['tmp_name']);

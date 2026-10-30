@@ -303,8 +303,8 @@ PHP_MAGNUS_INI="/etc/php/${PHP_VERSION}/mods-available/magnusbilling.ini"
 
 cat > "${PHP_MAGNUS_INI}" <<EOF
 ; MagnusBilling settings
-upload_max_filesize = 3M
-post_max_size = 20M
+upload_max_filesize = 64M
+post_max_size = 64M
 max_execution_time = 90
 max_input_time = 120
 date.timezone = ${PHP_TIMEZONE}

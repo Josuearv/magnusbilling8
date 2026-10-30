@@ -49,10 +49,11 @@ class CalleridController extends Controller
     public function importCsvSetAdditionalParams()
     {
         $values = $this->getAttributesRequest();
+        $idUser = ! empty($values['id_user']) ? $values['id_user'] : (Yii::app()->session['id_user'] ?? 1);
         return [
             [
                 'key'   => 'id_user',
-                'value' => $values['id_user'],
+                'value' => $idUser,
             ], [
                 'key'   => 'activated',
                 'value' => 1,

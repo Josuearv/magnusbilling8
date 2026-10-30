@@ -93,9 +93,43 @@ class SiteController extends Controller
             : "";
         echo 'window.reCaptchaKey = ' . json_encode($reCaptchaKey) . ';' . PHP_EOL;
 
-        $upload_max_size = ini_get('upload_max_filesize') ?: '2M';
-        echo 'window.uploadFaxFilesize = ' . json_encode($upload_max_size) . ';' . PHP_EOL;
-        echo 'window.uploadFaxFilesizebites = ' . json_encode((string) intval($upload_max_size)) . ';' . PHP_EOL;
+        $parseSize = function ($val) {
+            $val = trim((string) $val);
+            if (empty($val)) {
+                return 0;
+            }
+            $last = strtolower($val[strlen($val) - 1]);
+            $num  = (float) $val;
+            switch ($last) {
+                case 'g':
+                    $num *= 1024 * 1024 * 1024;
+                    break;
+                case 'm':
+                    $num *= 1024 * 1024;
+                    break;
+                case 'k':
+                    $num *= 1024;
+                    break;
+            }
+            return (int) $num;
+        };
+
+        $iniUpload   = ini_get('upload_max_filesize') ?: '2M';
+        $iniPost     = ini_get('post_max_size') ?: '8M';
+        $uploadBytes = $parseSize($iniUpload);
+        $postBytes   = $parseSize($iniPost);
+        $maxBytes    = ($postBytes > 0 && $postBytes < $uploadBytes) ? $postBytes : $uploadBytes;
+        if ($maxBytes <= 0) {
+            $maxBytes = 2 * 1024 * 1024;
+        }
+
+        $displaySize = ($maxBytes >= 1048576)
+            ? round($maxBytes / 1048576) . 'M'
+            : round($maxBytes / 1024) . 'K';
+
+        echo 'window.uploadFaxFilesize = ' . json_encode($displaySize) . ';' . PHP_EOL;
+        echo 'window.uploadFaxFilesizeBytes = ' . json_encode($maxBytes) . ';' . PHP_EOL;
+        echo 'window.uploadFaxFilesizebites = ' . json_encode((string) round($maxBytes / 1048576)) . ';' . PHP_EOL;
         echo 'window.show_signup_button = ' . json_encode((int) ($this->config['global']['show_signup_button'] ?? 0)) . ';' . PHP_EOL;
         echo 'window.auto_generate_user_signup = ' . json_encode((string) ($this->config['global']['auto_generate_user_signup'] ?? '')) . ';' . PHP_EOL;
         echo 'window.enable_signup = ' . json_encode((int) ($this->config['global']['enable_signup'] ?? 0)) . ';' . PHP_EOL;

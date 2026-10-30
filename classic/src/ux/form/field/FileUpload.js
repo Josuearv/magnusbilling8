@@ -26,7 +26,9 @@ Ext.define('Ext.ux.form.field.FileUpload', {
     emptyText: t('Select file'),
     fieldLabel: t('File'),
     buttonText: undefined,
-    maxSize: window.uploadFaxFilesizebites * 1000000,
+    maxSize: (window.uploadFaxFilesizeBytes && parseInt(window.uploadFaxFilesizeBytes) > 0)
+        ? parseInt(window.uploadFaxFilesizeBytes)
+        : ((window.uploadFaxFilesizebites ? parseInt(window.uploadFaxFilesizebites) : 2) * 1048576),
     extAllowed: ['csv', 'ret'],
     titleTipInfo: t('Example'),
     titleWarning: t('Warning'),
@@ -172,7 +174,11 @@ Ext.define('Ext.ux.form.field.FileUpload', {
             return;
         }
         if (file.size > me.maxSize) {
-            Ext.ux.Alert.alert(me.titleWarning, me.msgInvalidSize + Ext.util.Format.fileSize(me.maxSize), 'warning');
+            Ext.ux.Alert.alert(
+                me.titleWarning,
+                me.msgInvalidSize + ': ' + Ext.util.Format.fileSize(file.size) + ' (Max: ' + Ext.util.Format.fileSize(me.maxSize) + ')',
+                'warning'
+            );
             me.reset();
             return;
         }
