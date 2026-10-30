@@ -10,6 +10,8 @@ Ext.define('MBilling.view.dashboard.Module', {
     autoShow: true,
     xtype: 'container',
     bodyPadding: 5,
+    scrollable: 'y',
+    autoScroll: true,
     requires: ['MBilling.view.dashboard.Trunks', 'Ext.ux.layout.ResponsiveColumn', 'MBilling.view.dashboard.Network', 'MBilling.view.dashboard.NetworkChart', 'MBilling.view.dashboard.DashboardController'],
     layout: 'responsivecolumn',
     controller: 'dashboard',

@@ -130,13 +130,16 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             refEl.update(
                 '<div class="mb-hw-row">' +
                 '<span class="mb-hw-label"><i class="x-fa fa-microchip text-primary"></i> ' + t('CPU actual usage') + '</span>' +
-                '<span class="mb-hw-val">' + cpuPercent + '% <small class="text-muted">(' + t('Load') + ': ' + cpuLoad + '%)</small></span>' +
+                '<span class="mb-hw-val"><span class="mb-hw-badge mb-hw-badge-cpu">' + cpuPercent + '%</span> <small class="text-muted">(' + t('Load') + ': ' + cpuLoad + '%)</small></span>' +
                 '</div>'
             );
         }
         refEl = me.lookupReference('cpuPercent');
         if (refEl && typeof refEl.setValue === 'function') {
             refEl.setValue(cpuPercent / 100);
+            if (typeof refEl.updateText === 'function') {
+                refEl.updateText('');
+            }
         }
 
         // Disk Usage
@@ -145,13 +148,16 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             refEl.update(
                 '<div class="mb-hw-row">' +
                 '<span class="mb-hw-label"><i class="x-fa fa-database text-info"></i> ' + t('Disk space') + '</span>' +
-                '<span class="mb-hw-val">' + (diskPerc > 90 ? '<span class="mb-badge mb-badge-danger">' + diskPerc + '% ' + t('USED') + '</span> ' : '') + diskFree + ' GB ' + t('Free') + '</span>' +
+                '<span class="mb-hw-val">' + (diskPerc > 90 ? '<span class="mb-badge mb-badge-danger">' + diskPerc + '% ' + t('USED') + '</span> ' : '<span class="mb-hw-badge mb-hw-badge-disk">' + diskPerc + '%</span> ') + '<small class="text-muted">(' + diskFree + ' GB ' + t('Free') + ')</small></span>' +
                 '</div>'
             );
         }
         refEl = me.lookupReference('diskPerc');
         if (refEl && typeof refEl.setValue === 'function') {
             refEl.setValue(diskPerc / 100);
+            if (typeof refEl.updateText === 'function') {
+                refEl.updateText('');
+            }
         }
 
         // Memory & Uptime

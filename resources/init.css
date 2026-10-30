@@ -4308,6 +4308,52 @@ div.ux-taskbar div.x-toolbar {
     margin: 4px 0 8px 0 !important;
 }
 
+/* Hide any leaking default text inside icon-less mini progress bars */
+.progressbar-no-text .x-progress-text,
+.progressbar-no-text .x-progress-text-back,
+.progressbar-no-text .x-progress-text-wrap {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    line-height: 0 !important;
+    font-size: 0 !important;
+    overflow: hidden !important;
+    clip-path: inset(100%) !important;
+}
+
+/* Prominent Hardware Percentage Badges */
+.mb-hw-badge {
+    display: inline-block !important;
+    padding: 1px 7px !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.2px !important;
+    line-height: 1.4 !important;
+}
+
+.mb-hw-badge-cpu {
+    background: #eff6ff !important;
+    color: #2563eb !important;
+    border: 1px solid #dbeafe !important;
+}
+
+.mb-hw-badge-disk {
+    background: #f0fdf4 !important;
+    color: #16a34a !important;
+    border: 1px solid #dcfce7 !important;
+}
+
+/* Smooth vertical scrollbar for the entire dashboard */
+.dashboardmodule,
+.dashboardmodule > .x-panel-body,
+.dashboardmodule > .x-panel-body-default,
+.dashboardmodule .x-panel-bodyWrap {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
 .top-info-container {
     color: #0f172a !important;
     font-size: 13px !important;

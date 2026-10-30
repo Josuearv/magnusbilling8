@@ -51,8 +51,13 @@ class StatusSystemController extends Controller
             $attributes[$i]['networkout'] = isset($attributes[$i]['networkout']) ? (float)$attributes[$i]['networkout'] : 0.0;
         }
 
-        // Reverse so that points flow chronologically (past -> present) on Cartesian axis
-        if (count($attributes) > 1) {
+        if (count($attributes) === 1 && !empty($attributes[0]['date'])) {
+            $prev = $attributes[0];
+            $prev['date'] = date('H:i', strtotime('-1 minute'));
+            $prev['networkin'] = 0.0;
+            $prev['networkout'] = 0.0;
+            $attributes = [$prev, $attributes[0]];
+        } elseif (count($attributes) > 1) {
             $attributes = array_reverse($attributes);
         }
 

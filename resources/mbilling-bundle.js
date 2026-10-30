@@ -2195,6 +2195,7 @@ Ext.define('MBilling.view.main.Main', {
             xtype: 'tabpanel',
             region: 'center',
             reference: 'tabPanelCenter',
+            scrollable: true,
             listeners: {
                 tabchange: 'changeActivatedTab'
             },
@@ -2204,9 +2205,8 @@ Ext.define('MBilling.view.main.Main', {
                 glyph: icons.home,
                 title: t('Home'),
                 stateful: false,
-                items: [{
-                    xtype: 'dashboardmodule'
-                }]
+                scrollable: 'y',
+                autoScroll: true
             }]
         }];
         me.callParent(arguments);
@@ -16558,13 +16558,16 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             refEl.update(
                 '<div class="mb-hw-row">' +
                 '<span class="mb-hw-label"><i class="x-fa fa-microchip text-primary"></i> ' + t('CPU actual usage') + '</span>' +
-                '<span class="mb-hw-val">' + cpuPercent + '% <small class="text-muted">(' + t('Load') + ': ' + cpuLoad + '%)</small></span>' +
+                '<span class="mb-hw-val"><span class="mb-hw-badge mb-hw-badge-cpu">' + cpuPercent + '%</span> <small class="text-muted">(' + t('Load') + ': ' + cpuLoad + '%)</small></span>' +
                 '</div>'
             );
         }
         refEl = me.lookupReference('cpuPercent');
         if (refEl && typeof refEl.setValue === 'function') {
             refEl.setValue(cpuPercent / 100);
+            if (typeof refEl.updateText === 'function') {
+                refEl.updateText('');
+            }
         }
 
         // Disk Usage
@@ -16573,13 +16576,16 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             refEl.update(
                 '<div class="mb-hw-row">' +
                 '<span class="mb-hw-label"><i class="x-fa fa-database text-info"></i> ' + t('Disk space') + '</span>' +
-                '<span class="mb-hw-val">' + (diskPerc > 90 ? '<span class="mb-badge mb-badge-danger">' + diskPerc + '% ' + t('USED') + '</span> ' : '') + diskFree + ' GB ' + t('Free') + '</span>' +
+                '<span class="mb-hw-val">' + (diskPerc > 90 ? '<span class="mb-badge mb-badge-danger">' + diskPerc + '% ' + t('USED') + '</span> ' : '<span class="mb-hw-badge mb-hw-badge-disk">' + diskPerc + '%</span> ') + '<small class="text-muted">(' + diskFree + ' GB ' + t('Free') + ')</small></span>' +
                 '</div>'
             );
         }
         refEl = me.lookupReference('diskPerc');
         if (refEl && typeof refEl.setValue === 'function') {
             refEl.setValue(diskPerc / 100);
+            if (typeof refEl.updateText === 'function') {
+                refEl.updateText('');
+            }
         }
 
         // Memory & Uptime
@@ -77321,6 +77327,7 @@ Ext.define('MBilling.view.dashboard.Network', {
             cls: 'graph-analysis-left',
             border: false,
             bodyBorder: false,
+            height: 140,
             layout: {
                 type: 'hbox',
                 align: 'stretch'
@@ -78548,13 +78555,12 @@ Ext.define('MBilling.view.callOnlineChart.Chart', {
 Ext.define('MBilling.view.dashboard.NetworkChart', {
     extend: 'Ext.ux.panel.Chart',
     alias: 'widget.networkchart',
-    controller: 'main',
     store: 'StatusSystem',
     charts: ['line'],
     defaultChart: 'line',
     fieldValue: ['networkin', 'networkout'],
     fieldDescription: 'date',
-    labelYLine: '',
+    labelYLine: t('KB/s'),
     labelXLine: t('Network usage'),
     reference: 'networkchart',
     btnShowColumn: false,
@@ -78563,7 +78569,7 @@ Ext.define('MBilling.view.dashboard.NetworkChart', {
     btnShowPie: false,
     animate: true,
     btnShowLineHidden: true,
-    radius: 2,
+    radius: 3,
     showDownload: false,
     animation: true,
     insetPadding: '10 10 5 10',
@@ -78575,10 +78581,13 @@ Ext.define('MBilling.view.dashboard.NetworkChart', {
         colors: ['#3b82f6'],
         useDarkerStrokeColor: false,
         xField: 'date',
-        yField: ['networkin'],
+        yField: 'networkin',
         title: t('Inbound'),
         fill: true,
         smooth: true,
+        marker: {
+            radius: 3
+        },
         style: {
             lineWidth: 2,
             stroke: '#3b82f6',
@@ -78589,10 +78598,13 @@ Ext.define('MBilling.view.dashboard.NetworkChart', {
         colors: ['#ef4444'],
         useDarkerStrokeColor: false,
         xField: 'date',
-        yField: ['networkout'],
+        yField: 'networkout',
         title: t('Outbound'),
         fill: true,
         smooth: true,
+        marker: {
+            radius: 3
+        },
         style: {
             lineWidth: 2,
             stroke: '#ef4444',
@@ -78604,7 +78616,22 @@ Ext.define('MBilling.view.dashboard.NetworkChart', {
         me.rendererFieldValue = function(axis, label, layoutContext) {
             return (layoutContext ? layoutContext.renderer(label) : label) + ' kb/s';
         };
+        me.sessionLoad = Ext.create('Ext.util.DelayedTask', function() {
+            if (me.store && typeof me.store.load === 'function') {
+                me.store.load();
+            }
+        }, me);
         me.callParent(arguments);
+        if (me.store && typeof me.store.on === 'function') {
+            me.store.on('load', me.onLoadStore, me);
+            me.sessionLoad.delay(500);
+        }
+    },
+    onLoadStore: function() {
+        this.onActivateModule();
+    },
+    onActivateModule: function() {
+        this.sessionLoad && this.sessionLoad.delay(10000);
     }
 });
 
@@ -78806,6 +78833,8 @@ Ext.define('MBilling.view.dashboard.Module', {
     autoShow: true,
     xtype: 'container',
     bodyPadding: 5,
+    scrollable: 'y',
+    autoScroll: true,
     requires: ['MBilling.view.dashboard.Trunks', 'Ext.ux.layout.ResponsiveColumn', 'MBilling.view.dashboard.Network', 'MBilling.view.dashboard.NetworkChart', 'MBilling.view.dashboard.DashboardController'],
     layout: 'responsivecolumn',
     controller: 'dashboard',

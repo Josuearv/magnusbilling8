@@ -47,6 +47,7 @@ Ext.define('MBilling.view.dashboard.Network', {
             cls: 'graph-analysis-left',
             border: false,
             bodyBorder: false,
+            height: 140,
             layout: {
                 type: 'hbox',
                 align: 'stretch'

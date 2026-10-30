@@ -144,6 +144,7 @@ Ext.define('MBilling.view.main.Main', {
             xtype: 'tabpanel',
             region: 'center',
             reference: 'tabPanelCenter',
+            scrollable: true,
             listeners: {
                 tabchange: 'changeActivatedTab'
             },
@@ -153,9 +154,8 @@ Ext.define('MBilling.view.main.Main', {
                 glyph: icons.home,
                 title: t('Home'),
                 stateful: false,
-                items: [{
-                    xtype: 'dashboardmodule'
-                }]
+                scrollable: 'y',
+                autoScroll: true
             }]
         }];
         me.callParent(arguments);
