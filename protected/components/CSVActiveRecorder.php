@@ -47,11 +47,19 @@ class CSVActiveRecorder
 
     private function createSQL($tableName)
     {
+        $lineEnding = "\\r\\n";
+        if (file_exists($this->data['filename'])) {
+            $sample = file_get_contents($this->data['filename'], false, null, 0, 4096);
+            if ($sample !== false && strpos($sample, "\r\n") === false && strpos($sample, "\n") !== false) {
+                $lineEnding = "\\n";
+            }
+        }
+
         $sql = "LOAD DATA LOCAL INFILE '" . $this->data['filename'] . "'" .
             " INTO TABLE " . $tableName .
             " CHARACTER SET UTF8 " .
             " FIELDS TERMINATED BY '" . $this->data['boundaries']['delimiter'] . "'" .
-            " LINES TERMINATED BY '\\r\\n'" .
+            " LINES TERMINATED BY '" . $lineEnding . "'" .
             " IGNORE 1 LINES";
 
         $sql .= " (" . implode(
@@ -74,7 +82,7 @@ class CSVActiveRecorder
                 array_keys($this->data["columns"])
             )
         );
-        if ($this->data["additionalParams"] > 0) {
+        if (! empty($this->additionalParams)) {
             $sql .= " " . implode(
                 " ",
                 array_map(
@@ -93,19 +101,43 @@ class CSVActiveRecorder
     public function translateColumns()
     {
         $csvColumns    = $this->data['columns'];
+        $modelColumns  = array_keys($this->model->getAttributes());
         $resultColumns = [];
         foreach ($csvColumns as $csvColumn) {
             $csvColumn        = trim($csvColumn);
-            $csvColumn        = preg_replace('/ /', '_', $csvColumn);
+            $csvColumnClean   = preg_replace('/ /', '_', $csvColumn);
             $foundTranslation = false;
-            foreach ($this->translations as $translateColumn => $translations) {
-                if (in_array($csvColumn, $translations)) {
-                    $resultColumns[$csvColumn] = $translateColumn;
+
+            // Direct case-insensitive match with model attribute
+            foreach ($modelColumns as $modelCol) {
+                if (strcasecmp($csvColumnClean, $modelCol) === 0) {
+                    $resultColumns[$csvColumn] = $modelCol;
+                    $foundTranslation          = true;
+                    break;
+                }
+            }
+
+            // Map common CallerID header variants to 'cid' if model has 'cid'
+            if (! $foundTranslation && in_array('cid', $modelColumns)) {
+                if (in_array(strtolower($csvColumnClean), ['callerid', 'caller_id', 'cid', 'caller_id_number'])) {
+                    $resultColumns[$csvColumn] = 'cid';
                     $foundTranslation          = true;
                 }
             }
+
+            // Dictionary lookup
             if (! $foundTranslation) {
-                $resultColumns[$csvColumn] = $csvColumn;
+                foreach ($this->translations as $translateColumn => $translations) {
+                    if (in_array($csvColumnClean, $translations, true)) {
+                        $resultColumns[$csvColumn] = $translateColumn;
+                        $foundTranslation          = true;
+                        break;
+                    }
+                }
+            }
+
+            if (! $foundTranslation) {
+                $resultColumns[$csvColumn] = $csvColumnClean;
             }
         }
         return $resultColumns;
@@ -124,7 +156,10 @@ class CSVActiveRecorder
                 }
             }
 
-            $this->addError("The columns are miscofigurated" . "</br>Available columns to this module!</br>" . implode($modelColumns, "</br>"), -1);
+            $this->addError(
+                Yii::t('zii', 'The columns are misconfigured.<br>Available columns for this module:<br>') .
+                implode('<br>', $modelColumns)
+            );
             return false;
         }
     }

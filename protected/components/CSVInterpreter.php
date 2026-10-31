@@ -17,14 +17,25 @@ class CSVInterpreter
         if (file_exists($filename)) {
             $handle = fopen($filename, 'r');
             if (($line1 = fgets($handle)) !== false) {
-                $this->columns = explode($delimiter, trim($line1));
+                $trimmed = trim($line1);
+                // Strip UTF-8 BOM if present (common in Excel exports)
+                if (substr($trimmed, 0, 3) === "\xEF\xBB\xBF") {
+                    $trimmed = substr($trimmed, 3);
+                }
+                // Auto-detect semicolon or tab delimiter if comma has no matches
+                if ($delimiter === ',' && strpos($trimmed, ';') !== false && strpos($trimmed, ',') === false) {
+                    $delimiter = ';';
+                } elseif ($delimiter === ',' && strpos($trimmed, "\t") !== false && strpos($trimmed, ',') === false) {
+                    $delimiter = "\t";
+                }
+                $this->columns = str_getcsv($trimmed, $delimiter, $enclosure, $escape);
             } else {
-                $this->addError('The file cannot be read');
+                $this->addError(Yii::t('zii', 'The file cannot be read or is empty'));
             }
             fclose($handle);
 
         } else {
-            $this->addError('File not found');
+            $this->addError(Yii::t('zii', 'File not found'));
         }
 
         $this->filename  = $filename;

@@ -31,6 +31,7 @@
     'buyrateincrement'=> ['Buy_price_increment', 'Incremento' , 'Incremento'],
     'buyrateinitblock'=> ['Buy_price_initblock', 'Bloco_inicial' , 'Bloque_inicial'],
     'callerid'=> ['CallerID', 'CallerID' , 'CallerID'],
+    'cid'=> ['CallerID', 'Callerid', 'callerid', 'cid', 'CID', 'CallerId'],
     'callingcard_pin'=> ['CallingCard_PIN', 'CallingCard_PIN' , 'PIN_CallingCard'],
     'calllimit'=> ['Call_limit', 'Limite_de_chamada' , 'Límite_de_llamada'],
     'callshop'=> ['Callshop', 'CallShop' , 'CallShop'],
