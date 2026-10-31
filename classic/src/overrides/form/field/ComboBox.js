@@ -5,7 +5,6 @@ Ext.define('Overrides.form.field.ComboBox', {
     filterMode: 'local',
     triggerAction: 'all',
     forceSelection: true,
-    grow: true,
     extraValues: [],
     initComponent: function() {
         var me = this;

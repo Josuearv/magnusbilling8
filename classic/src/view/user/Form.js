@@ -33,7 +33,8 @@ Ext.define('MBilling.view.user.Form', {
                     labelAlign: 'right',
                     plugins: 'markallowblank',
                     allowBlank: false,
-                    anchor: '100%'
+                    anchor: '100%',
+                    margin: '0 0 6 0'
                 }
             },
             items: [{
@@ -134,6 +135,7 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     labelWidth: 145
                 },
                 title: t('Personal data'),
@@ -297,6 +299,7 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     labelWidth: 145
                 },
                 items: [{

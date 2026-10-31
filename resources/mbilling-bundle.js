@@ -40202,6 +40202,7 @@ Ext.define('Ext.ux.window.ImportCsv', {
             text: t('Max size file') + ' ' + window.uploadFaxFilesize
         }, '->', {
             iconCls: 'icon-import-csv',
+            cls: 'mb-btn-primary',
             text: t('Import'),
             width: 150,
             scope: me,
@@ -41507,7 +41508,7 @@ Ext.define('Ext.ux.form.field.Money', {
 Ext.define('Ext.ux.form.Panel', {
     extend: 'Ext.form.Panel',
     requires: ['Ext.form.field.Date', 'Ext.form.field.Checkbox', 'Ext.form.field.Number', 'Ext.form.field.Date', 'Ext.form.field.Time', 'Ext.form.field.Tag', 'Ext.ux.form.field.DateTime', 'Ext.ux.form.field.Float', 'Ext.ux.form.field.Money'],
-    bodyPadding: 5,
+    bodyPadding: 12,
     autoScroll: true,
     border: false,
     allowCreate: true,
@@ -41525,10 +41526,11 @@ Ext.define('Ext.ux.form.Panel', {
     defaults: {
         plugins: 'markallowblank',
         allowBlank: false,
-        anchor: '100%'
+        anchor: '100%',
+        margin: '0 0 8 0'
     },
     buttonsTbar: [],
-    labelWidthFields: 100,
+    labelWidthFields: 110,
     labelAlignFields: 'right',
     header: window.isTablet || window.isTablets ? false : '',
     fieldsHideUpdateLot: [],
@@ -41649,14 +41651,14 @@ Ext.define('Ext.ux.form.Panel', {
             xtype: 'tbtext'
         }, me.alignButtonsBottom, {
             reference: 'save',
-            cls: window.isMac ? 'mb-mac-primary-button' : '',
+            cls: 'mb-btn-primary' + (window.isMac ? ' mb-mac-primary-button' : ''),
             text: me.textSave,
             width: 90,
             glyph: me.glyphSave,
             handler: 'onSave',
             hidden: !me.allowCreate && !me.allowUpdate
         }, {
-            cls: window.isMac ? 'mb-mac-secondary-button' : '',
+            cls: 'mb-btn-secondary' + (window.isMac ? ' mb-mac-secondary-button' : ''),
             text: me.textCancel,
             width: 100,
             glyph: me.glyphCancel,
@@ -41893,7 +41895,8 @@ Ext.define('MBilling.view.user.Form', {
                     labelAlign: 'right',
                     plugins: 'markallowblank',
                     allowBlank: false,
-                    anchor: '100%'
+                    anchor: '100%',
+                    margin: '0 0 6 0'
                 }
             },
             items: [{
@@ -41994,6 +41997,7 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     labelWidth: 145
                 },
                 title: t('Personal data'),
@@ -42157,6 +42161,7 @@ Ext.define('MBilling.view.user.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     labelWidth: 145
                 },
                 items: [{
