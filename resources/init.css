@@ -5571,8 +5571,10 @@ body,
 
 /* Margin between toolbar items (search field, new, delete, batch update, bulk user) */
 .x-toolbar-default.x-docked-top .x-toolbar-item,
-.x-toolbar.x-docked-top .x-toolbar-item {
-    margin: 0 6px 0 0 !important;
+.x-toolbar.x-docked-top .x-toolbar-item,
+.x-toolbar-default.x-docked-top .x-btn-default-toolbar-small,
+.x-toolbar.x-docked-top .x-btn-default-toolbar-small {
+    margin: 0 5px 0 0 !important;
 }
 
 /* Toolbar Buttons - Clean styling preserving ExtJS layout geometry */
@@ -5597,7 +5599,7 @@ body,
     font-size: 12px !important;
     font-weight: 500 !important;
     color: #334155 !important;
-    padding: 0 6px !important;
+    padding: 0 8px !important;
 }
 
 /* Form Fields & Search Field Container (Wrap) */
@@ -5653,9 +5655,10 @@ body,
     border: 1px solid transparent !important;
     border-radius: 4px !important;
     box-shadow: none !important;
-    min-width: 24px !important;
-    width: 24px !important;
+    min-width: 26px !important;
+    width: 26px !important;
     height: 24px !important;
+    margin: 0 2px !important;
     color: #475569 !important;
 }
 
@@ -6056,25 +6059,36 @@ body,
     overflow: hidden !important;
 }
 
+.x-window-header,
 .x-window-header-default {
     background: #1e293b !important;
     border-bottom: 1px solid #0f172a !important;
     padding: 10px 14px !important;
 }
 
-.x-window-header-default .x-window-header-title-default,
+.x-window-header,
+.x-window-header-default,
+.x-window-header .x-title-text,
 .x-window-header-default .x-title-text,
-.x-window-header-default .x-title-text-default {
+.x-window-header .x-title-text-default,
+.x-window-header-default .x-title-text-default,
+.x-window-header .x-window-header-title,
+.x-window-header-default .x-window-header-title,
+.x-window-header-title-default,
+.x-window-header-default .x-window-header-title-default,
+.x-window-header-title-default > .x-title-text-default {
     color: #ffffff !important;
     font-weight: 600 !important;
     font-size: 13.5px !important;
     letter-spacing: 0.2px !important;
 }
 
+.x-window-header .x-tool-tool-el,
 .x-window-header-default .x-tool-tool-el {
     color: #94a3b8 !important;
 }
 
+.x-window-header .x-tool-tool-el:hover,
 .x-window-header-default .x-tool-tool-el:hover {
     color: #ffffff !important;
 }
@@ -6094,7 +6108,8 @@ body,
 }
 
 .x-window .x-toolbar.x-docked-bottom .x-toolbar-text,
-.x-window .x-toolbar-default.x-docked-bottom .x-toolbar-text {
+.x-window .x-toolbar-default.x-docked-bottom .x-toolbar-text,
+.mb-modal-filesize-hint {
     color: #64748b !important;
     font-size: 12px !important;
     line-height: 28px !important;
@@ -6167,23 +6182,42 @@ body,
 }
 
 /* ExtJS File Upload Field - concealing native input and modernizing button */
-.x-form-file-btn {
+.x-form-file-wrap {
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.x-form-file-btn,
+.mb-file-browse-btn {
     overflow: hidden !important;
     position: relative !important;
     vertical-align: top !important;
     background: #f1f5f9 !important;
     border: 1px solid #cbd5e1 !important;
     border-radius: 4px !important;
-    padding: 2px 8px !important;
+    padding: 3px 12px !important;
     cursor: pointer !important;
 }
 
-.x-form-file-btn:hover {
+.x-form-file-btn:hover,
+.mb-file-browse-btn:hover,
+.mb-file-browse-btn.x-btn-over {
     background: #e2e8f0 !important;
     border-color: #94a3b8 !important;
 }
 
-.x-form-file-input {
+.x-form-file-btn .x-btn-inner,
+.mb-file-browse-btn .x-btn-inner {
+    color: #334155 !important;
+    font-weight: 500 !important;
+    font-size: 12px !important;
+    display: inline-block !important;
+}
+
+.x-form-file-wrap .x-form-file-input,
+.x-form-field-file .x-form-file-input,
+.x-form-file-input,
+input[type="file"].x-form-file-input {
     position: absolute !important;
     top: 0 !important;
     right: 0 !important;
@@ -6198,7 +6232,8 @@ body,
     border: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    z-index: 2 !important;
+    z-index: 10 !important;
+    background: transparent !important;
 }
 
 .x-form-item-label-default {

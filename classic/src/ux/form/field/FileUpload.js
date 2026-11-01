@@ -25,7 +25,7 @@ Ext.define('Ext.ux.form.field.FileUpload', {
     name: 'file',
     emptyText: t('Select file'),
     fieldLabel: t('File'),
-    buttonText: undefined,
+    buttonText: t('Browse'),
     maxSize: (window.uploadFaxFilesizeBytes && parseInt(window.uploadFaxFilesizeBytes) > 0)
         ? parseInt(window.uploadFaxFilesizeBytes)
         : ((window.uploadFaxFilesizebites ? parseInt(window.uploadFaxFilesizebites) : 2) * 1048576),
@@ -34,23 +34,19 @@ Ext.define('Ext.ux.form.field.FileUpload', {
     titleWarning: t('Warning'),
     msgInvalidFile: t('File not allow'),
     msgInvalidSize: t('Max size file'),
-    childEls: ['browseButtonWrap', 'playButtonWrap'],
     buttonPlayMargin: 5,
     buttonConfig: {
-        glyph: icons.file
+        cls: 'mb-file-browse-btn'
     },
     triggers: {
-        filebutton: {
-            type: 'component',
-            hideOnReadOnly: false
-        },
         playbutton: {
-            type: 'component'
+            type: 'component',
+            hideOnReadOnly: true
         }
     },
     applyTriggers: function(triggers) {
         var me = this,
-            triggerCfg = (triggers || {}).playbutton;
+            triggerCfg = triggers && triggers.playbutton;
         if (triggerCfg) {
             triggerCfg.component = Ext.apply({
                 xtype: 'button',
@@ -64,23 +60,24 @@ Ext.define('Ext.ux.form.field.FileUpload', {
                 scope: me,
                 handler: me.playStop,
                 hidden: true
-            });
-            return me.callParent([triggers]);
+            }, triggerCfg.component || {});
         }
+        return me.callParent([triggers]);
     },
     onRender: function() {
-        var me = this,
-            button;
+        var me = this;
         me.isAudio = me.extAllowed.indexOf('wav') !== -1;
         me.formPanel = me.up('form');
-        me.formPanel.on('edit', me.onEditForm, me);
+        if (me.formPanel) {
+            me.formPanel.on('edit', me.onEditForm, me);
+        }
         me.callParent(arguments);
         me.triggerPlay = me.getTrigger('playbutton');
-        me.buttonPlay = me.triggerPlay.component;
-        // Ensure the trigger element is sized correctly upon render
-        me.triggerPlay.el.setWidth(me.buttonPlay.getEl().getWidth() + me.buttonPlay.getEl().getMargin('lr'));
-        if (Ext.isIE) {
-            me.buttonPlay.getEl().repaint();
+        if (me.triggerPlay && me.triggerPlay.component) {
+            me.buttonPlay = me.triggerPlay.component;
+            if (me.triggerPlay.el && me.buttonPlay.getEl()) {
+                me.triggerPlay.el.setWidth(me.buttonPlay.getEl().getWidth() + me.buttonPlay.getEl().getMargin('lr'));
+            }
         }
         me.initTipInfo();
     },
@@ -132,12 +129,6 @@ Ext.define('Ext.ux.form.field.FileUpload', {
     onEndAudio: function() {
         this.buttonPlay.setIconCls('icon-play');
     },
-    getTriggerMarkup: function() {
-        var me = this,
-            btn = me.callParent(arguments),
-            play = '<td id="' + me.id + '-playButtonWrap" data-ref="playButtonWrap" role="presentation"></td>';
-        return btn + play;
-    },
     playStop: function(btn) {
         var me = this,
             isPlay = btn.iconCls === 'icon-play';
@@ -151,11 +142,15 @@ Ext.define('Ext.ux.form.field.FileUpload', {
         if (!me.htmlTipInfo) {
             return;
         }
+        var targetEl = (me.button && me.button.el) ? me.button.el : me.el;
+        if (!targetEl) {
+            return;
+        }
         me.tipInfoFile = Ext.create('Ext.tip.ToolTip', {
             html: me.htmlTipInfo,
             anchor: 'top',
             title: me.titleTipInfo,
-            target: me.button.el
+            target: targetEl
         });
     },
     onFileChange: function(btn, evt, value) {

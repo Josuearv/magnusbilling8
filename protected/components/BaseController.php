@@ -2434,16 +2434,23 @@ class BaseController extends CController
         $errors           = [];
         if ($array) {
             $recorder = new CSVActiveRecorder($array, $this->instanceModel, $additionalParams);
-            if ($recorder->save());
+            $recorder->save();
             $errors = $recorder->getErrors();
         } else {
             $errors = $interpreter->getErrors();
         }
 
-        $this->nameMsg = count($errors) > 0 ? 'errors' : $this->nameMsg;
+        $hasErrors  = count($errors) > 0;
+        $errorMsg   = $hasErrors ? implode('<br>', $errors) : '';
+        $successMsg = $this->msgSuccess ?: Yii::t('zii', 'File imported successfully');
+
+        $this->nameMsg = $hasErrors ? 'errors' : $this->nameMsg;
         echo json_encode([
-            $this->nameSuccess => count($errors) > 0 ? false : true,
-            $this->nameMsg     => count($errors) > 0 ? implode(',', $errors) : $this->msgSuccess,
+            $this->nameSuccess   => ! $hasErrors,
+            $this->nameMsg       => $hasErrors ? $errorMsg : $successMsg,
+            $this->nameMsgErrors => $errorMsg,
+            'msg'                => $hasErrors ? $errorMsg : $successMsg,
+            'errors'             => $errorMsg,
         ]);
     }
 

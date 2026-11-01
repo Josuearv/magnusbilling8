@@ -12,7 +12,7 @@ Ext.define('Ext.ux.window.ImportCsv', {
     iconCls: 'icon-import-csv',
     title: t('Import CSV'),
     width: 480,
-    height: 230,
+    height: 240,
     labelWidthFields: 90,
     htmlTipInfo: '',
     fieldsImport: [],
@@ -26,7 +26,11 @@ Ext.define('Ext.ux.window.ImportCsv', {
             fieldsImport = Ext.Array.merge(me.fieldsImport, [{
                 xtype: 'uploadfield',
                 fieldLabel: t('File CSV'),
-                htmlTipInfo: me.htmlTipInfo
+                buttonText: t('Browse'),
+                htmlTipInfo: me.htmlTipInfo,
+                maxSize: (window.uploadFaxFilesizeBytes && parseInt(window.uploadFaxFilesizeBytes) >= 33554432)
+                    ? parseInt(window.uploadFaxFilesizeBytes)
+                    : 33554432
             }]);
         me.items = [{
             xtype: 'form',
@@ -42,12 +46,19 @@ Ext.define('Ext.ux.window.ImportCsv', {
         }
         me.bbar = [{
             xtype: 'tbtext',
-            text: t('Max size file') + ' ' + window.uploadFaxFilesize
+            cls: 'mb-modal-filesize-hint',
+            text: t('Max size file') + ': ' + (window.uploadFaxFilesize || '32M')
         }, '->', {
-            iconCls: 'icon-import-csv',
-            cls: 'mb-btn-primary',
+            text: t('Cancel'),
+            cls: 'mb-btn-secondary',
+            iconCls: 'icon-cancel',
+            handler: function() {
+                me.close();
+            }
+        }, {
             text: t('Import'),
-            width: 150,
+            cls: 'mb-btn-primary',
+            iconCls: 'icon-import-csv',
             scope: me,
             handler: me.onImport
         }];

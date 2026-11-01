@@ -40,8 +40,9 @@ class CSVActiveRecorder
             Yii::app()->db->createCommand($sql)->execute();
             return true;
         } catch (CDBException $e) {
-            $this->addError($e->getMessage());
-            return false;
+            // LOAD DATA LOCAL INFILE failed (e.g. MariaDB local_infile disabled, systemd PrivateTmp, or file permission issue)
+            Yii::log('LOAD DATA LOCAL INFILE failed (' . $e->getMessage() . '), attempting fallback batch INSERT.', CLogger::LEVEL_INFO);
+            return $this->batchInsertFallback();
         }
     }
 
@@ -160,6 +161,143 @@ class CSVActiveRecorder
                 Yii::t('zii', 'The columns are misconfigured.<br>Available columns for this module:<br>') .
                 implode('<br>', $modelColumns)
             );
+            return false;
+        }
+    }
+
+    private function batchInsertFallback()
+    {
+        $filename = $this->data['filename'] ?? null;
+        if (! $filename || ! file_exists($filename)) {
+            $this->addError(Yii::t('zii', 'File not found on server for fallback import.'));
+            return false;
+        }
+
+        $delimiter = $this->data['boundaries']['delimiter'] ?? ',';
+        $enclosure = $this->data['boundaries']['enclosure'] ?? '"';
+        $escape    = $this->data['boundaries']['escape'] ?? '\\';
+
+        $handle = fopen($filename, 'r');
+        if (! $handle) {
+            $this->addError(Yii::t('zii', 'Unable to open CSV file for reading.'));
+            return false;
+        }
+
+        $headerLine = fgets($handle);
+        if ($headerLine === false) {
+            fclose($handle);
+            $this->addError(Yii::t('zii', 'The CSV file is empty.'));
+            return false;
+        }
+
+        $headerTrimmed = trim($headerLine);
+        if (substr($headerTrimmed, 0, 3) === "\xEF\xBB\xBF") {
+            $headerTrimmed = substr($headerTrimmed, 3);
+        }
+        $headerColumns = str_getcsv($headerTrimmed, $delimiter, $enclosure, $escape);
+
+        $columnIndexToAttr = [];
+        $translatedCols    = $this->data['columns'] ?? [];
+        foreach ($headerColumns as $idx => $rawCol) {
+            $rawColTrimmed = trim($rawCol);
+            if (isset($translatedCols[$rawColTrimmed])) {
+                $columnIndexToAttr[$idx] = $translatedCols[$rawColTrimmed];
+            } else {
+                $cleanCol = preg_replace('/ /', '_', $rawColTrimmed);
+                if (isset($translatedCols[$cleanCol])) {
+                    $columnIndexToAttr[$idx] = $translatedCols[$cleanCol];
+                }
+            }
+        }
+
+        $additionalKV = [];
+        if (! empty($this->additionalParams)) {
+            foreach ($this->additionalParams as $param) {
+                if (isset($param['key']) && isset($param['value'])) {
+                    $additionalKV[$param['key']] = $param['value'];
+                }
+            }
+        }
+
+        $allTargetCols = array_values($columnIndexToAttr);
+        foreach (array_keys($additionalKV) as $addCol) {
+            if (! in_array($addCol, $allTargetCols, true)) {
+                $allTargetCols[] = $addCol;
+            }
+        }
+
+        if (empty($allTargetCols)) {
+            fclose($handle);
+            $this->addError(Yii::t('zii', 'No matching columns found for import.'));
+            return false;
+        }
+
+        $tableName   = $this->model->tableName();
+        $db          = Yii::app()->db;
+        $transaction = $db->beginTransaction();
+
+        try {
+            $batchRows   = [];
+            $batchParams = [];
+            $batchCount  = 0;
+            $paramIndex  = 0;
+            $chunkSize   = 500;
+
+            while (($row = fgetcsv($handle, 0, $delimiter, $enclosure, $escape)) !== false) {
+                if (empty($row) || (count($row) === 1 && $row[0] === null)) {
+                    continue;
+                }
+
+                $rowValues = [];
+                foreach ($allTargetCols as $colName) {
+                    if (isset($additionalKV[$colName])) {
+                        $rowValues[$colName] = $additionalKV[$colName];
+                    } else {
+                        $foundIdx            = array_search($colName, $columnIndexToAttr, true);
+                        $rowValues[$colName] = ($foundIdx !== false && isset($row[$foundIdx])) ? trim($row[$foundIdx]) : '';
+                    }
+                }
+
+                $placeholders = [];
+                foreach ($allTargetCols as $colName) {
+                    $pName               = ':p' . $paramIndex++;
+                    $placeholders[]      = $pName;
+                    $batchParams[$pName] = $rowValues[$colName];
+                }
+                $batchRows[] = '(' . implode(',', $placeholders) . ')';
+                $batchCount++;
+
+                if ($batchCount >= $chunkSize) {
+                    $insertSql = "INSERT INTO {$tableName} (`" . implode('`,`', $allTargetCols) . "`) VALUES " . implode(',', $batchRows);
+                    $cmd       = $db->createCommand($insertSql);
+                    foreach ($batchParams as $pKey => $pVal) {
+                        $cmd->bindValue($pKey, $pVal);
+                    }
+                    $cmd->execute();
+
+                    $batchRows   = [];
+                    $batchParams = [];
+                    $batchCount  = 0;
+                    $paramIndex  = 0;
+                }
+            }
+
+            if (! empty($batchRows)) {
+                $insertSql = "INSERT INTO {$tableName} (`" . implode('`,`', $allTargetCols) . "`) VALUES " . implode(',', $batchRows);
+                $cmd       = $db->createCommand($insertSql);
+                foreach ($batchParams as $pKey => $pVal) {
+                    $cmd->bindValue($pKey, $pVal);
+                }
+                $cmd->execute();
+            }
+
+            $transaction->commit();
+            fclose($handle);
+            return true;
+        } catch (Exception $e) {
+            $transaction->rollback();
+            fclose($handle);
+            $this->addError(Yii::t('zii', 'Fallback import failed: ') . $e->getMessage());
             return false;
         }
     }

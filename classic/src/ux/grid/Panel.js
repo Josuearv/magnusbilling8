@@ -113,14 +113,19 @@ Ext.define('Ext.ux.grid.Panel', {
             };
         }
         if (me.allowSearch && !Ext.isEmpty(me.fieldSearch)) {
+            var rawSearchKey = me.fieldSearch.split('.').slice(-1)[0],
+                searchKeyCap = rawSearchKey.charAt(0).toUpperCase() + rawSearchKey.slice(1),
+                translatedSearchKey = (t(searchKeyCap) !== searchKeyCap ? t(searchKeyCap) : '') ||
+                    (t(rawSearchKey) !== rawSearchKey ? t(rawSearchKey) : searchKeyCap);
             me.tbar.push({
-                emptyText: t('Search') + ' ' + t(me.fieldSearch.split('\.').slice(-1)[0]),
+                emptyText: t('Search') + ' ' + translatedSearchKey,
                 xtype: 'searchfield',
                 fieldFilter: me.fieldSearch,
                 filterOnClick: me.filterFieldOnClick,
                 store: me.store,
                 comparison: me.comparisonfilter,
-                width: isMobileLayout ? 120 : 250
+                width: isMobileLayout ? 130 : 220,
+                minWidth: 160
             });
         }
         if (me.allowCreate) {
