@@ -40169,8 +40169,8 @@ Ext.define('Ext.ux.window.ImportCsv', {
     iconCls: 'icon-import-csv',
     title: t('Import CSV'),
     width: 480,
-    height: 240,
-    labelWidthFields: 90,
+    height: 280,
+    labelWidthFields: 100,
     htmlTipInfo: '',
     fieldsImport: [],
     listeners: {
@@ -40180,21 +40180,42 @@ Ext.define('Ext.ux.window.ImportCsv', {
     },
     initComponent: function() {
         var me = this,
-            fieldsImport = Ext.Array.merge(me.fieldsImport, [{
-                xtype: 'uploadfield',
-                fieldLabel: t('File CSV'),
-                buttonText: t('Browse'),
-                htmlTipInfo: me.htmlTipInfo,
-                maxSize: (window.uploadFaxFilesizeBytes && parseInt(window.uploadFaxFilesizeBytes) >= 33554432)
-                    ? parseInt(window.uploadFaxFilesizeBytes)
-                    : 33554432
-            }]);
+            delimiterField = {
+                xtype: 'combobox',
+                name: 'delimiter',
+                fieldLabel: t('Delimiter'),
+                editable: false,
+                displayField: 'name',
+                valueField: 'value',
+                value: 'auto',
+                store: Ext.create('Ext.data.Store', {
+                    fields: ['value', 'name'],
+                    data: [
+                        { value: 'auto', name: (t('Auto-detect') || 'Auto') + ' (; / ,)' },
+                        { value: ';',    name: (t('Semicolon') || 'Punto y coma') + ' (;)' },
+                        { value: ',',    name: (t('Comma') || 'Coma') + ' (,)' }
+                    ]
+                })
+            },
+            fieldsImport = Ext.Array.merge(me.fieldsImport, [
+                delimiterField,
+                {
+                    xtype: 'uploadfield',
+                    fieldLabel: t('File CSV'),
+                    buttonText: t('Browse'),
+                    htmlTipInfo: me.htmlTipInfo,
+                    maxSize: (window.uploadFaxFilesizeBytes && parseInt(window.uploadFaxFilesizeBytes) >= 33554432)
+                        ? parseInt(window.uploadFaxFilesizeBytes)
+                        : 33554432
+                }
+            ]);
         me.items = [{
             xtype: 'form',
             bodyPadding: '16 20',
             defaults: {
                 anchor: '100%',
-                labelWidth: me.labelWidthFields
+                labelWidth: me.labelWidthFields,
+                margin: '0 0 10 0'
             },
             items: fieldsImport
         }];

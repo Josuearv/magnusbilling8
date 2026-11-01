@@ -74,28 +74,29 @@ class CSVActiveRecorder
         ) . ")";
 
         $columns = $this->data['columns'];
-        $sql .= " SET " . implode(
-            " ",
-            array_map(
-                function ($v) use ($columns) {
-                    return $columns[$v] . " = @" . $v . ", ";
-                },
-                array_keys($this->data["columns"])
-            )
-        );
+        $modelColumns = array_keys($this->model->getAttributes());
+        $setParts = [];
+        foreach ($columns as $rawCol => $targetCol) {
+            if (strpos($targetCol, '_ignore_') !== 0 && in_array($targetCol, $modelColumns, true)) {
+                $setParts[] = "`" . $targetCol . "` = @" . $rawCol;
+            }
+        }
+        if (! empty($setParts)) {
+            $sql .= " SET " . implode(", ", $setParts);
+        }
         if (! empty($this->additionalParams)) {
-            $sql .= " " . implode(
-                " ",
-                array_map(
-                    function ($v) {
-                        return $v['key'] . '= "' . $v['value'] . '",';
-                    },
-                    $this->additionalParams
-                )
-            );
+            $addParts = [];
+            foreach ($this->additionalParams as $param) {
+                if (isset($param['key']) && isset($param['value'])) {
+                    $addParts[] = "`" . $param['key'] . '` = "' . addslashes($param['value']) . '"';
+                }
+            }
+            if (! empty($addParts)) {
+                $sql .= (! empty($setParts) ? ", " : " SET ") . implode(", ", $addParts);
+            }
         }
 
-        $sql = substr(trim($sql), 0, -1);
+        $sql = trim($sql);
         return $sql;
     }
 
@@ -104,65 +105,128 @@ class CSVActiveRecorder
         $csvColumns    = $this->data['columns'];
         $modelColumns  = array_keys($this->model->getAttributes());
         $resultColumns = [];
-        foreach ($csvColumns as $csvColumn) {
-            $csvColumn        = trim($csvColumn);
-            $csvColumnClean   = preg_replace('/ /', '_', $csvColumn);
-            $foundTranslation = false;
 
-            // Direct case-insensitive match with model attribute
+        // Additional params keys (e.g. id_user, activated)
+        $additionalKeys = [];
+        if (! empty($this->additionalParams)) {
+            foreach ($this->additionalParams as $param) {
+                if (! empty($param['key'])) {
+                    $additionalKeys[] = strtolower($param['key']);
+                }
+            }
+        }
+
+        foreach ($csvColumns as $csvColumn) {
+            $csvColumn      = trim($csvColumn, " \t\n\r\0\x0B\"'");
+            $csvColumnClean = preg_replace('/ /', '_', $csvColumn);
+            $lowerClean     = strtolower($csvColumnClean);
+            $foundCol       = null;
+
+            // 1. Direct case-insensitive match with model attribute
             foreach ($modelColumns as $modelCol) {
                 if (strcasecmp($csvColumnClean, $modelCol) === 0) {
-                    $resultColumns[$csvColumn] = $modelCol;
-                    $foundTranslation          = true;
+                    $foundCol = $modelCol;
                     break;
                 }
             }
 
-            // Map common CallerID header variants to 'cid' if model has 'cid'
-            if (! $foundTranslation && in_array('cid', $modelColumns)) {
-                if (in_array(strtolower($csvColumnClean), ['callerid', 'caller_id', 'cid', 'caller_id_number'])) {
-                    $resultColumns[$csvColumn] = 'cid';
-                    $foundTranslation          = true;
+            // 2. Map common CallerID header variants to 'cid' if model has 'cid'
+            if (! $foundCol && in_array('cid', $modelColumns, true)) {
+                if (in_array($lowerClean, ['callerid', 'caller_id', 'cid', 'caller_id_number', 'numero', 'number'])) {
+                    $foundCol = 'cid';
                 }
             }
 
-            // Dictionary lookup
-            if (! $foundTranslation) {
-                foreach ($this->translations as $translateColumn => $translations) {
-                    if (in_array($csvColumnClean, $translations, true)) {
-                        $resultColumns[$csvColumn] = $translateColumn;
-                        $foundTranslation          = true;
-                        break;
+            // 3. Map status variants to 'activated' if model has 'activated'
+            if (! $foundCol && in_array('activated', $modelColumns, true)) {
+                if (in_array($lowerClean, ['status', 'estado', 'activated', 'active', 'situacao', 'ativo'])) {
+                    $foundCol = 'activated';
+                }
+            }
+
+            // 4. Map username variants to 'id_user' or ignore if provided via additionalParams
+            if (! $foundCol && in_array('id_user', $modelColumns, true)) {
+                if (in_array($lowerClean, ['username', 'user', 'usuario', 'iduserusername', 'id_user'])) {
+                    if (in_array('id_user', $additionalKeys, true)) {
+                        $foundCol = '_ignore_username';
+                    } else {
+                        $foundCol = 'id_user';
                     }
                 }
             }
 
-            if (! $foundTranslation) {
+            // 5. Ignore auto-increment primary key 'id'
+            if (! $foundCol && ($lowerClean === 'id' || $lowerClean === 'id_' . strtolower(get_class($this->model)))) {
+                $foundCol = '_ignore_id';
+            }
+
+            // 6. Dictionary lookup
+            if (! $foundCol) {
+                foreach ($this->translations as $translateColumn => $translations) {
+                    if (in_array($csvColumnClean, $translations, true) || in_array($csvColumn, $translations, true)) {
+                        if (in_array($translateColumn, $modelColumns, true)) {
+                            $foundCol = $translateColumn;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ($foundCol) {
+                $resultColumns[$csvColumn] = $foundCol;
+            } else {
                 $resultColumns[$csvColumn] = $csvColumnClean;
             }
         }
         return $resultColumns;
     }
+
     private function validateColumns($columns)
     {
         $modelColumns = array_keys($this->model->getAttributes());
 
-        if (count(array_intersect($columns, $modelColumns)) == count($columns)) {
-            return true;
-        } else {
-
-            foreach ($modelColumns as $key => $value) {
-                if ($value == 'id' || substr($value, 0, 2) == 'id') {
-                    unset($modelColumns[$key]);
+        $additionalKeys = [];
+        if (! empty($this->additionalParams)) {
+            foreach ($this->additionalParams as $param) {
+                if (! empty($param['key'])) {
+                    $additionalKeys[] = $param['key'];
                 }
             }
+        }
 
+        // Real model columns mapped from the CSV
+        $validMappedColumns = [];
+        foreach ($columns as $rawCol => $targetCol) {
+            if (strpos($targetCol, '_ignore_') !== 0 && in_array($targetCol, $modelColumns, true)) {
+                $validMappedColumns[] = $targetCol;
+            }
+        }
+
+        if (empty($validMappedColumns)) {
+            $availableList = array_diff($modelColumns, ['id', 'id_user']);
             $this->addError(
-                Yii::t('zii', 'The columns are misconfigured.<br>Available columns for this module:<br>') .
-                implode('<br>', $modelColumns)
+                Yii::t('zii', 'The columns are misconfigured. No matching columns found.<br>Available columns for this module: ') .
+                '<b>' . implode(', ', $availableList) . '</b>'
             );
             return false;
         }
+
+        // Validate required model attributes
+        foreach ($this->model->rules() as $rule) {
+            if (isset($rule[1]) && $rule[1] === 'required') {
+                $requiredAttributes = array_map('trim', explode(',', $rule[0]));
+                foreach ($requiredAttributes as $reqAttr) {
+                    if (! in_array($reqAttr, $additionalKeys, true) && ! in_array($reqAttr, $validMappedColumns, true)) {
+                        $this->addError(
+                            Yii::t('zii', 'Missing required column: ') . '<b>' . $reqAttr . '</b>'
+                        );
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
     }
 
     private function batchInsertFallback()
@@ -198,15 +262,16 @@ class CSVActiveRecorder
 
         $columnIndexToAttr = [];
         $translatedCols    = $this->data['columns'] ?? [];
+        $modelColumns      = array_keys($this->model->getAttributes());
         foreach ($headerColumns as $idx => $rawCol) {
-            $rawColTrimmed = trim($rawCol);
-            if (isset($translatedCols[$rawColTrimmed])) {
-                $columnIndexToAttr[$idx] = $translatedCols[$rawColTrimmed];
-            } else {
-                $cleanCol = preg_replace('/ /', '_', $rawColTrimmed);
-                if (isset($translatedCols[$cleanCol])) {
-                    $columnIndexToAttr[$idx] = $translatedCols[$cleanCol];
-                }
+            $rawColTrimmed = trim($rawCol, " \t\n\r\0\x0B\"'");
+            $targetCol     = $translatedCols[$rawColTrimmed] ?? ($translatedCols[$rawCol] ?? null);
+            if (! $targetCol) {
+                $cleanCol  = preg_replace('/ /', '_', $rawColTrimmed);
+                $targetCol = $translatedCols[$cleanCol] ?? null;
+            }
+            if ($targetCol && strpos($targetCol, '_ignore_') !== 0 && in_array($targetCol, $modelColumns, true)) {
+                $columnIndexToAttr[$idx] = $targetCol;
             }
         }
 

@@ -2426,8 +2426,9 @@ class BaseController extends CController
         }
 
         $values = $this->getAttributesRequest();
+        $delimiter = ! empty($values['delimiter']) ? $values['delimiter'] : (! empty($_POST['delimiter']) ? $_POST['delimiter'] : 'auto');
 
-        $interpreter = new CSVInterpreter($_FILES['file']['tmp_name']);
+        $interpreter = new CSVInterpreter($_FILES['file']['tmp_name'], $delimiter);
         $array       = $interpreter->toArray();
 
         $additionalParams = $this->importCsvSetAdditionalParams();

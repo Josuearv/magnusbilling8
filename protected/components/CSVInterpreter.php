@@ -12,7 +12,7 @@ class CSVInterpreter
     private $escape;
     private $columns;
 
-    public function __construct($filename, $delimiter = ",", $enclosure = "\"", $escape = "/")
+    public function __construct($filename, $delimiter = "auto", $enclosure = "\"", $escape = "\\")
     {
         if (file_exists($filename)) {
             $handle = fopen($filename, 'r');
@@ -22,13 +22,26 @@ class CSVInterpreter
                 if (substr($trimmed, 0, 3) === "\xEF\xBB\xBF") {
                     $trimmed = substr($trimmed, 3);
                 }
-                // Auto-detect semicolon or tab delimiter if comma has no matches
-                if ($delimiter === ',' && strpos($trimmed, ';') !== false && strpos($trimmed, ',') === false) {
-                    $delimiter = ';';
-                } elseif ($delimiter === ',' && strpos($trimmed, "\t") !== false && strpos($trimmed, ',') === false) {
-                    $delimiter = "\t";
+
+                // Auto-detect delimiter if 'auto', empty, or default
+                if (empty($delimiter) || $delimiter === 'auto') {
+                    $countSemicolon = substr_count($trimmed, ';');
+                    $countComma     = substr_count($trimmed, ',');
+                    $countTab       = substr_count($trimmed, "\t");
+
+                    if ($countSemicolon > $countComma && $countSemicolon >= $countTab) {
+                        $delimiter = ';';
+                    } elseif ($countTab > $countComma && $countTab > $countSemicolon) {
+                        $delimiter = "\t";
+                    } else {
+                        $delimiter = ',';
+                    }
                 }
-                $this->columns = str_getcsv($trimmed, $delimiter, $enclosure, $escape);
+
+                $rawColumns = str_getcsv($trimmed, $delimiter, $enclosure, $escape);
+                $this->columns = array_map(function ($col) {
+                    return trim($col, " \t\n\r\0\x0B\"'");
+                }, $rawColumns);
             } else {
                 $this->addError(Yii::t('zii', 'The file cannot be read or is empty'));
             }
