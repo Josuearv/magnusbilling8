@@ -7018,7 +7018,7 @@ Ext.define('Ext.ux.app.ViewController', {
             });
             if (!Ext.Object.getSize(valuesLot)) {
                 me.formPanel.setLoading(false);
-                btn.enable();
+                me.saveButton.enable();
                 return;
             }
             if (updateLotType === 'all') {
@@ -7042,23 +7042,26 @@ Ext.define('Ext.ux.app.ViewController', {
             Ext.Ajax.request({
                 url: me.store.getProxy().api.update,
                 params: paramsLot,
+                timeout: 120000,
                 scope: me,
                 success: function (response) {
-                    response = Ext.decode(response.responseText);
-                    if (response.success) {
-                        Ext.ux.Alert.alert(me.titleSuccess, t(response.msg), 'success');
+                    var res = Ext.decode(response.responseText, true) || {};
+                    var msg = res.msg || res.errors || me.msgSuccess;
+                    if (res.success) {
+                        Ext.ux.Alert.alert(me.titleSuccess, t(msg), 'success');
                         me.formPanel.fireEvent('aftersave', me.formPanel);
                     } else {
-                        Ext.ux.Alert.alert(me.titleError, t(response.msg), 'error');
+                        Ext.ux.Alert.alert(me.titleError, t(msg), 'error');
                     }
                     me.formPanel.setLoading(false);
                     me.saveButton.enable();
-                    me.updateLotButton.toggle(false);
+                    me.updateLotButton && me.updateLotButton.toggle(false);
                     me.store.load();
                 },
                 failure: function (response) {
-                    response = Ext.decode(response.responseText);
-                    Ext.ux.Alert.alert(me.titleError, t(response.msg), 'error');
+                    var res = (response && response.responseText && Ext.decode(response.responseText, true)) || {};
+                    var msg = res.msg || res.errors || (response && response.statusText) || 'Request failed';
+                    Ext.ux.Alert.alert(me.titleError, t(msg), 'error');
                     me.formPanel.setLoading(false);
                     me.saveButton.enable();
                 }
@@ -10044,42 +10047,43 @@ Ext.define('MBilling.view.phoneNumber.Controller', {
     reprocessar: function(btn) {
         var me = this,
             store = me.list.getStore(),
-            filter = me.list.filters.getFilterData().length ? Ext.encode(me.list.filters.getFilterData()) : store.proxy.extraParams.filter;
-        btn.disable();
-        me.list.setLoading(true);
-        if (!filter) {
-            Ext.ux.Alert.alert('Alert', 'Realize um filtro para reprocessar', 'notification');
-            btn.enable();
-            me.list.setLoading(false);
-            return;
-        };
-        Ext.Msg.confirm('Confirm', 'Confirme que quer reprocessar os numeros pendentes?', function(btnYes) {
+            filterData = me.list.filters.getFilterData(),
+            filter = filterData.length ? Ext.encode(filterData) : (store.proxy.extraParams.filter || '');
+        Ext.Msg.confirm(t('Confirm'), t('Are you sure you want to reprocess and reactivate the numbers?'), function(btnYes) {
             if (btnYes === 'yes') {
+                btn.disable();
+                me.list.setLoading(true);
                 Ext.Ajax.request({
                     url: 'index.php/phoneNumber/reprocesar/',
+                    timeout: 120000,
                     params: {
                         filter: filter
                     },
                     scope: me,
                     success: function(response) {
-                        response = Ext.decode(response.responseText);
-                        if (response[me.nameSuccessRequest]) {
-                            Ext.ux.Alert.alert(me.titleSuccess, response[me.nameMsgRequest], 'success');
+                        var res = Ext.decode(response.responseText, true) || {};
+                        if (res[me.nameSuccessRequest]) {
+                            Ext.ux.Alert.alert(me.titleSuccess, res[me.nameMsgRequest], 'success');
                             store.load();
-                            btn.enable();
-                            me.list.setLoading(false);
                         } else {
-                            var errors = Helper.Util.convertErrorsJsonToString(response[me.nameMsgRequest]);
+                            var errors = Helper.Util.convertErrorsJsonToString(res[me.nameMsgRequest] || res.errors || 'Error');
                             Ext.ux.Alert.alert(me.titleError, errors, 'error');
-                            btn.enable();
-                            me.list.setLoading(false);
                         }
+                        btn.enable();
+                        me.list.setLoading(false);
+                    },
+                    failure: function(response) {
+                        var res = (response && response.responseText && Ext.decode(response.responseText, true)) || {};
+                        Ext.ux.Alert.alert(me.titleError, res.msg || res.errors || 'Error', 'error');
+                        btn.enable();
+                        me.list.setLoading(false);
                     }
                 });
             }
         });
     }
 });
+
 
 ;
 /* Source: classic/src/view/rate/Controller.js */
@@ -80876,6 +80880,7 @@ Ext.define('Ext.ux.grid.menu.ListMenu', {
                     scope: me
                 }
             });
+            me.onLoad(me.store, me.store.getRange());
             me.loaded = true;
             me.autoStore = true;
         } else {
@@ -80975,6 +80980,7 @@ Ext.define('Ext.ux.grid.menu.ListMenu', {
         this.fireEvent('checkchange', item, checked);
     }
 });
+
 
 ;
 /* Source: classic/src/ux/grid/menu/RangeMenu.js */

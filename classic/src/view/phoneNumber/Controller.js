@@ -24,36 +24,36 @@ Ext.define('MBilling.view.phoneNumber.Controller', {
     reprocessar: function(btn) {
         var me = this,
             store = me.list.getStore(),
-            filter = me.list.filters.getFilterData().length ? Ext.encode(me.list.filters.getFilterData()) : store.proxy.extraParams.filter;
-        btn.disable();
-        me.list.setLoading(true);
-        if (!filter) {
-            Ext.ux.Alert.alert('Alert', 'Realize um filtro para reprocessar', 'notification');
-            btn.enable();
-            me.list.setLoading(false);
-            return;
-        };
-        Ext.Msg.confirm('Confirm', 'Confirme que quer reprocessar os numeros pendentes?', function(btnYes) {
+            filterData = me.list.filters.getFilterData(),
+            filter = filterData.length ? Ext.encode(filterData) : (store.proxy.extraParams.filter || '');
+        Ext.Msg.confirm(t('Confirm'), t('Are you sure you want to reprocess and reactivate the numbers?'), function(btnYes) {
             if (btnYes === 'yes') {
+                btn.disable();
+                me.list.setLoading(true);
                 Ext.Ajax.request({
                     url: 'index.php/phoneNumber/reprocesar/',
+                    timeout: 120000,
                     params: {
                         filter: filter
                     },
                     scope: me,
                     success: function(response) {
-                        response = Ext.decode(response.responseText);
-                        if (response[me.nameSuccessRequest]) {
-                            Ext.ux.Alert.alert(me.titleSuccess, response[me.nameMsgRequest], 'success');
+                        var res = Ext.decode(response.responseText, true) || {};
+                        if (res[me.nameSuccessRequest]) {
+                            Ext.ux.Alert.alert(me.titleSuccess, res[me.nameMsgRequest], 'success');
                             store.load();
-                            btn.enable();
-                            me.list.setLoading(false);
                         } else {
-                            var errors = Helper.Util.convertErrorsJsonToString(response[me.nameMsgRequest]);
+                            var errors = Helper.Util.convertErrorsJsonToString(res[me.nameMsgRequest] || res.errors || 'Error');
                             Ext.ux.Alert.alert(me.titleError, errors, 'error');
-                            btn.enable();
-                            me.list.setLoading(false);
                         }
+                        btn.enable();
+                        me.list.setLoading(false);
+                    },
+                    failure: function(response) {
+                        var res = (response && response.responseText && Ext.decode(response.responseText, true)) || {};
+                        Ext.ux.Alert.alert(me.titleError, res.msg || res.errors || 'Error', 'error');
+                        btn.enable();
+                        me.list.setLoading(false);
                     }
                 });
             }

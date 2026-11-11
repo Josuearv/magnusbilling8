@@ -95,7 +95,8 @@ class BaseController extends CController
         }
         echo json_encode([
             $this->nameSuccess => false,
-            'errors' => $message,
+            $this->nameMsg     => $message,
+            'errors'           => $message,
         ]);
         Yii::app()->end();
     }
@@ -782,7 +783,20 @@ class BaseController extends CController
             $this->saveBulkModels($ids, $values, $namePk);
             return;
         }
-        $models = $this->authorizedBulkModels($ids, $values, $namePk);
+        if (! is_array($ids) || ! $ids) {
+            $this->sendError('No records matched the selected filter.', [], 400);
+        }
+        if (count($ids) > 500) {
+            foreach ($ids as $id) {
+                if ((! is_int($id) && ! is_string($id)) || ! preg_match('/\A[1-9][0-9]*\z/', (string) $id)) {
+                    $this->sendError('Invalid or unauthorized record.', [], 400);
+                }
+            }
+            $ids    = array_values(array_unique(array_map('intval', $ids)));
+            $models = [$this->abstractModel->findByPk($ids[0]) ?: $this->instanceModel];
+        } else {
+            $models = $this->authorizedBulkModels($ids, $values, $namePk);
+        }
         $values = $this->beforeUpdateAll($values, $ids);
 
         try {
@@ -826,18 +840,21 @@ class BaseController extends CController
             $this->abstractModel->setScenario('update');
             $this->abstractModel->setIsNewRecord(false);
 
-            $criteria = new CDbCriteria();
-            $criteria->addInCondition($namePk, $ids);
             try {
                 $this->success = true;
-                $this->abstractModel->updateAll($setters, $criteria);
+                foreach (array_chunk($ids, 2000) as $idChunk) {
+                    $criteria = new CDbCriteria();
+                    $criteria->addInCondition($namePk, $idChunk);
+                    $this->abstractModel->updateAll($setters, $criteria);
+                }
             } catch (Exception $e) {
                 print_r($e);
                 exit;
             }
 
-            $this->msg = $this->msgSuccessLot;
-            $info      = addslashes("Module: $this->modelName SET " . print_r($setters, true) . " WHERE $namePk IN(" . print_r($ids, true) . ")");
+            $this->msg  = $this->msgSuccessLot;
+            $idsSummary = count($ids) > 50 ? (count($ids) . ' records') : implode(',', $ids);
+            $info       = addslashes("Module: $this->modelName SET " . json_encode($setters) . " WHERE $namePk IN($idsSummary)");
             MagnusLog::insertLOG(6, $info);
 
             $this->afterUpdateAll($ids);
@@ -1012,6 +1029,7 @@ class BaseController extends CController
         }
 
         $records = $this->abstractModel->findAll([
+            'select'    => "t.$namePk",
             'join'      => $this->join,
             'condition' => $this->filter,
             'with'      => $this->relationFilter,
