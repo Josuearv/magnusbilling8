@@ -29,7 +29,7 @@
  */
 class CampaignOptimizerAttempt extends Model
 {
-    protected $_module = 'campaignoptimizerattempt';
+    protected $_module = 'campaignoptimizerconfig';
 
     public static function model($className = __CLASS__)
     {

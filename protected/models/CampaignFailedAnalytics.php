@@ -22,7 +22,7 @@
  */
 class CampaignFailedAnalytics extends Model
 {
-    protected $_module = 'campaignfailedanalytics';
+    protected $_module = 'campaignoptimizerconfig';
 
     public static function model($className = __CLASS__)
     {

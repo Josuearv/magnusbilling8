@@ -22,6 +22,7 @@ class CampaignfailedanalyticsController extends Controller
      */
     public function actionGetKpis()
     {
+        $this->checkActionAccess([], $this->instanceModel->getModule(), 'canRead');
         $idCampaign = (int) Yii::app()->request->getParam('id_campaign');
         $date = Yii::app()->request->getParam('date') ?: date('Y-m-d');
 

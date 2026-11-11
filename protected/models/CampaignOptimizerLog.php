@@ -20,7 +20,7 @@
  */
 class CampaignOptimizerLog extends Model
 {
-    protected $_module = 'campaignoptimizerlog';
+    protected $_module = 'campaignoptimizerconfig';
 
     public static function model($className = __CLASS__)
     {

@@ -18,7 +18,7 @@
  */
 class CampaignOptimizerAudio extends Model
 {
-    protected $_module = 'campaignoptimizeraudio';
+    protected $_module = 'campaignoptimizerconfig';
 
     public static function model($className = __CLASS__)
     {
