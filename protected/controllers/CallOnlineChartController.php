@@ -38,6 +38,12 @@ class CallOnlineChartController extends Controller
 
     public function actionRead($asJson = true, $condition = null)
     {
+        LoadConfig::syncSystemTimezone();
+        require_once Yii::app()->basePath . '/commands/CallChartCommand.php';
+        if (class_exists('CallChartCommand')) {
+            CallChartCommand::syncOnlineCallsNow(2);
+        }
+
         $filter = isset($_GET['filter']) ? json_decode($_GET['filter']) : null;
 
         $hoursValue = isset($filter[0]) && isset($filter[0]->value) ? $filter[0]->value : 1;

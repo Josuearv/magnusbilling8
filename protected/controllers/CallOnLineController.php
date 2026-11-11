@@ -46,6 +46,10 @@ class CallOnLineController extends Controller
 
     public function actionRead($asJson = true, $condition = null)
     {
+        require_once Yii::app()->basePath . '/commands/CallChartCommand.php';
+        if (class_exists('CallChartCommand')) {
+            CallChartCommand::syncOnlineCallsNow(2);
+        }
 
         //altera o sort se for a coluna idUsercredit.
         if (isset($_GET['sort']) && $_GET['sort'] === 'idUsercredit') {

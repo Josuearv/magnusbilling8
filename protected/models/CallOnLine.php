@@ -75,10 +75,11 @@ class CallOnLine extends Model
     public function insertCalls($sql)
     {
 
-        $sql = 'INSERT INTO pkg_call_online VALUES ' . implode(',', $sql) . ';';
+        $sql = 'INSERT INTO pkg_call_online (id, uniqueid, sip_account, id_user, canal, tronco, ndiscado, codec, status, duration, reinvite, from_ip, server) VALUES ' . implode(',', $sql) . ';';
         try {
             return Yii::app()->db->createCommand($sql)->execute();
         } catch (Exception $e) {
+            Yii::log('CallOnLine::insertCalls failed: ' . $e->getMessage(), CLogger::LEVEL_ERROR, 'application');
             return $e;
         }
     }

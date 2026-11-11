@@ -27,17 +27,54 @@ class CallChartCommand extends ConsoleCommand
     private $sips;
     private $sipNames;
     private $didsNumbers;
+    private $campaignsCache = [];
+
+    public static function syncOnlineCallsNow($minIntervalSeconds = 2)
+    {
+        $stampFile = '/tmp/mbilling_callonline_sync.stamp';
+        if ($minIntervalSeconds > 0 && is_file($stampFile)) {
+            clearstatcache(true, $stampFile);
+            $mtime = @filemtime($stampFile);
+            if ($mtime !== false && (time() - $mtime) < $minIntervalSeconds) {
+                return;
+            }
+        }
+        @touch($stampFile);
+        try {
+            LoadConfig::syncSystemTimezone();
+            $instance        = new self('callchart', null);
+            $instance->debug = 0;
+            $instance->isDid();
+            $instance->isSIPCall();
+            $calls = AsteriskAccess::getCoreShowCdrChannels();
+            ob_start();
+            $instance->user_cdr_show($calls, false);
+            ob_end_clean();
+        } catch (Exception $e) {
+            if (ob_get_level() > 0) {
+                @ob_end_clean();
+            }
+            Yii::log('CallChartCommand::syncOnlineCallsNow error: ' . $e->getMessage(), CLogger::LEVEL_WARNING, 'application');
+        }
+    }
+
     public function run($args)
     {
-
-        $this->debug = 0;
+        LoadConfig::syncSystemTimezone();
+        $startedMtime = @filemtime(__FILE__);
+        $this->debug  = 0;
         $this->isDid();
         $this->isSIPCall();
         for (;;) {
             if (date('i') == 59) {
                 break;
             }
+            clearstatcache(true, __FILE__);
+            if ($startedMtime && @filemtime(__FILE__) !== $startedMtime) {
+                break;
+            }
             try {
+                LoadConfig::syncSystemTimezone();
                 Servers::model()->updateAll(['status' => 1], 'status = 2');
                 $calls = AsteriskAccess::getCoreShowCdrChannels();
             } catch (Exception $e) {
@@ -48,14 +85,36 @@ class CallChartCommand extends ConsoleCommand
             echo "\n\n\n\nSTART ------\n\n";
 
             echo "use cdr show \n\n";
-            $this->user_cdr_show($calls);
+            $this->user_cdr_show($calls, true);
         }
     }
 
-    public function user_cdr_show($calls)
+    private function findCampaignByTokenPart($campaignKey)
     {
+        $campaignKey = trim((string) $campaignKey);
+        if ($campaignKey === '') {
+            return null;
+        }
+        if (array_key_exists($campaignKey, $this->campaignsCache)) {
+            return $this->campaignsCache[$campaignKey];
+        }
+        $modelCampaign = null;
+        if (ctype_digit($campaignKey)) {
+            $modelCampaign = Campaign::model()->findByPk((int) $campaignKey);
+        }
+        if ($modelCampaign === null) {
+            $modelCampaign = Campaign::model()->find('name = :key', [':key' => $campaignKey]);
+        }
+        $this->campaignsCache[$campaignKey] = $modelCampaign;
+        return $modelCampaign;
+    }
 
-        $uniqueid = NULL;
+    public function user_cdr_show($calls, $sleepAfter = true)
+    {
+        @touch('/tmp/mbilling_callonline_sync.stamp');
+        $uniqueid  = null;
+        $totalUp    = 0;
+        $totalCalls = 0;
 
         $modelUserCallShop = User::model()->count('callshop = 1');
         if ($modelUserCallShop > 0) {
@@ -66,25 +125,26 @@ class CallChartCommand extends ConsoleCommand
             }
         }
 
-        $modelCallOnlineChart         = new CallOnlineChart();
-        $modelCallOnlineChart->date   = date('Y-m-d H:i:') . '00';
-        $modelCallOnlineChart->answer = 0;
-        $modelCallOnlineChart->total  = 0;
-        try {
-            $modelCallOnlineChart->save();
-            $totalUp    = $this->totalUpCalls    = 0;
-            $totalCalls = $this->totalCalls = 0;
-        } catch (Exception $e) {
-            $modelCallOnlineChart = CallOnlineChart::model()->find('date = :key', [':key' => date('Y-m-d H:i:') . '00']);
-        }
-
-        if ($modelCallOnlineChart->id > 0) {
-            $callOnlineId = $modelCallOnlineChart->id;
+        $currentMinuteDate            = date('Y-m-d H:i:') . '00';
+        $modelCallOnlineChart         = CallOnlineChart::model()->find('date = :key', [':key' => $currentMinuteDate]);
+        if ($modelCallOnlineChart === null) {
+            $modelCallOnlineChart         = new CallOnlineChart();
+            $modelCallOnlineChart->date   = $currentMinuteDate;
+            $modelCallOnlineChart->answer = 0;
+            $modelCallOnlineChart->total  = 0;
+            try {
+                $modelCallOnlineChart->save();
+            } catch (Exception $e) {
+                $modelCallOnlineChart = CallOnlineChart::model()->find('date = :key', [':key' => $currentMinuteDate]);
+            }
+            $this->totalUpCalls = 0;
+            $this->totalCalls   = 0;
         } else {
-            $callOnlineId = 0;
+            $this->totalUpCalls = max((int) $this->totalUpCalls, (int) $modelCallOnlineChart->answer);
+            $this->totalCalls   = max((int) $this->totalCalls, (int) $modelCallOnlineChart->total);
         }
 
-        if (count($calls) > 0) {
+        if (is_array($calls) && count($calls) > 0) {
 
             $sql = [];
 
@@ -97,50 +157,81 @@ class CallChartCommand extends ConsoleCommand
             foreach ($calls as $key => $call) {
                 $modelDid = $modelSip = [];
                 $type     = '';
-                $channel  = trim($call[0]);
+                $channel  = trim((string) ($call[0] ?? ''));
 
-                $status = trim($call[4]);
+                $status       = trim((string) ($call[4] ?? ''));
+                $ringDuration = isset($call[11]) && is_numeric(trim((string) $call[11])) ? (int) trim((string) $call[11]) : 0;
                 if ((preg_match("/Congestion/", $status) || preg_match("/Busy/", $status)) ||
-                    (preg_match('/Ring/', $status) && $call[11] > 60)
+                    (preg_match('/Ring/', $status) && $ringDuration > 60)
                 ) {
                     AsteriskAccess::instance()->hangupRequest($channel);
                     echo "return after hangup channel\n";
                     continue;
                 }
 
-                $uniqueid    = null;
-                $trunk       = null;
-                if (preg_match('/^PJSIP\/([^-\s]+)/', $channel, $m)) {
+                $uniqueid = !empty($call['uniqueid']) ? trim((string) $call['uniqueid']) : null;
+                $trunk    = null;
+                if (preg_match('#^(?:PJSIP|SIP|IAX2?)/(.+)-[0-9a-f]+(?:;[12])?$#i', $channel, $m)) {
+                    $sip_account = $m[1];
+                } elseif (preg_match('/^PJSIP\/([^-\s]+)/i', $channel, $m)) {
                     $sip_account = $m[1];
                 } else {
                     $sip_account = '';
                 }
-                $ndiscado    = trim($call[2]);
+                $ndiscado = trim((string) ($call[2] ?? ''));
 
-                $modelSip1 = Sip::model()->find('name = :key', [':key' => $sip_account]);
+                $modelSip1   = Sip::model()->find('name = :key', [':key' => $sip_account]);
                 $accountcode = isset($modelSip1->idUser->username) ? $modelSip1->idUser->username : '';
-                $codec       = substr($call[5], 1, 5);
+                $rawCodec    = trim((string) ($call[5] ?? ''));
+                $codec       = substr(preg_replace('/[^a-zA-Z0-9]/', '', $rawCodec), 0, 5);
+                if ($codec === '') {
+                    $codec = 'ulaw';
+                }
 
-
-
-                $chan = trim($call[9] ?? '');
+                $chan = trim((string) ($call[9] ?? ''));
                 // The final token is Asterisk's hexadecimal channel suffix.
                 // Keep dashes that are part of the configured PJSIP endpoint.
                 if (preg_match('#^[^/]+/(.+)-[0-9a-f]+(?:;[12])?$#i', $chan, $m)) {
-
-                    $des_chan    = $trunk =  $m[1];
+                    $des_chan = $trunk = $m[1];
                 } else {
-
-                    $des_chan    = $trunk  = '';
+                    $des_chan = $trunk = '';
                 }
 
-
-                $last_app    = trim($call[3]);
-                $cdr         = trim($call[10]);
+                $last_app  = trim((string) ($call[3] ?? ''));
+                $cdr       = isset($call[10]) && is_numeric(trim((string) $call[10])) ? (int) trim((string) $call[10]) : 0;
                 $originate = $sip_account;
 
+                // Detect MassiveCall (MC!) token across any column or enriched metadata
+                $mcToken = isset($call['mc_token']) && is_string($call['mc_token']) ? trim($call['mc_token']) : null;
+                if ($mcToken === null) {
+                    foreach ($call as $fieldKey => $fieldVal) {
+                        if (is_int($fieldKey) && is_string($fieldVal) && preg_match('/^(MC\![^\s|]+)/i', trim($fieldVal), $mcMatch)) {
+                            $mcToken = $mcMatch[1];
+                            break;
+                        }
+                    }
+                }
 
-                if ($last_app == 'Dial' || $last_app == 'Mbilling') {
+                if ($mcToken !== null) {
+                    $campaingParts = explode('!', $mcToken);
+                    $campaignKey   = isset($campaingParts[1]) ? trim($campaingParts[1]) : '';
+                    $phoneIdPart   = isset($campaingParts[2]) ? trim($campaingParts[2]) : '';
+                    $modelCampaing = $this->findCampaignByTokenPart($campaignKey);
+                    $id_user       = isset($modelCampaing->id_user) ? (int) $modelCampaing->id_user : 'NULL';
+                    $campaignLabel = (isset($modelCampaing->name) && strlen($modelCampaing->name) > 0)
+                        ? $modelCampaing->name
+                        : $campaignKey;
+                    $trunk         = 'Campaign ' . $campaignLabel;
+                    if (($ndiscado === '' || $ndiscado === 's') && ctype_digit($phoneIdPart)) {
+                        $phoneModel = PhoneNumber::model()->findByPk((int) $phoneIdPart);
+                        if ($phoneModel && !empty($phoneModel->number)) {
+                            $ndiscado = (string) $phoneModel->number;
+                        }
+                    }
+                    if (empty($uniqueid)) {
+                        $uniqueid = $phoneIdPart !== '' ? $phoneIdPart : substr(md5($channel), 0, 16);
+                    }
+                } elseif ($last_app == 'Dial' || $last_app == 'Mbilling') {
 
                     if ($status == 'Ringing') {
                         echo "return because status is Ringing";
@@ -149,10 +240,10 @@ class CallChartCommand extends ConsoleCommand
 
                     if (preg_match('/^MC\!/', $sip_account)) {
                         echo "torpedo\n";
-                        $campaingName  = preg_split('/\!/', $call[2]);
-                        $modelCampaing = Campaign::model()->find('name = :key', [':key' => $campaingName[1]]);
+                        $campaingName  = preg_split('/\!/', $call[1]);
+                        $modelCampaing = $this->findCampaignByTokenPart($campaingName[1] ?? '');
                         $id_user       = isset($modelCampaing->id_user) ? $modelCampaing->id_user : 'NULL';
-                        $trunk         = "Campaign " . $campaingName[1];
+                        $trunk         = "Campaign " . ($modelCampaing ? $modelCampaing->name : ($campaingName[1] ?? ''));
                     } else {
 
                         //check if is a DID call
@@ -257,15 +348,15 @@ class CallChartCommand extends ConsoleCommand
                         }
                     }
                 } elseif ($last_app == 'AGI' || $last_app == 'AppDial2') {
-                    if (preg_match('/^MC\!/', $call[1])) {
+                    if (preg_match('/^MC\!/', trim((string) ($call[1] ?? '')))) {
 
                         //torpedo
-                        $campaingName = preg_split('/\!/', $call[1]);
+                        $campaingName = preg_split('/\!/', trim((string) $call[1]));
 
-                        $modelCampaing = Campaign::model()->find('name = :key', [':key' => $campaingName[1]]);
+                        $modelCampaing = $this->findCampaignByTokenPart($campaingName[1] ?? '');
 
                         $id_user = isset($modelCampaing->id_user) ? $modelCampaing->id_user : 'NULL';
-                        $trunk   = "Campaign " . $campaingName[1];
+                        $trunk   = "Campaign " . ($modelCampaing ? $modelCampaing->name : ($campaingName[1] ?? ''));
                     } else {
                         //check if is a DID number
                         //DID call ivr   -> SIP/addphone-000000|           |9999999999    |           |Up|(g729)|<none>             |AGI  |4|5
@@ -305,15 +396,15 @@ class CallChartCommand extends ConsoleCommand
                     }
                 } elseif ($last_app == 'Queue') {
 
-                    if (preg_match('/^MC\!/', $call[1])) {
+                    if (preg_match('/^MC\!/', trim((string) ($call[1] ?? '')))) {
                         //torpedo
-                        $campaingName = preg_split('/\!/', $call[1]);
+                        $campaingName = preg_split('/\!/', trim((string) $call[1]));
 
-                        $modelCampaing = Campaign::model()->find('name = :key', [':key' => $campaingName[1]]);
+                        $modelCampaing = $this->findCampaignByTokenPart($campaingName[1] ?? '');
 
                         $id_user  = isset($modelCampaing->id_user) ? $modelCampaing->id_user : 'NULL';
-                        $trunk    = "Campaign " . $campaingName[1];
-                        $uniqueid = $campaingName[2];
+                        $trunk    = "Campaign " . ($modelCampaing ? $modelCampaing->name : ($campaingName[1] ?? ''));
+                        $uniqueid = $campaingName[2] ?? '';
                     } else {
 
                         //check if is a DID number
@@ -357,9 +448,27 @@ class CallChartCommand extends ConsoleCommand
                 }
                 $totalCalls++;
 
-                $sql[] = "(NULL,'" . $uniqueid . "', '$sip_account', $id_user, '$channel', '" . utf8_encode($trunk) . "', '$ndiscado', '" . preg_replace('/\(|\)/', '', $codec) . "', '$status', '$cdr', 'no','no', '" . $call['server'] . "',NULL)";
+                if (empty($uniqueid)) {
+                    $uniqueid = substr(md5($channel), 0, 16);
+                }
 
-                if (is_array($callShopIds)) {
+                $safeUniqueid   = addslashes(substr((string) $uniqueid, 0, 25));
+                $safeSipAccount = addslashes(substr((string) $sip_account, 0, 50));
+                $safeIdUser     = (int) $id_user;
+                $safeChannel    = addslashes(substr((string) $channel, 0, 50));
+                $safeTrunk      = addslashes(substr((string) $trunk, 0, 50));
+                $safeNdiscado   = addslashes(substr((string) $ndiscado, 0, 25));
+                $safeCodec      = addslashes(substr(preg_replace('/[^a-zA-Z0-9]/', '', (string) $codec), 0, 5));
+                if ($safeCodec === '') {
+                    $safeCodec = 'ulaw';
+                }
+                $safeStatus     = addslashes(substr((string) $status, 0, 16));
+                $safeCdr        = max(0, (int) $cdr);
+                $safeServer     = addslashes(substr((string) ($call['server'] ?? 'localhost'), 0, 50));
+
+                $sql[] = "(NULL,'$safeUniqueid', '$safeSipAccount', $safeIdUser, '$safeChannel', '$safeTrunk', '$safeNdiscado', '$safeCodec', '$safeStatus', '$safeCdr', 'no','no', '$safeServer')";
+
+                if (isset($callShopIds) && is_array($callShopIds)) {
                     if (in_array($id_user, $callShopIds)) {
 
                         if (! isset($modelSip->id)) {
@@ -386,9 +495,11 @@ class CallChartCommand extends ConsoleCommand
                 $this->totalCalls = $totalCalls;
             }
 
-            $modelCallOnlineChart->answer = $this->totalUpCalls;
-            $modelCallOnlineChart->total  = $this->totalCalls;
-            $modelCallOnlineChart->save();
+            if ($modelCallOnlineChart !== null) {
+                $modelCallOnlineChart->answer = $this->totalUpCalls;
+                $modelCallOnlineChart->total  = $this->totalCalls;
+                $modelCallOnlineChart->save();
+            }
 
             echo 'totalUp = ' . $totalUp . ' -> totalCalls = ' . $totalCalls . "\n";
             echo 'this->totalUpCalls = ' . $this->totalUpCalls . ' -> this->totalCalls = ' . $this->totalCalls . "\n";
@@ -404,7 +515,9 @@ class CallChartCommand extends ConsoleCommand
         } else {
             CallOnLine::model()->deleteAll();
         }
-        sleep(4);
+        if ($sleepAfter) {
+            sleep(4);
+        }
     }
 
     private function isDid()
