@@ -40108,57 +40108,71 @@ Ext.define('Ext.ux.form.field.FileUpload', {
     },
     reset: function() {
         var me = this;
-        if (!me.isAudio) {
-            return;
+        if (me.buttonPlay) {
+            me.buttonPlay.setIconCls('icon-play');
         }
-        if (me.audio && !me.audio.paused && me.audio.currentTime) {
-            me.audio.pause();
-            me.audio.currentTime = 0;
+        if (me.triggerPlay && me.triggerPlay.el) {
+            me.triggerPlay.el.setWidth(0);
         }
-        me.buttonPlay.setIconCls('icon-play');
-        me.triggerPlay.el.setWidth(0);
-        if (Ext.isIE) {
+        if (Ext.isIE && me.buttonPlay && me.buttonPlay.getEl()) {
             me.buttonPlay.getEl().repaint();
         }
         me.callParent(arguments);
     },
     onEditForm: function() {
         var me = this,
-            record = me.formPanel.getForm().getRecord(),
-            audio = record && record.get(me.name),
+            form = me.formPanel && me.formPanel.getForm(),
+            record = form && form.getRecord(),
+            audio = record ? record.get(me.name) : null,
             hasAudio = !Ext.isEmpty(audio);
         if (!me.isAudio) {
             return;
         }
-        if (me.audio && !me.audio.paused && me.audio.currentTime) {
-            me.audio.pause();
-            me.audio.currentTime = 0;
+        if (me.buttonPlay) {
+            me.buttonPlay.setIconCls('icon-play');
         }
-        me.buttonPlay.setIconCls('icon-play');
         if (hasAudio) {
-            me.audio = new Audio(audio);
-            me.audio.addEventListener('ended', Ext.bind(me.onEndAudio, me));
-            me.triggerPlay.el.setWidth(me.buttonPlay.el.getWidth() + me.buttonPlay.el.getMargin('lr'));
-            if (Ext.isIE) {
+            me.setRawValue(audio);
+            if (me.inputEl) {
+                me.inputEl.dom.value = audio;
+            }
+            if (me.triggerPlay && me.triggerPlay.el && me.buttonPlay && me.buttonPlay.el) {
+                me.triggerPlay.el.setWidth(me.buttonPlay.el.getWidth() + me.buttonPlay.el.getMargin('lr'));
+            }
+            if (Ext.isIE && me.buttonPlay && me.buttonPlay.getEl()) {
                 me.buttonPlay.getEl().repaint();
             }
         } else {
-            me.triggerPlay.el.setWidth(0);
-            if (Ext.isIE) {
+            me.setRawValue('');
+            if (me.inputEl) {
+                me.inputEl.dom.value = '';
+            }
+            if (me.triggerPlay && me.triggerPlay.el) {
+                me.triggerPlay.el.setWidth(0);
+            }
+            if (Ext.isIE && me.buttonPlay && me.buttonPlay.getEl()) {
                 me.buttonPlay.getEl().repaint();
             }
         }
-        me.buttonPlay.setVisible(hasAudio);
-        me.triggerPlay.setVisible(hasAudio);
+        if (me.buttonPlay) {
+            me.buttonPlay.setVisible(hasAudio);
+        }
+        if (me.triggerPlay) {
+            me.triggerPlay.setVisible(hasAudio);
+        }
     },
     onEndAudio: function() {
-        this.buttonPlay.setIconCls('icon-play');
+        if (this.buttonPlay) {
+            this.buttonPlay.setIconCls('icon-play');
+        }
     },
     playStop: function(btn) {
         var me = this,
-            isPlay = btn.iconCls === 'icon-play';
-        if (isPlay) {
-            url = 'index.php/playAudio/?audio=' + me.formPanel.getForm().getRecord().get(me.name);
+            form = me.formPanel && me.formPanel.getForm(),
+            record = form && form.getRecord(),
+            audio = (record && record.get(me.name)) ? record.get(me.name) : me.getRawValue();
+        if (audio) {
+            var url = 'index.php/playAudio/?audio=' + encodeURIComponent(audio);
             window.open(url, "_blank");
         }
     },
