@@ -69,6 +69,9 @@ class CampaignOptimizerCommand extends CConsoleCommand
             // 4. Reconcile pending/dispatched attempts against Asterisk reports and CDRs
             if ($action === 'all' || $action === 'reconcile') {
                 $reconciledCount                = CampaignResultAdapter::reconcilePendingAttempts();
+                if (class_exists('CampaignAnalyticsService')) {
+                    CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(0);
+                }
                 $metrics['attempts_reconciled'] = $reconciledCount;
                 echo "  - Pending attempts reconciled: $reconciledCount\n";
             }

@@ -12,7 +12,7 @@ Ext.define('MBilling.model.CampaignFailedAnalytics', {
         { name: 'count_failed', type: 'int' },
         { name: 'count_congestion', type: 'int' },
         { name: 'count_chanunavail', type: 'int' },
-        { name: 'last_sip_code', type: 'int' },
+        { name: 'last_sip_code', type: 'string' },
         { name: 'last_hangup_cause', type: 'int' },
         { name: 'current_state', type: 'string' },
         { name: 'suspended_until', type: 'string' },

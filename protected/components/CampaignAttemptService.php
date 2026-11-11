@@ -207,6 +207,30 @@ class CampaignAttemptService
     {
         try {
             $now = date('Y-m-d H:i:s');
+            $normalizedStatus = ($status === 'TIMED_OUT') ? 'NOANSWER' : $status;
+            if ($status === 'TIMED_OUT') {
+                $hangupcause = $hangupcause ?? 19;
+                $sipCode = $sipCode ?? '480';
+            }
+
+            $sql = "UPDATE pkg_campaign_optimizer_attempt
+                    SET status = :status,
+                        hangupcause = COALESCE(:hangupcause, hangupcause),
+                        sip_code = COALESCE(:sipCode, sip_code),
+                        evidence_source = COALESCE(:evidenceSource, evidence_source),
+                        uniqueid = COALESCE(:uniqueid, uniqueid),
+                        finalized_at = :now
+                    WHERE id = :id";
+            $command = Yii::app()->db->createCommand($sql);
+            $command->bindValue(':id', (int) $attemptId, PDO::PARAM_INT);
+            $command->bindValue(':status', $normalizedStatus, PDO::PARAM_STR);
+            $command->bindValue(':hangupcause', $hangupcause, $hangupcause !== null ? PDO::PARAM_INT : PDO::PARAM_NULL);
+            $command->bindValue(':sipCode', $sipCode, $sipCode !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $command->bindValue(':evidenceSource', $evidenceSource, $evidenceSource !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $command->bindValue(':uniqueid', $uniqueid, $uniqueid !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $command->bindValue(':now', $now, PDO::PARAM_STR);
+            $updated = $command->execute() > 0;
+
             $attempt = CampaignOptimizerAttempt::model()->findByPk((int) $attemptId);
             if ($attempt) {
                 $localDate = date('Y-m-d', strtotime($attempt->reserved_at));
@@ -214,43 +238,28 @@ class CampaignAttemptService
                     (int) $attempt->id_user_owner,
                     $attempt->canonical_number,
                     $localDate,
-                    $status
+                    $normalizedStatus
                 );
 
-                // Si es un fallo terminal, evaluar suspensión y registrar en pkg_campaign_failed_analytics
-                if (in_array($status, ['BUSY', 'NOANSWER', 'FAILED', 'CONGESTION'], true)) {
+                // Si es un fallo terminal, evaluar suspensión y registrar en pkg_campaign_failed_analytics y pkg_cdr_failed
+                if (in_array($normalizedStatus, ['BUSY', 'NOANSWER', 'FAILED', 'CONGESTION', 'CANCEL'], true)) {
                     $isSuspended = self::checkAndApplyFailureSuspension($attempt);
                     if (class_exists('CampaignAnalyticsService')) {
                         CampaignAnalyticsService::recordFailedAttempt(
                             (int) $attempt->id_campaign,
                             $attempt->canonical_number,
                             $localDate,
-                            $status,
+                            $normalizedStatus,
                             $hangupcause,
                             $sipCode,
                             $isSuspended
                         );
+                        CampaignAnalyticsService::ensureFailedCdrForAttempt((int) $attempt->id);
                     }
                 }
             }
 
-            $sql = "UPDATE pkg_campaign_optimizer_attempt
-                    SET status = :status,
-                        hangupcause = :hangupcause,
-                        sip_code = :sipCode,
-                        evidence_source = :evidenceSource,
-                        uniqueid = COALESCE(:uniqueid, uniqueid),
-                        finalized_at = :now
-                    WHERE id = :id";
-            $command = Yii::app()->db->createCommand($sql);
-            $command->bindValue(':id', (int) $attemptId, PDO::PARAM_INT);
-            $command->bindValue(':status', $status, PDO::PARAM_STR);
-            $command->bindValue(':hangupcause', $hangupcause, $hangupcause !== null ? PDO::PARAM_INT : PDO::PARAM_NULL);
-            $command->bindValue(':sipCode', $sipCode, $sipCode !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
-            $command->bindValue(':evidenceSource', $evidenceSource, $evidenceSource !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
-            $command->bindValue(':uniqueid', $uniqueid, $uniqueid !== null ? PDO::PARAM_STR : PDO::PARAM_NULL);
-            $command->bindValue(':now', $now, PDO::PARAM_STR);
-            return $command->execute() > 0;
+            return $updated;
         } catch (Exception $e) {
             Yii::log('Error in markFinalized: ' . $e->getMessage(), CLogger::LEVEL_ERROR);
             return false;
@@ -269,13 +278,13 @@ class CampaignAttemptService
             $localDate = date('Y-m-d', strtotime($attempt->reserved_at));
             $config = CampaignOptimizerConfig::model()->find('id_campaign = :c AND activated = 1', [':c' => (int) $attempt->id_campaign]);
             $maxFailed = $config ? (int) $config->max_failed_attempts : 5;
-            $timezone = $config ? $config->timezone : 'America/Mexico_City';
+            $timezone = $config ? $config->timezone : 'America/Bogota';
 
             // Contar fallos de hoy para este contacto en esta campaña
             $failCount = Yii::app()->db->createCommand(
                 "SELECT COUNT(*) FROM pkg_campaign_optimizer_attempt
                  WHERE id_campaign = :c AND id_phonenumber = :p
-                   AND status IN ('BUSY', 'NOANSWER', 'FAILED', 'CONGESTION')
+                   AND status IN ('BUSY', 'NOANSWER', 'FAILED', 'CONGESTION', 'CANCEL', 'TIMED_OUT')
                    AND reserved_at >= :startDay AND reserved_at <= :endDay"
             )->bindValues([
                 ':c' => (int) $attempt->id_campaign,

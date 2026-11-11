@@ -458,6 +458,26 @@
             return in_array($relatedField, $exposedFields, true);
         }
 
+        public function beforeRead($values)
+        {
+            if (class_exists('CampaignAnalyticsService')) {
+                CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(3);
+            }
+            return parent::beforeRead($values);
+        }
+
+        public function readCountRecord()
+        {
+            $count = (int) parent::readCountRecord();
+            if ($count < 50000 && (!isset($_GET['filter']) || strlen($_GET['filter']) < 3) && Yii::app()->session['isAdmin'] == true) {
+                try {
+                    return (int) Yii::app()->db->createCommand('SELECT COUNT(*) FROM pkg_cdr_failed')->queryScalar();
+                } catch (Exception $e) {
+                }
+            }
+            return $count;
+        }
+
         public function actionCallInfo()
         {
             header('Content-Type: application/json; charset=utf-8');

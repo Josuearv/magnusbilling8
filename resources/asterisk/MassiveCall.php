@@ -94,7 +94,7 @@ class MassiveCall
             if ($attemptId > 0) {
                 $amdCause = $agi->get_variable("AMDCAUSE", true);
                 $sqlAttempt = "UPDATE pkg_campaign_optimizer_attempt 
-                               SET status = 'BUSY', sip_code = 'AMD', evidence_source = '" . addslashes($amdCause) . "' 
+                               SET status = 'BUSY', hangupcause = 17, sip_code = 'AMD', evidence_source = '" . addslashes($amdCause) . "' 
                                WHERE id = " . $attemptId . " LIMIT 1";
                 $agi->exec($sqlAttempt);
             }

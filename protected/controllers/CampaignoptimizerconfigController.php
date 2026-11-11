@@ -101,8 +101,11 @@ class CampaignoptimizerconfigController extends Controller
             // 2. Rotar audios elegibles
             $audiosRotated = CampaignAudioService::rotateAllEligibleCampaigns();
 
-            // 3. Reconciliar llamadas fallidas pre/post AGI
+            // 3. Reconciliar llamadas fallidas pre/post AGI y sincronizar analítica/CDR fallidas
             $reconcileStats = CampaignResultAdapter::reconcileDispatchedAttempts(500);
+            if (class_exists('CampaignAnalyticsService')) {
+                CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(0);
+            }
 
             $duration = round(microtime(true) - $startTime, 3);
 

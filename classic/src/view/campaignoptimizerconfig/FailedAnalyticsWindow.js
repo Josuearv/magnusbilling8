@@ -95,8 +95,9 @@ Ext.define('MBilling.view.campaignoptimizerconfig.FailedAnalyticsWindow', {
                     iconCls: 'x-fa fa-eraser',
                     handler: function () {
                         grid.down('#searchPhone').setValue('');
-                        store.clearFilter();
-                        store.load();
+                        delete store.getProxy().extraParams.filter;
+                        store.clearFilter(true);
+                        store.loadPage(1);
                     }
                 },
                 '-',
@@ -212,15 +213,18 @@ Ext.define('MBilling.view.campaignoptimizerconfig.FailedAnalyticsWindow', {
 
     applySearch: function (store, value) {
         if (!value || value.trim() === '') {
-            store.clearFilter();
-            store.load();
+            delete store.getProxy().extraParams.filter;
+            store.clearFilter(true);
+            store.loadPage(1);
             return;
         }
-        store.filter({
-            property: 'canonical_number',
-            value: value.trim(),
-            anyMatch: true
-        });
+        store.getProxy().extraParams.filter = Ext.encode([{
+            type: 'string',
+            field: 'canonical_number',
+            comparison: 'ct',
+            value: value.trim()
+        }]);
+        store.loadPage(1);
     },
 
     doReactivate: function (id, cb) {
