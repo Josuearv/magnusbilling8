@@ -143,28 +143,57 @@ Ext.define('MBilling.view.campaign.Controller', {
     },
     onTestCampaign: function (btn) {
         var me = this,
-            selected = me.list.getSelectionModel().getSelection()[0];
-        if (me.list.getSelectionModel().getSelection().length == 0) {
-            Ext.ux.Alert.alert(me.titleError, t('Please select one campaign'), 'notification');
-        } else if (me.list.getSelectionModel().getSelection().length > 1) {
-            Ext.ux.Alert.alert(me.titleError, t('Please select only one campaign'), 'notification');
-        } else {
-            Ext.Ajax.request({
-                url: 'index.php/campaign/testCampaign',
-                params: {
-                    id: selected.get('id')
-                },
-                scope: me,
-                success: function (response) {
-                    response = Ext.decode(response.responseText);
-                    if (response[me.nameSuccessRequest]) {
-                        Ext.ux.Alert.alert(me.titleSuccess, response[me.nameMsgRequest], 'success');
-                    } else {
-                        var errors = Helper.Util.convertErrorsJsonToString(response[me.nameMsgRequest]);
-                        Ext.ux.Alert.alert(me.titleError, errors, 'error');
-                    }
-                }
-            });
+            idCampaign = null;
+
+        if (btn && btn.up('form')) {
+            var form = btn.up('form').getForm(),
+                idField = form.findField('id');
+            idCampaign = idField ? idField.getValue() : (me.formPanel ? me.formPanel.idRecord : null);
+            if (!idCampaign) {
+                Ext.ux.Alert.alert(me.titleError, t('Please save the campaign first.'), 'notification');
+                return;
+            }
+        } else if (me.list) {
+            var selection = me.list.getSelectionModel().getSelection();
+            if (selection.length === 0) {
+                Ext.ux.Alert.alert(me.titleError, t('Please select one campaign'), 'notification');
+                return;
+            } else if (selection.length > 1) {
+                Ext.ux.Alert.alert(me.titleError, t('Please select only one campaign'), 'notification');
+                return;
+            }
+            idCampaign = selection[0].get('id');
         }
+
+        if (!idCampaign) {
+            Ext.ux.Alert.alert(me.titleError, t('Please select one campaign'), 'notification');
+            return;
+        }
+
+        Ext.Ajax.request({
+            url: 'index.php/campaign/testCampaign',
+            params: {
+                id: idCampaign
+            },
+            scope: me,
+            success: function (response) {
+                var res = Ext.decode(response.responseText);
+                if (res[me.nameSuccessRequest]) {
+                    Ext.ux.Alert.alert(me.titleSuccess, res[me.nameMsgRequest], 'success');
+                } else {
+                    var errors = Helper.Util.convertErrorsJsonToString(res[me.nameMsgRequest]);
+                    Ext.ux.Alert.alert(me.titleError, errors, 'error');
+                }
+            },
+            failure: function (response) {
+                try {
+                    var res = Ext.decode(response.responseText);
+                    var errors = Helper.Util.convertErrorsJsonToString(res[me.nameMsgRequest] || res.msg);
+                    Ext.ux.Alert.alert(me.titleError, errors, 'error');
+                } catch (e) {
+                    Ext.ux.Alert.alert(me.titleError, t('Error checking campaign'), 'error');
+                }
+            }
+        });
     }
 });

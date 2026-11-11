@@ -35,6 +35,9 @@ class MassiveCallCommand extends ConsoleCommand
         $config         = LoadConfig::getConfig();
         $UNIX_TIMESTAMP = "UNIX_TIMESTAMP(";
         $idCampaign     = isset($args[0]) ? (int) $args[0] : 0;
+        if ($idCampaign > 0) {
+            $this->debug = 1;
+        }
 
         $tab_day  = [1 => 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
         $num_day  = date('N');
@@ -140,7 +143,34 @@ class MassiveCallCommand extends ConsoleCommand
                 $id_plan_agent = 0;
             }
 
+            if ((int) $campaign->type === 1) {
+                $uploaddir = '/usr/local/src/magnus/sounds/';
+                if (! file_exists($uploaddir)) {
+                    $uploaddir = dirname(__FILE__) . '/../../sounds/';
+                }
+                $audioWav = $uploaddir . 'idCampaign_' . $campaign->id . '.wav';
+                $audioGsm = $uploaddir . 'idCampaign_' . $campaign->id . '.gsm';
+                $hasAudio = file_exists($audioWav) || file_exists($audioGsm);
+                if (! $hasAudio && ! empty($campaign->audio)) {
+                    $hasAudio = file_exists($uploaddir . $campaign->audio) || file_exists($campaign->audio);
+                }
+                if (! $hasAudio) {
+                    if ($idCampaign > 0) {
+                        echo Yii::t('zii', 'No audio file found for campaign "{campaign}". Upload a WAV or GSM audio file in the General tab.', ['{campaign}' => $campaign->name]) . "\n";
+                        return 1;
+                    }
+                    if ($this->debug >= 1) {
+                        echo "NO AUDIO FILE FOR CAMPAIGN " . $campaign->name . "\n\n\n";
+                    }
+                    continue;
+                }
+            }
+
             if (UserCreditManager::checkGlobalCredit($id_user) === false) {
+                if ($idCampaign > 0) {
+                    echo Yii::t('zii', 'User "{username}" has insufficient credit to make calls.', ['{username}' => $username]) . "\n";
+                    return 1;
+                }
                 if ($this->debug >= 1) {
                     echo " USER NO CREDIT FOR CALL " . $username . "\n\n\n";
                 }
@@ -166,6 +196,29 @@ class MassiveCallCommand extends ConsoleCommand
                 $ids_phone_books[] = $phonebook->id_phonebook;
             }
 
+            if (empty($ids_phone_books)) {
+                if ($idCampaign > 0) {
+                    echo Yii::t('zii', 'Campaign "{campaign}" has no phonebooks assigned. Select one or more phonebooks in the General tab.', ['{campaign}' => $campaign->name]) . "\n";
+                    return 1;
+                }
+                if ($this->debug >= 1) {
+                    echo "NO PHONEBOOK ASSIGNED FOR CAMPAIGN " . $campaign->name . "\n\n\n";
+                }
+                continue;
+            }
+
+            $activePhonebooks = PhoneBook::model()->countByAttributes(['id' => $ids_phone_books, 'status' => 1]);
+            if ($activePhonebooks == 0) {
+                if ($idCampaign > 0) {
+                    echo Yii::t('zii', 'The assigned phonebook(s) are inactive. Activate them in Phone Books.') . "\n";
+                    return 1;
+                }
+                if ($this->debug >= 1) {
+                    echo "ASSIGNED PHONEBOOKS ARE INACTIVE\n\n\n";
+                }
+                continue;
+            }
+
             $criteria = new CDbCriteria();
             $criteria->addInCondition('id_phonebook', $ids_phone_books);
             $criteria->addCondition('status = :key AND creationdate < :key1');
@@ -179,6 +232,20 @@ class MassiveCallCommand extends ConsoleCommand
             }
 
             if (! isset($modelPhoneNumber[0])) {
+                if ($idCampaign > 0) {
+                    $totalNumbers = PhoneNumber::model()->countByAttributes(['id_phonebook' => $ids_phone_books]);
+                    if ($totalNumbers == 0) {
+                        echo Yii::t('zii', 'The assigned phonebook has no phone numbers.') . "\n";
+                    } else {
+                        $activeCount = PhoneNumber::model()->countByAttributes(['id_phonebook' => $ids_phone_books, 'status' => 1]);
+                        if ($activeCount > 0) {
+                            echo Yii::t('zii', 'There are active numbers, but their start time is in the future.') . "\n";
+                        } else {
+                            echo Yii::t('zii', 'All numbers in the phonebook have already been dialed or are inactive. Click "Reprocess" in Phone numbers or enable "Auto reprocess" in the campaign.') . "\n";
+                        }
+                    }
+                    return 1;
+                }
                 if ($this->debug >= 1) {
                     echo "NO PHONE FOR CALL" . "\n\n\n";
                 }
@@ -418,6 +485,10 @@ class MassiveCallCommand extends ConsoleCommand
             if (strlen($reportValues)) {
                 CampaignReport::insertReport(substr($reportValues, 0, -1));
             }
+            if ($callsQueued === 0 && $idCampaign > 0) {
+                echo Yii::t('zii', 'No calls could be queued. Check if the user plan has rates configured for these phone destinations and that an active trunk is available.') . "\n";
+                return 1;
+            }
             echo Yii::t(
                 'zii',
                 'Campaign "{campaign}" was processed. Calls queued: {count}.',
@@ -426,6 +497,9 @@ class MassiveCallCommand extends ConsoleCommand
                     '{count}'    => $callsQueued,
                 ]
             ) . "\n\n";
+            if ($idCampaign > 0) {
+                return 0;
+            }
         }
     }
 }

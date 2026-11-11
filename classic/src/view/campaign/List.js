@@ -28,6 +28,13 @@ Ext.define('MBilling.view.campaign.List', {
         me.buttonCsv = false;
         me.allowPrint = false;
 
+        me.extraButtons = [{
+            text: t('Check campaign'),
+            iconCls: 'call',
+            handler: 'onTestCampaign',
+            disabled: false
+        }];
+
         me.columns = [{
             header: t('ID'),
             dataIndex: 'id',

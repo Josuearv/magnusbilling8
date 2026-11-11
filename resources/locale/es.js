@@ -14,6 +14,8 @@
  * 2026
  */
 Locale.load({
+    'Please save the campaign first.': 'Primero guarde la campaña.',
+    'Error checking campaign': 'Error al verificar la campaña.',
     "Unable to start MagnusBilling. Reload the page or contact the administrator.": "No se pudo iniciar MagnusBilling. Recargue la página o contacte al administrador.",
     'Endpoint Details': 'Detalles del endpoint',
     "Invalid request parameters. Check the submitted values.": "Parámetros de solicitud no válidos. Revise los valores enviados.",
