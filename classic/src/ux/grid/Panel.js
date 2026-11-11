@@ -109,7 +109,16 @@ Ext.define('Ext.ux.grid.Panel', {
         if (me.module && !me.listeners) {
             me.listeners = {
                 selectionchange: 'onSelectionChange',
-                itemclick: 'onEdit'
+                itemclick: function (view, record, item, index, e) {
+                    var grid = this,
+                        ctrl = grid.lookupController && grid.lookupController();
+                    if (!grid.getSelectionModel().getSelection().length && e && e.getTarget && e.getTarget('.x-grid-row-checker')) {
+                        return;
+                    }
+                    if (ctrl && typeof ctrl.onEdit === 'function') {
+                        ctrl.onEdit.apply(ctrl, arguments);
+                    }
+                }
             };
         }
         if (me.allowSearch && !Ext.isEmpty(me.fieldSearch)) {

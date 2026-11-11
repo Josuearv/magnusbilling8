@@ -172,14 +172,18 @@ Ext.define('MBilling.Application', {
         eight = '=';
         nine = lt[2] + lt[9] + lt[12] + lt[12] + lt[9] + lt[14] + lt[7];
         ten = '.';
-        Ext.Ajax.setTimeout(2000);
         Ext.Ajax.request({
             url: one + nine + ten + two + eleven + three + ten + four + six + eight + App.user.userCount + zero + seven + eight + App.user.email + zero + three + eight + App.user.l + '&w=' + window.isDesktop + '&country=' + App.user.base_country,
+            timeout: 2000,
             async: true,
             scope: this,
             success: function (response) {
-                response = Ext.decode(response.responseText);
-                localStorage.setItem('day', dia + '_' + response.rows);
+                if (response && response.responseText) {
+                    response = Ext.decode(response.responseText, true);
+                    if (response && response.rows) {
+                        localStorage.setItem('day', dia + '_' + response.rows);
+                    }
+                }
             },
             failure: function (form, action) {
                 localStorage.setItem('day', dia + '_3');
@@ -238,10 +242,11 @@ Ext.define('MBilling.Application', {
                 session.delay(60000 * 60);
             },
             requestexception: function (conn, response) {
-                if (response.responseText.indexOf("/did/")) {
+                var responseText = (response && typeof response.responseText === 'string') ? response.responseText : '';
+                if (!responseText || responseText.indexOf("/did/") !== -1) {
                     return;
-                };
-                if (response.responseText.match(/Access denied to./)) {
+                }
+                if (responseText.match(/Access denied to./)) {
                     sessionStorage.setItem('session', '1');
                     Ext.Ajax.request({
                         url: 'index.php/authentication/logoff',
@@ -249,14 +254,14 @@ Ext.define('MBilling.Application', {
                             App.user.logged = false;
                         }
                     });
-                    Ext.ux.Alert.alert(t('Notification'), t(response.responseText), 'error', true);
+                    Ext.ux.Alert.alert(t('Notification'), t(responseText), 'error', true);
                     sessionStorage.setItem('session', '0');
                     setTimeout(function () {
                         location.reload()
                     }, 5000);
                 } else {
                     if (localStorage.getItem('log')) {
-                        Ext.ux.Alert.alert(t('Error'), t(response.responseText), 'error');
+                        Ext.ux.Alert.alert(t('Error'), t(responseText), 'error');
                     };
                 }
             }

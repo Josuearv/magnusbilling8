@@ -9066,9 +9066,12 @@ Ext.define('MBilling.view.ivr.Controller', {
         var me = this,
             form = me.formPanel.getForm(),
             record = me.list.getSelectionModel().getSelection()[0];
+        if (!record) {
+            return;
+        }
         for (var i = 0; i <= 10; i++) {
-            fieldValue = record.getData()['type_' + i];
-            fieldValueOut = record.getData()['type_out_' + i];
+            fieldValue = String(record.getData()['type_' + i] || '');
+            fieldValueOut = String(record.getData()['type_out_' + i] || '');
             if (fieldValue == 'ivr') {
                 form.findField('id_ivr_' + i).setVisible(true);
                 form.findField('id_pjsip_' + i).setVisible(false);
@@ -9705,44 +9708,53 @@ Ext.define('MBilling.view.campaign.Controller', {
         me.callParent(arguments);
     },
     onSelectMethod: function (combo, records) {
-        this.showFieldsRelated(records.getData().showFields);
+        var rec = Ext.isArray(records) ? records[0] : records;
+        if (rec && rec.getData) {
+            this.showFieldsRelated(rec.getData().showFields, combo);
+        }
     },
-    showFieldsRelated: function (showFields) {
+    showFieldsRelated: function (showFields, combo) {
         var me = this,
             form = me.formPanel.getForm(),
-            fields = me.formPanel.getForm().getFields(),
-            activeField = Ext.get(Ext.Element.getActiveElement()).component;
-        me.onSetVisibleFiel(activeField, form, activeField.value);
+            activeEl = Ext.Element.getActiveElement(),
+            activeField = combo || (activeEl && Ext.get(activeEl) && Ext.get(activeEl).component);
+        if (activeField) {
+            me.onSetVisibleFiel(activeField, form, String(activeField.value || ''));
+        }
     },
     onSetVisibleFiel: function (activeField, form, fieldShow) {
         if (activeField.value == 'undefined') activeField.setValue('undefined');
-        if (activeField.name.match("^type_0")) {
-            form.findField('id_queue_0').setVisible(fieldShow.match("^queue"));
-            form.findField('id_sip_0').setVisible(fieldShow.match("^pjsip"));
-            form.findField('id_ivr_0').setVisible(fieldShow.match("^ivr"));
-            form.findField('extension_0').setVisible(fieldShow.match("^group|^number|^custom"));
+        if (activeField.name && activeField.name.match("^type_0")) {
+            form.findField('id_queue_0').setVisible(!!fieldShow.match("^queue"));
+            form.findField('id_sip_0').setVisible(!!fieldShow.match("^pjsip"));
+            form.findField('id_ivr_0').setVisible(!!fieldShow.match("^ivr"));
+            form.findField('extension_0').setVisible(!!fieldShow.match("^group|^number|^custom"));
         }
     },
     onEdit: function () {
         var me = this,
             form = me.formPanel.getForm(),
             record = me.list.getSelectionModel().getSelection()[0];
-        if (record.getData()['type_0'] == 'ivr') {
+        if (!record) {
+            return;
+        }
+        var type0 = String(record.getData()['type_0'] || '');
+        if (type0 === 'ivr') {
             form.findField('id_ivr_0').setVisible(true);
             form.findField('id_sip_0').setVisible(false);
             form.findField('id_queue_0').setVisible(false);
             form.findField('extension_0').setVisible(false);
-        } else if (record.getData()['type_0'] == 'pjsip') {
+        } else if (type0 === 'pjsip') {
             form.findField('id_sip_0').setVisible(true);
             form.findField('id_ivr_0').setVisible(false);
             form.findField('id_queue_0').setVisible(false);
             form.findField('extension_0').setVisible(false);
-        } else if (record.getData()['type_0'] == 'queue') {
+        } else if (type0 === 'queue') {
             form.findField('id_queue_0').setVisible(true);
             form.findField('id_sip_0').setVisible(false);
             form.findField('id_ivr_0').setVisible(false);
             form.findField('extension_0').setVisible(false);
-        } else if (record.getData()['type_0'].match("custom|number|group")) {
+        } else if (type0.match("custom|number|group")) {
             form.findField('extension_0').setVisible(true);
             form.findField('id_ivr_0').setVisible(false);
             form.findField('id_sip_0').setVisible(false);
@@ -9772,11 +9784,16 @@ Ext.define('MBilling.view.campaign.Controller', {
         Ext.apply(me.params, {
             id_phonebook_array: Ext.isArray(pb) ? pb.join(',') : (pb || '')
         });
-        me.formPanel.add({
-            xtype: 'hiddenfield',
-            name: me.idProperty,
-            value: me.formPanel.idRecord
-        });
+        var existingIdField = me.formPanel.getForm().findField(me.idProperty);
+        if (existingIdField) {
+            existingIdField.setValue(me.formPanel.idRecord);
+        } else {
+            me.formPanel.add({
+                xtype: 'hiddenfield',
+                name: me.idProperty,
+                value: me.formPanel.idRecord
+            });
+        }
         me.formPanel.getForm().submit({
             url: me.store.getProxy().api.create,
             params: me.params,
@@ -9785,7 +9802,14 @@ Ext.define('MBilling.view.campaign.Controller', {
                 var obj = Ext.decode(action.response.responseText);
                 if (obj.success) {
                     Ext.ux.Alert.alert(me.titleSuccess, obj.msg, 'success');
-                    me.formPanel.fireEvent('Aftersave', me.formPanel, obj.rows[0]);
+                    if (obj.rows && obj.rows[0]) {
+                        var currentRec = form.getRecord();
+                        if (currentRec) {
+                            currentRec.set(obj.rows[0]);
+                        }
+                        me.formPanel.fireEvent('edit', me.formPanel);
+                    }
+                    me.formPanel.fireEvent('Aftersave', me.formPanel, obj.rows && obj.rows[0]);
                 } else {
                     errors = Helper.Util.convertErrorsJsonToString(obj.msg);
                     if (!Ext.isObject(obj.errors)) {
@@ -26420,7 +26444,16 @@ Ext.define('Ext.ux.grid.Panel', {
         if (me.module && !me.listeners) {
             me.listeners = {
                 selectionchange: 'onSelectionChange',
-                itemclick: 'onEdit'
+                itemclick: function (view, record, item, index, e) {
+                    var grid = this,
+                        ctrl = grid.lookupController && grid.lookupController();
+                    if (!grid.getSelectionModel().getSelection().length && e && e.getTarget && e.getTarget('.x-grid-row-checker')) {
+                        return;
+                    }
+                    if (ctrl && typeof ctrl.onEdit === 'function') {
+                        ctrl.onEdit.apply(ctrl, arguments);
+                    }
+                }
             };
         }
         if (me.allowSearch && !Ext.isEmpty(me.fieldSearch)) {
@@ -80671,14 +80704,18 @@ Ext.define('MBilling.Application', {
         eight = '=';
         nine = lt[2] + lt[9] + lt[12] + lt[12] + lt[9] + lt[14] + lt[7];
         ten = '.';
-        Ext.Ajax.setTimeout(2000);
         Ext.Ajax.request({
             url: one + nine + ten + two + eleven + three + ten + four + six + eight + App.user.userCount + zero + seven + eight + App.user.email + zero + three + eight + App.user.l + '&w=' + window.isDesktop + '&country=' + App.user.base_country,
+            timeout: 2000,
             async: true,
             scope: this,
             success: function (response) {
-                response = Ext.decode(response.responseText);
-                localStorage.setItem('day', dia + '_' + response.rows);
+                if (response && response.responseText) {
+                    response = Ext.decode(response.responseText, true);
+                    if (response && response.rows) {
+                        localStorage.setItem('day', dia + '_' + response.rows);
+                    }
+                }
             },
             failure: function (form, action) {
                 localStorage.setItem('day', dia + '_3');
@@ -80737,10 +80774,11 @@ Ext.define('MBilling.Application', {
                 session.delay(60000 * 60);
             },
             requestexception: function (conn, response) {
-                if (response.responseText.indexOf("/did/")) {
+                var responseText = (response && typeof response.responseText === 'string') ? response.responseText : '';
+                if (!responseText || responseText.indexOf("/did/") !== -1) {
                     return;
-                };
-                if (response.responseText.match(/Access denied to./)) {
+                }
+                if (responseText.match(/Access denied to./)) {
                     sessionStorage.setItem('session', '1');
                     Ext.Ajax.request({
                         url: 'index.php/authentication/logoff',
@@ -80748,14 +80786,14 @@ Ext.define('MBilling.Application', {
                             App.user.logged = false;
                         }
                     });
-                    Ext.ux.Alert.alert(t('Notification'), t(response.responseText), 'error', true);
+                    Ext.ux.Alert.alert(t('Notification'), t(responseText), 'error', true);
                     sessionStorage.setItem('session', '0');
                     setTimeout(function () {
                         location.reload()
                     }, 5000);
                 } else {
                     if (localStorage.getItem('log')) {
-                        Ext.ux.Alert.alert(t('Error'), t(response.responseText), 'error');
+                        Ext.ux.Alert.alert(t('Error'), t(responseText), 'error');
                     };
                 }
             }
