@@ -61,6 +61,18 @@ class MassiveCallCommand extends ConsoleCommand
             $this->debug = 1;
         }
 
+        // Sincronizar zona horaria desde el optimizador de la campaña (si existe) o desde el sistema (/etc/timezone)
+        $preferredTz = null;
+        if (class_exists('CampaignOptimizerConfig')) {
+            $optTzModel = $idCampaign > 0
+                ? CampaignOptimizerConfig::model()->find('id_campaign = :c AND activated = 1', [':c' => $idCampaign])
+                : CampaignOptimizerConfig::model()->find('activated = 1 AND timezone IS NOT NULL AND timezone != ""');
+            if ($optTzModel && ! empty($optTzModel->timezone)) {
+                $preferredTz = $optTzModel->timezone;
+            }
+        }
+        LoadConfig::syncSystemTimezone($preferredTz);
+
         $tab_day  = [1 => 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
         $num_day  = date('N');
         $name_day = $tab_day[$num_day];
