@@ -48,28 +48,41 @@ class CampaignPollController extends Controller
     {
         if ($this->isNewRecord || isset($values['id_campaign'])) {
             $modelCampaign     = Campaign::model()->findByPk((int) $values['id_campaign']);
-            $values['id_user'] = $modelCampaign->id_user;
+            $values['id_user'] = $modelCampaign ? $modelCampaign->id_user : null;
         }
 
         if (isset($_FILES["arq_audio"]) && strlen($_FILES["arq_audio"]["name"]) > 1) {
             $data                = explode('.', $_FILES["arq_audio"]["name"]);
             $typefile            = array_pop($data);
-            $values['arq_audio'] = "idPoll_" . $values['id'] . '.' . $typefile;
+            $values['arq_audio'] = "idPoll_" . (isset($values['id']) && $values['id'] > 0 ? $values['id'] : '') . '.' . $typefile;
+        } elseif (! $this->isNewRecord) {
+            unset($values['arq_audio']);
         }
         return $values;
     }
 
     public function afterSave($model, $values)
     {
-
-        if (strlen($_FILES["arq_audio"]["name"]) > 1) {
-
+        if (isset($_FILES["arq_audio"]) && strlen($_FILES["arq_audio"]["name"]) > 1) {
             if (file_exists($this->uploaddir . 'idPoll_' . $model->id . '.wav')) {
-                unlink($this->uploaddir . 'idPoll_' . $model->id . '.wav');
+                @unlink($this->uploaddir . 'idPoll_' . $model->id . '.wav');
             }
-            $typefile = Util::validExtension($_FILES['arq_audio']['tmp_name'], $_FILES["arq_audio"]["name"], ['gsm', 'wav']);
-            $uploadfile = $this->uploaddir . 'idPoll_' . $model->id . '.' . $typefile;
-            move_uploaded_file($_FILES["arq_audio"]["tmp_name"], $uploadfile);
+            if (file_exists($this->uploaddir . 'idPoll_' . $model->id . '.gsm')) {
+                @unlink($this->uploaddir . 'idPoll_' . $model->id . '.gsm');
+            }
+            $typefile   = Util::validExtension($_FILES['arq_audio']['tmp_name'], $_FILES["arq_audio"]["name"], ['gsm', 'wav']);
+            $audioName  = 'idPoll_' . $model->id . '.' . $typefile;
+            $uploadfile = $this->uploaddir . $audioName;
+            if (move_uploaded_file($_FILES["arq_audio"]["tmp_name"], $uploadfile)) {
+                @chmod($uploadfile, 0666);
+            }
+            if ($model->arq_audio !== $audioName) {
+                $model->arq_audio = $audioName;
+                Yii::app()->db->createCommand("UPDATE pkg_campaign_poll SET arq_audio = :audio WHERE id = :id")
+                    ->bindValue(':audio', $audioName, PDO::PARAM_STR)
+                    ->bindValue(':id', $model->id, PDO::PARAM_INT)
+                    ->execute();
+            }
         }
 
         return;

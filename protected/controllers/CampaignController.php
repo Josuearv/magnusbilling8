@@ -114,13 +114,17 @@ class CampaignController extends Controller
         if (isset($_FILES["audio"]) && strlen($_FILES["audio"]["name"]) > 1) {
             $data            = explode('.', $_FILES["audio"]["name"]);
             $typefile        = array_pop($data);
-            $values['audio'] = "idCampaign_" . $values['id'] . '.' . $typefile;
+            $values['audio'] = "idCampaign_" . (isset($values['id']) && $values['id'] > 0 ? $values['id'] : '') . '.' . $typefile;
+        } elseif (! $this->isNewRecord) {
+            unset($values['audio']);
         }
 
         if (isset($_FILES["audio_2"]) && strlen($_FILES["audio_2"]["name"]) > 1) {
             $data              = explode('.', $_FILES["audio_2"]["name"]);
             $typefile          = array_pop($data);
-            $values['audio_2'] = "idCampaign_" . $values['id'] . '_2.' . $typefile;
+            $values['audio_2'] = "idCampaign_" . (isset($values['id']) && $values['id'] > 0 ? $values['id'] : '') . '_2.' . $typefile;
+        } elseif (! $this->isNewRecord) {
+            unset($values['audio_2']);
         }
 
         return $values;
@@ -130,19 +134,45 @@ class CampaignController extends Controller
     {
         if (isset($_FILES["audio"]) && strlen($_FILES["audio"]["name"]) > 1) {
             if (file_exists($this->uploaddir . 'idCampaign_' . $model->id . '.wav')) {
-                unlink($this->uploaddir . 'idCampaign_' . $model->id . '.wav');
+                @unlink($this->uploaddir . 'idCampaign_' . $model->id . '.wav');
             }
-            $typefile = Util::validExtension($_FILES['audio']['tmp_name'], $_FILES["audio"]["name"], ['gsm', 'wav']);
-            $uploadfile = $this->uploaddir . 'idCampaign_' . $model->id . '.' . $typefile;
-            move_uploaded_file($_FILES["audio"]["tmp_name"], $uploadfile);
+            if (file_exists($this->uploaddir . 'idCampaign_' . $model->id . '.gsm')) {
+                @unlink($this->uploaddir . 'idCampaign_' . $model->id . '.gsm');
+            }
+            $typefile   = Util::validExtension($_FILES['audio']['tmp_name'], $_FILES["audio"]["name"], ['gsm', 'wav']);
+            $audioName  = 'idCampaign_' . $model->id . '.' . $typefile;
+            $uploadfile = $this->uploaddir . $audioName;
+            if (move_uploaded_file($_FILES["audio"]["tmp_name"], $uploadfile)) {
+                @chmod($uploadfile, 0666);
+            }
+            if ($model->audio !== $audioName) {
+                $model->audio = $audioName;
+                Yii::app()->db->createCommand("UPDATE pkg_campaign SET audio = :audio WHERE id = :id")
+                    ->bindValue(':audio', $audioName, PDO::PARAM_STR)
+                    ->bindValue(':id', $model->id, PDO::PARAM_INT)
+                    ->execute();
+            }
         }
         if (isset($_FILES["audio_2"]) && strlen($_FILES["audio_2"]["name"]) > 1) {
             if (file_exists($this->uploaddir . 'idCampaign_' . $model->id . '_2.wav')) {
-                unlink($this->uploaddir . 'idCampaign_' . $model->id . '_2.wav');
+                @unlink($this->uploaddir . 'idCampaign_' . $model->id . '_2.wav');
             }
-            $typefile = Util::validExtension($_FILES['audio']['tmp_name'], $_FILES["audio_2"]["name"], ['gsm', 'wav']);
-            $uploadfile = $this->uploaddir . 'idCampaign_' . $model->id . '_2.' . $typefile;
-            move_uploaded_file($_FILES["audio_2"]["tmp_name"], $uploadfile);
+            if (file_exists($this->uploaddir . 'idCampaign_' . $model->id . '_2.gsm')) {
+                @unlink($this->uploaddir . 'idCampaign_' . $model->id . '_2.gsm');
+            }
+            $typefile   = Util::validExtension($_FILES['audio_2']['tmp_name'], $_FILES["audio_2"]["name"], ['gsm', 'wav']);
+            $audioName  = 'idCampaign_' . $model->id . '_2.' . $typefile;
+            $uploadfile = $this->uploaddir . $audioName;
+            if (move_uploaded_file($_FILES["audio_2"]["tmp_name"], $uploadfile)) {
+                @chmod($uploadfile, 0666);
+            }
+            if ($model->audio_2 !== $audioName) {
+                $model->audio_2 = $audioName;
+                Yii::app()->db->createCommand("UPDATE pkg_campaign SET audio_2 = :audio WHERE id = :id")
+                    ->bindValue(':audio', $audioName, PDO::PARAM_STR)
+                    ->bindValue(':id', $model->id, PDO::PARAM_INT)
+                    ->execute();
+            }
         }
     }
 
@@ -197,25 +227,20 @@ class CampaignController extends Controller
 
     public function afterDestroy($values)
     {
-        $namePk = $this->abstractModel->primaryKey();
-        if (array_key_exists(0, $values)) {
-            foreach ($values as $value) {
-                $id = $value[$namePk];
-
-                //deleta os audios da enquete
-
-                $uploadfile = $this->uploaddir . 'idCampaign_' . $id . '.gsm';
-                if (file_exists($uploadfile)) {
-                    unlink($uploadfile);
-                }
+        $namePk  = $this->abstractModel->primaryKey();
+        $records = array_key_exists(0, $values) ? $values : [$values];
+        foreach ($records as $value) {
+            $id = $value[$namePk] ?? null;
+            if (! $id) {
+                continue;
             }
-        } else {
-            $id = $values[$namePk];
-            //deleta os audios da enquete
-
-            $uploadfile = $this->uploaddir . 'idCampaign_' . $id . '.gsm';
-            if (file_exists($uploadfile)) {
-                unlink($uploadfile);
+            foreach (['', '_2'] as $suffix) {
+                foreach (['gsm', 'wav'] as $ext) {
+                    $file = $this->uploaddir . 'idCampaign_' . $id . $suffix . '.' . $ext;
+                    if (file_exists($file)) {
+                        @unlink($file);
+                    }
+                }
             }
         }
     }
