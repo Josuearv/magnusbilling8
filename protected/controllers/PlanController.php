@@ -173,10 +173,10 @@ class PlanController extends Controller
     public function actionRead($asJson = true, $condition = null)
     {
         if (Yii::app()->session['isAdmin']) {
-            $this->filter = ' AND id_user = 1';
+            $this->defaultFilter = 't.id_user = 1';
         }
 
-        parent::actionRead($asJson = true, $condition = null);
+        parent::actionRead($asJson, $condition);
     }
 
     public function getAttributesRequest()

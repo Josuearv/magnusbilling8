@@ -95,8 +95,9 @@ Ext.define('MBilling.view.campaign.Controller', {
     submitForm: function (values) {
         var me = this,
             store = me.store;
+        var pb = me.formPanel.getForm().getFieldValues().id_phonebook;
         Ext.apply(me.params, {
-            id_phonebook_array: me.formPanel.getForm().getFieldValues().id_phonebook.join(',')
+            id_phonebook_array: Ext.isArray(pb) ? pb.join(',') : (pb || '')
         });
         me.formPanel.add({
             xtype: 'hiddenfield',

@@ -9768,8 +9768,9 @@ Ext.define('MBilling.view.campaign.Controller', {
     submitForm: function (values) {
         var me = this,
             store = me.store;
+        var pb = me.formPanel.getForm().getFieldValues().id_phonebook;
         Ext.apply(me.params, {
-            id_phonebook_array: me.formPanel.getForm().getFieldValues().id_phonebook.join(',')
+            id_phonebook_array: Ext.isArray(pb) ? pb.join(',') : (pb || '')
         });
         me.formPanel.add({
             xtype: 'hiddenfield',
@@ -47089,13 +47090,26 @@ Ext.define('MBilling.view.campaign.Form', {
                     fieldLabel: t('Username'),
                     ownerForm: me,
                     allowBlank: App.user.isClient,
-                    hidden: App.user.isClient
+                    hidden: App.user.isClient,
+                    listeners: {
+                        select: function (lookup, value) {
+                            var rec = lookup.recordSelected;
+                            if (rec && rec.get('id_plan')) {
+                                var planField = me.down('[name=id_plan]');
+                                if (planField && !planField.getValue()) {
+                                    planField.setValue(rec.get('id_plan'), rec.get('idPlanname') || '');
+                                }
+                            }
+                        }
+                    }
                 }, {
-                    xtype: 'plancombo',
+                    xtype: App.user.isClient ? 'textfield' : 'planlookup',
+                    ownerForm: me,
                     name: 'id_plan',
                     fieldLabel: t('Plan'),
+                    displayField: 'idPlanname',
                     hidden: App.user.isClient,
-                    allowBlank: App.user.isClient
+                    allowBlank: true
                 }, {
                     name: 'name',
                     fieldLabel: t('Name')
