@@ -32,44 +32,53 @@ Ext.define('MBilling.view.campaign.Controller', {
         me.callParent(arguments);
     },
     onSelectMethod: function (combo, records) {
-        this.showFieldsRelated(records.getData().showFields);
+        var rec = Ext.isArray(records) ? records[0] : records;
+        if (rec && rec.getData) {
+            this.showFieldsRelated(rec.getData().showFields, combo);
+        }
     },
-    showFieldsRelated: function (showFields) {
+    showFieldsRelated: function (showFields, combo) {
         var me = this,
             form = me.formPanel.getForm(),
-            fields = me.formPanel.getForm().getFields(),
-            activeField = Ext.get(Ext.Element.getActiveElement()).component;
-        me.onSetVisibleFiel(activeField, form, activeField.value);
+            activeEl = Ext.Element.getActiveElement(),
+            activeField = combo || (activeEl && Ext.get(activeEl) && Ext.get(activeEl).component);
+        if (activeField) {
+            me.onSetVisibleFiel(activeField, form, String(activeField.value || ''));
+        }
     },
     onSetVisibleFiel: function (activeField, form, fieldShow) {
         if (activeField.value == 'undefined') activeField.setValue('undefined');
-        if (activeField.name.match("^type_0")) {
-            form.findField('id_queue_0').setVisible(fieldShow.match("^queue"));
-            form.findField('id_sip_0').setVisible(fieldShow.match("^pjsip"));
-            form.findField('id_ivr_0').setVisible(fieldShow.match("^ivr"));
-            form.findField('extension_0').setVisible(fieldShow.match("^group|^number|^custom"));
+        if (activeField.name && activeField.name.match("^type_0")) {
+            form.findField('id_queue_0').setVisible(!!fieldShow.match("^queue"));
+            form.findField('id_sip_0').setVisible(!!fieldShow.match("^pjsip"));
+            form.findField('id_ivr_0').setVisible(!!fieldShow.match("^ivr"));
+            form.findField('extension_0').setVisible(!!fieldShow.match("^group|^number|^custom"));
         }
     },
     onEdit: function () {
         var me = this,
             form = me.formPanel.getForm(),
             record = me.list.getSelectionModel().getSelection()[0];
-        if (record.getData()['type_0'] == 'ivr') {
+        if (!record) {
+            return;
+        }
+        var type0 = String(record.getData()['type_0'] || '');
+        if (type0 === 'ivr') {
             form.findField('id_ivr_0').setVisible(true);
             form.findField('id_sip_0').setVisible(false);
             form.findField('id_queue_0').setVisible(false);
             form.findField('extension_0').setVisible(false);
-        } else if (record.getData()['type_0'] == 'pjsip') {
+        } else if (type0 === 'pjsip') {
             form.findField('id_sip_0').setVisible(true);
             form.findField('id_ivr_0').setVisible(false);
             form.findField('id_queue_0').setVisible(false);
             form.findField('extension_0').setVisible(false);
-        } else if (record.getData()['type_0'] == 'queue') {
+        } else if (type0 === 'queue') {
             form.findField('id_queue_0').setVisible(true);
             form.findField('id_sip_0').setVisible(false);
             form.findField('id_ivr_0').setVisible(false);
             form.findField('extension_0').setVisible(false);
-        } else if (record.getData()['type_0'].match("custom|number|group")) {
+        } else if (type0.match("custom|number|group")) {
             form.findField('extension_0').setVisible(true);
             form.findField('id_ivr_0').setVisible(false);
             form.findField('id_sip_0').setVisible(false);
@@ -99,11 +108,16 @@ Ext.define('MBilling.view.campaign.Controller', {
         Ext.apply(me.params, {
             id_phonebook_array: Ext.isArray(pb) ? pb.join(',') : (pb || '')
         });
-        me.formPanel.add({
-            xtype: 'hiddenfield',
-            name: me.idProperty,
-            value: me.formPanel.idRecord
-        });
+        var existingIdField = me.formPanel.getForm().findField(me.idProperty);
+        if (existingIdField) {
+            existingIdField.setValue(me.formPanel.idRecord);
+        } else {
+            me.formPanel.add({
+                xtype: 'hiddenfield',
+                name: me.idProperty,
+                value: me.formPanel.idRecord
+            });
+        }
         me.formPanel.getForm().submit({
             url: me.store.getProxy().api.create,
             params: me.params,
@@ -112,7 +126,14 @@ Ext.define('MBilling.view.campaign.Controller', {
                 var obj = Ext.decode(action.response.responseText);
                 if (obj.success) {
                     Ext.ux.Alert.alert(me.titleSuccess, obj.msg, 'success');
-                    me.formPanel.fireEvent('Aftersave', me.formPanel, obj.rows[0]);
+                    if (obj.rows && obj.rows[0]) {
+                        var currentRec = form.getRecord();
+                        if (currentRec) {
+                            currentRec.set(obj.rows[0]);
+                        }
+                        me.formPanel.fireEvent('edit', me.formPanel);
+                    }
+                    me.formPanel.fireEvent('Aftersave', me.formPanel, obj.rows && obj.rows[0]);
                 } else {
                     errors = Helper.Util.convertErrorsJsonToString(obj.msg);
                     if (!Ext.isObject(obj.errors)) {

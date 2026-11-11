@@ -70,9 +70,12 @@ Ext.define('MBilling.view.ivr.Controller', {
         var me = this,
             form = me.formPanel.getForm(),
             record = me.list.getSelectionModel().getSelection()[0];
+        if (!record) {
+            return;
+        }
         for (var i = 0; i <= 10; i++) {
-            fieldValue = record.getData()['type_' + i];
-            fieldValueOut = record.getData()['type_out_' + i];
+            fieldValue = String(record.getData()['type_' + i] || '');
+            fieldValueOut = String(record.getData()['type_out_' + i] || '');
             if (fieldValue == 'ivr') {
                 form.findField('id_ivr_' + i).setVisible(true);
                 form.findField('id_pjsip_' + i).setVisible(false);

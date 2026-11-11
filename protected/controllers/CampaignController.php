@@ -113,7 +113,7 @@ class CampaignController extends Controller
 
         if (isset($_FILES["audio"]) && strlen($_FILES["audio"]["name"]) > 1) {
             $data            = explode('.', $_FILES["audio"]["name"]);
-            $typefile        = array_pop($data);
+            $typefile        = strtolower(array_pop($data));
             $values['audio'] = "idCampaign_" . (isset($values['id']) && $values['id'] > 0 ? $values['id'] : '') . '.' . $typefile;
         } elseif (! $this->isNewRecord) {
             unset($values['audio']);
@@ -121,7 +121,7 @@ class CampaignController extends Controller
 
         if (isset($_FILES["audio_2"]) && strlen($_FILES["audio_2"]["name"]) > 1) {
             $data              = explode('.', $_FILES["audio_2"]["name"]);
-            $typefile          = array_pop($data);
+            $typefile          = strtolower(array_pop($data));
             $values['audio_2'] = "idCampaign_" . (isset($values['id']) && $values['id'] > 0 ? $values['id'] : '') . '_2.' . $typefile;
         } elseif (! $this->isNewRecord) {
             unset($values['audio_2']);
@@ -152,6 +152,9 @@ class CampaignController extends Controller
                     ->bindValue(':id', $model->id, PDO::PARAM_INT)
                     ->execute();
             }
+            if (isset($this->attributes[0])) {
+                $this->attributes[0]['audio'] = $audioName;
+            }
         }
         if (isset($_FILES["audio_2"]) && strlen($_FILES["audio_2"]["name"]) > 1) {
             if (file_exists($this->uploaddir . 'idCampaign_' . $model->id . '_2.wav')) {
@@ -172,6 +175,9 @@ class CampaignController extends Controller
                     ->bindValue(':audio', $audioName, PDO::PARAM_STR)
                     ->bindValue(':id', $model->id, PDO::PARAM_INT)
                     ->execute();
+            }
+            if (isset($this->attributes[0])) {
+                $this->attributes[0]['audio_2'] = $audioName;
             }
         }
     }
