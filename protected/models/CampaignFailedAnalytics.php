@@ -59,4 +59,23 @@ class CampaignFailedAnalytics extends Model
             'idCampaign' => [self::BELONGS_TO, 'Campaign', 'id_campaign'],
         ];
     }
+
+    public function getAttributes($names = true)
+    {
+        $attributes = parent::getAttributes($names);
+        $attributes['date_day'] = $this->local_date ?? '';
+        $attributes['failure_count'] = (int) ($this->total_fails ?? 0);
+        $attributes['count_no_answer'] = (int) ($this->fails_noanswer ?? 0);
+        $attributes['count_busy'] = (int) ($this->fails_busy ?? 0);
+        $attributes['count_failed'] = (int) ($this->fails_failed ?? 0);
+        $attributes['count_congestion'] = (int) ($this->fails_congestion ?? 0);
+        $attributes['count_chanunavail'] = 0;
+        $attributes['last_hangup_cause'] = (int) ($this->last_hangupcause ?? 0);
+        $statusCache = $this->status_cache ?? 'ACTIVE';
+        $attributes['current_state'] = $statusCache === 'TEMP_SUSPENDED'
+            ? 'SUSPENDED_TEMP'
+            : ($statusCache === 'ADMIN_RESTRICTED' ? 'RESTRICTED_PERM' : 'ACTIVE');
+        $attributes['suspended_until'] = '';
+        return $attributes;
+    }
 }

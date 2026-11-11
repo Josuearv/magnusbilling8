@@ -27,7 +27,13 @@ class CampaignfailedanalyticsController extends Controller
         $date = Yii::app()->request->getParam('date') ?: date('Y-m-d');
 
         $kpis = CampaignAnalyticsService::getSummaryKpis($idCampaign > 0 ? $idCampaign : null, $date);
-        echo json_encode(['success' => true, 'data' => $kpis]);
+        $mappedKpis = [
+            'total_failures_today' => (int) ($kpis['total_fails'] ?? $kpis['total_failures_today'] ?? 0),
+            'temporary_suspensions' => (int) ($kpis['temp_suspended'] ?? $kpis['temporary_suspensions'] ?? 0),
+            'permanent_restrictions' => (int) ($kpis['admin_restricted'] ?? $kpis['permanent_restrictions'] ?? 0),
+            'distinct_contacts_affected' => (int) ($kpis['unique_numbers_failed'] ?? $kpis['distinct_contacts_affected'] ?? 0),
+        ];
+        echo json_encode(['success' => true, 'data' => $kpis, 'kpis' => $mappedKpis]);
         exit;
     }
 
@@ -37,15 +43,24 @@ class CampaignfailedanalyticsController extends Controller
     public function actionReactivate()
     {
         if (!Yii::app()->session['isAdmin']) {
-            echo json_encode(['success' => false, 'message' => Yii::t('zii', 'Unauthorized')]);
+            echo json_encode(['success' => false, 'msg' => Yii::t('zii', 'Unauthorized'), 'message' => Yii::t('zii', 'Unauthorized')]);
             exit;
         }
 
+        $id = (int) Yii::app()->request->getParam('id');
         $number = Yii::app()->request->getParam('number');
         $idCampaign = (int) Yii::app()->request->getParam('id_campaign');
 
+        if ($id > 0 && empty($number)) {
+            $analyticsRow = CampaignFailedAnalytics::model()->findByPk($id);
+            if ($analyticsRow) {
+                $number = $analyticsRow->canonical_number;
+                $idCampaign = (int) $analyticsRow->id_campaign;
+            }
+        }
+
         if (empty($number)) {
-            echo json_encode(['success' => false, 'message' => Yii::t('zii', 'Phone number is required')]);
+            echo json_encode(['success' => false, 'msg' => Yii::t('zii', 'Phone number is required'), 'message' => Yii::t('zii', 'Phone number is required')]);
             exit;
         }
 
@@ -80,12 +95,14 @@ class CampaignfailedanalyticsController extends Controller
                  WHERE canonical_number = :canon"
             )->bindValue(':canon', $canonical, PDO::PARAM_STR)->execute();
 
+            $msg = Yii::t('zii', 'Number {num} reactivated successfully.', ['{num}' => $number]);
             echo json_encode([
                 'success' => true,
-                'message' => Yii::t('zii', 'Number {num} reactivated successfully.', ['{num}' => $number]),
+                'msg' => $msg,
+                'message' => $msg,
             ]);
         } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            echo json_encode(['success' => false, 'msg' => $e->getMessage(), 'message' => $e->getMessage()]);
         }
         exit;
     }
@@ -96,15 +113,24 @@ class CampaignfailedanalyticsController extends Controller
     public function actionRestrict()
     {
         if (!Yii::app()->session['isAdmin']) {
-            echo json_encode(['success' => false, 'message' => Yii::t('zii', 'Unauthorized')]);
+            echo json_encode(['success' => false, 'msg' => Yii::t('zii', 'Unauthorized'), 'message' => Yii::t('zii', 'Unauthorized')]);
             exit;
         }
 
+        $id = (int) Yii::app()->request->getParam('id');
         $number = Yii::app()->request->getParam('number');
         $idCampaign = (int) Yii::app()->request->getParam('id_campaign');
 
+        if ($id > 0 && empty($number)) {
+            $analyticsRow = CampaignFailedAnalytics::model()->findByPk($id);
+            if ($analyticsRow) {
+                $number = $analyticsRow->canonical_number;
+                $idCampaign = (int) $analyticsRow->id_campaign;
+            }
+        }
+
         if (empty($number)) {
-            echo json_encode(['success' => false, 'message' => Yii::t('zii', 'Phone number is required')]);
+            echo json_encode(['success' => false, 'msg' => Yii::t('zii', 'Phone number is required'), 'message' => Yii::t('zii', 'Phone number is required')]);
             exit;
         }
 
@@ -149,12 +175,14 @@ class CampaignfailedanalyticsController extends Controller
                  WHERE canonical_number = :canon"
             )->bindValue(':canon', $canonical, PDO::PARAM_STR)->execute();
 
+            $msg = Yii::t('zii', 'Number {num} added to permanent restriction list.', ['{num}' => $number]);
             echo json_encode([
                 'success' => true,
-                'message' => Yii::t('zii', 'Number {num} added to permanent restriction list.', ['{num}' => $number]),
+                'msg' => $msg,
+                'message' => $msg,
             ]);
         } catch (Exception $e) {
-            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+            echo json_encode(['success' => false, 'msg' => $e->getMessage(), 'message' => $e->getMessage()]);
         }
         exit;
     }
