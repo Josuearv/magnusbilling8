@@ -157,4 +157,15 @@ class CampaignScheduleService
 
         return $updated;
     }
+
+    /**
+     * Alias compatible con CampaignOptimizerCommand CLI.
+     *
+     * @param string|null $date
+     * @return int Número de horarios sincronizados
+     */
+    public static function syncAllActiveCampaignSchedules($date = null)
+    {
+        return count(self::applyDailySchedulesForAllActiveCampaigns($date));
+    }
 }

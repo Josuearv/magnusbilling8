@@ -210,4 +210,16 @@ class CampaignResultAdapter
             return $stats;
         }
     }
+
+    /**
+     * Alias compatible con CampaignOptimizerCommand CLI.
+     *
+     * @param int $limit
+     * @return int Número de intentos reconciliados
+     */
+    public static function reconcilePendingAttempts($limit = 500)
+    {
+        $stats = self::reconcileDispatchedAttempts($limit);
+        return (int) ($stats['processed'] ?? 0);
+    }
 }
