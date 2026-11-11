@@ -139,22 +139,23 @@ class CampaignOptimizerCommand extends CConsoleCommand
     {
         $db = Yii::app()->db;
 
-        // Lift in state table
+        // Lift in state table (pkg_campaign_optimizer_state uses policy_status, suspension_reason, suspension_expires_at)
         $sql = "UPDATE pkg_campaign_optimizer_state
-                SET state = 'ACTIVE', reason = 'Suspensión temporal expirada', updated_at = NOW()
-                WHERE state = 'SUSPENDED_TEMP'
-                  AND is_permanent = 0
-                  AND suspended_until IS NOT NULL
-                  AND suspended_until <= NOW()";
+                SET policy_status = 'ELIGIBLE',
+                    suspension_reason = 'Suspensión temporal expirada',
+                    updated_at = NOW()
+                WHERE policy_status = 'TEMP_SUSPENDED'
+                  AND suspension_expires_at IS NOT NULL
+                  AND suspension_expires_at <= NOW()";
         $affected = $db->createCommand($sql)->execute();
 
-        // Sync with failed analytics table
-        $sqlAnalytics = "UPDATE pkg_campaign_failed_analytics
-                         SET current_state = 'ACTIVE'
-                         WHERE current_state = 'SUSPENDED_TEMP'
-                           AND suspended_until IS NOT NULL
-                           AND suspended_until <= NOW()";
-        $db->createCommand($sqlAnalytics)->execute();
+        // Sync with failed analytics table (pkg_campaign_failed_analytics uses status_cache)
+        if ((int) $affected > 0) {
+            $sqlAnalytics = "UPDATE pkg_campaign_failed_analytics
+                             SET status_cache = 'ACTIVE'
+                             WHERE status_cache = 'TEMP_SUSPENDED'";
+            $db->createCommand($sqlAnalytics)->execute();
+        }
 
         return (int) $affected;
     }
@@ -171,9 +172,9 @@ class CampaignOptimizerCommand extends CConsoleCommand
             'DELETE FROM pkg_campaign_optimizer_log WHERE start_time < DATE_SUB(NOW(), INTERVAL 30 DAY)'
         )->execute();
 
-        // Keep 30 days of daily quota counters
+        // Keep 30 days of daily quota counters (pkg_campaign_optimizer_daily uses local_date)
         $db->createCommand(
-            'DELETE FROM pkg_campaign_optimizer_daily WHERE date_day < DATE_SUB(CURDATE(), INTERVAL 30 DAY)'
+            'DELETE FROM pkg_campaign_optimizer_daily WHERE local_date < DATE_SUB(CURDATE(), INTERVAL 30 DAY)'
         )->execute();
     }
 

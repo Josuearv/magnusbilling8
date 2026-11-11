@@ -120,7 +120,12 @@ class CampaignoptimizerconfigController extends Controller
 
             echo json_encode([
                 'success' => true,
+                'msg' => Yii::t('zii', 'Optimization executed successfully in {sec}s.', ['{sec}' => $duration]),
                 'message' => Yii::t('zii', 'Optimization executed successfully in {sec}s.', ['{sec}' => $duration]),
+                'attempts_reconciled' => (int) ($reconcileStats['processed'] ?? 0),
+                'suspensions_applied' => 0,
+                'schedules_updated' => count($scheduleUpdated),
+                'audios_rotated' => count($audiosRotated),
                 'stats' => [
                     'duration' => $duration,
                     'schedules_updated' => count($scheduleUpdated),
@@ -131,6 +136,7 @@ class CampaignoptimizerconfigController extends Controller
         } catch (Exception $e) {
             echo json_encode([
                 'success' => false,
+                'msg' => Yii::t('zii', 'Error: {err}', ['{err}' => $e->getMessage()]),
                 'message' => Yii::t('zii', 'Error: {err}', ['{err}' => $e->getMessage()]),
             ]);
         }
@@ -143,23 +149,33 @@ class CampaignoptimizerconfigController extends Controller
     public function actionRotateAudioNow()
     {
         if (!Yii::app()->session['isAdmin']) {
-            echo json_encode(['success' => false, 'message' => Yii::t('zii', 'Unauthorized')]);
+            echo json_encode(['success' => false, 'msg' => Yii::t('zii', 'Unauthorized'), 'message' => Yii::t('zii', 'Unauthorized')]);
             exit;
         }
 
         $idCampaign = (int) Yii::app()->request->getParam('id_campaign');
         if ($idCampaign <= 0) {
-            echo json_encode(['success' => false, 'message' => Yii::t('zii', 'Invalid campaign ID')]);
+            $firstConfig = CampaignOptimizerConfig::model()->find('activated = 1 ORDER BY id DESC');
+            if ($firstConfig) {
+                $idCampaign = (int) $firstConfig->id_campaign;
+            }
+        }
+        if ($idCampaign <= 0) {
+            echo json_encode(['success' => false, 'msg' => Yii::t('zii', 'Invalid campaign ID'), 'message' => Yii::t('zii', 'Invalid campaign ID')]);
             exit;
         }
 
         $result = CampaignAudioService::rotateCampaignAudio($idCampaign, null, true);
+        $msg = !empty($result['rotated'])
+            ? Yii::t('zii', 'Audio rotated to version {tag}.', ['{tag}' => $result['version_tag'] ?? ''])
+            : Yii::t('zii', 'Could not rotate audio: {reason}', ['{reason}' => $result['reason'] ?? 'unknown']);
         echo json_encode([
             'success' => !empty($result['rotated']),
+            'version_tag' => $result['version_tag'] ?? '',
+            'file_path' => $result['file_name'] ?? '',
             'data' => $result,
-            'message' => !empty($result['rotated'])
-                ? Yii::t('zii', 'Audio rotated to version {tag}.', ['{tag}' => $result['version_tag'] ?? ''])
-                : Yii::t('zii', 'Could not rotate audio: {reason}', ['{reason}' => $result['reason'] ?? 'unknown']),
+            'msg' => $msg,
+            'message' => $msg,
         ]);
         exit;
     }

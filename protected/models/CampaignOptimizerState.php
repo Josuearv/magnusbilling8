@@ -57,4 +57,22 @@ class CampaignOptimizerState extends Model
             'idPhonenumber' => [self::BELONGS_TO, 'PhoneNumber', 'id_phonenumber'],
         ];
     }
+
+    public function getAttributes($names = true)
+    {
+        $attributes = parent::getAttributes($names);
+        $policy = $this->policy_status ?? 'ELIGIBLE';
+        $attributes['state'] = $policy === 'TEMP_SUSPENDED'
+            ? 'SUSPENDED_TEMP'
+            : ($policy === 'ADMIN_RESTRICTED' ? 'RESTRICTED_PERM' : 'ACTIVE');
+        $attributes['reason'] = $this->suspension_reason ?? '';
+        $attributes['suspended_until'] = $this->suspension_expires_at ?? '';
+        $attributes['is_permanent'] = ($policy === 'ADMIN_RESTRICTED') ? 1 : 0;
+        $attributes['applied_by'] = $this->updated_by ?? 'SYSTEM';
+        $attributes['applied_at'] = $this->created_at ?? '';
+        $attributes['canonical_number'] = isset($this->idPhonenumber) && $this->idPhonenumber
+            ? (string) $this->idPhonenumber->number
+            : '';
+        return $attributes;
+    }
 }
