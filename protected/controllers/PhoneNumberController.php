@@ -211,37 +211,38 @@ class PhoneNumberController extends Controller
     {
         $module = $this->instanceModel->getModule();
 
-        if ( ! AccessManager::getInstance($module)->canUpdate()) {
+        if (! AccessManager::getInstance($module)->canUpdate()) {
             header('HTTP/1.0 401 Unauthorized');
             $this->sendError('Access denied for module "{module}".', ['{module}' => $module]);
         }
 
-        # recebe os parametros para o filtro
-        if (isset($_POST['filter']) && strlen($_POST['filter']) > 5) {
-            $filter = $_POST['filter'];
-        } else {
-            echo json_encode([
-                $this->nameSuccess => false,
-                $this->nameMsg     => 'Por favor realizar um filtro para reprocesar',
-            ]);
-            exit;
-        }
-        $filter = $filter ? $this->createCondition(json_decode($filter)) : '';
+        $rawFilter = isset($_POST['filter']) ? trim((string) $_POST['filter']) : '';
+        $decoded   = $rawFilter !== '' ? json_decode($rawFilter) : null;
+        $condition = ($decoded && is_array($decoded) && count($decoded) > 0)
+            ? $this->createCondition($decoded)
+            : 't.status != 1';
 
-        if ( ! isset($this->relationFilter['idPhonebook'])) {
-            echo json_encode([
-                $this->nameSuccess => false,
-                $this->nameMsg     => 'Por favor filtre uma agenda para reprocesar',
-            ]);
-            exit;
+        $this->filter = $this->extraFilter($condition);
+
+        $joinSql = ' JOIN pkg_phonebook idPhonebook ON t.id_phonebook = idPhonebook.id ';
+        $where   = $this->filter ?: '1=1';
+        if (isset($this->relationFilter['idPhonebook']['condition']) && $this->relationFilter['idPhonebook']['condition'] !== '') {
+            $where .= ' AND (' . $this->relationFilter['idPhonebook']['condition'] . ')';
         }
 
-        $this->abstractModel->reprocess($this->relationFilter, $this->paramsFilter);
+        $sql     = "UPDATE pkg_phonenumber t {$joinSql} SET t.status = 1, t.try = 0 WHERE {$where}";
+        $command = Yii::app()->db->createCommand($sql);
+        if (is_array($this->paramsFilter)) {
+            foreach ($this->paramsFilter as $key => $value) {
+                $paramKey = strpos($key, ':') === 0 ? $key : ':' . $key;
+                $command->bindValue($paramKey, $value, PDO::PARAM_STR);
+            }
+        }
+        $affected = $command->execute();
 
         echo json_encode([
             $this->nameSuccess => true,
-            $this->nameMsg     => 'Números atualizados com successo',
+            $this->nameMsg     => Yii::t('zii', 'Records updated with success.') . " ({$affected})",
         ]);
-
     }
 }

@@ -257,7 +257,7 @@ Ext.define('Ext.ux.app.ViewController', {
             });
             if (!Ext.Object.getSize(valuesLot)) {
                 me.formPanel.setLoading(false);
-                btn.enable();
+                me.saveButton.enable();
                 return;
             }
             if (updateLotType === 'all') {
@@ -281,23 +281,26 @@ Ext.define('Ext.ux.app.ViewController', {
             Ext.Ajax.request({
                 url: me.store.getProxy().api.update,
                 params: paramsLot,
+                timeout: 120000,
                 scope: me,
                 success: function (response) {
-                    response = Ext.decode(response.responseText);
-                    if (response.success) {
-                        Ext.ux.Alert.alert(me.titleSuccess, t(response.msg), 'success');
+                    var res = Ext.decode(response.responseText, true) || {};
+                    var msg = res.msg || res.errors || me.msgSuccess;
+                    if (res.success) {
+                        Ext.ux.Alert.alert(me.titleSuccess, t(msg), 'success');
                         me.formPanel.fireEvent('aftersave', me.formPanel);
                     } else {
-                        Ext.ux.Alert.alert(me.titleError, t(response.msg), 'error');
+                        Ext.ux.Alert.alert(me.titleError, t(msg), 'error');
                     }
                     me.formPanel.setLoading(false);
                     me.saveButton.enable();
-                    me.updateLotButton.toggle(false);
+                    me.updateLotButton && me.updateLotButton.toggle(false);
                     me.store.load();
                 },
                 failure: function (response) {
-                    response = Ext.decode(response.responseText);
-                    Ext.ux.Alert.alert(me.titleError, t(response.msg), 'error');
+                    var res = (response && response.responseText && Ext.decode(response.responseText, true)) || {};
+                    var msg = res.msg || res.errors || (response && response.statusText) || 'Request failed';
+                    Ext.ux.Alert.alert(me.titleError, t(msg), 'error');
                     me.formPanel.setLoading(false);
                     me.saveButton.enable();
                 }

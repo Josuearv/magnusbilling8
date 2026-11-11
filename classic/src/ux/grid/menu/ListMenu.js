@@ -69,6 +69,7 @@ Ext.define('Ext.ux.grid.menu.ListMenu', {
                     scope: me
                 }
             });
+            me.onLoad(me.store, me.store.getRange());
             me.loaded = true;
             me.autoStore = true;
         } else {
