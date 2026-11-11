@@ -177,6 +177,7 @@ CREATE TABLE `pkg_call_online` (
   `reinvite` varchar(5) NOT NULL,
   `from_ip` varchar(50) DEFAULT NULL,
   `server` varchar(50) NOT NULL DEFAULT '',
+  `callerid` varchar(50) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `starttime` (`status`),
   KEY `fk_pkg_user_pkg_call_online` (`id_user`),

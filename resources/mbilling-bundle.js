@@ -28819,7 +28819,7 @@ Ext.define('MBilling.view.callOnLine.List', {
     alias: 'widget.callonlinelist',
     store: 'CallOnLine',
     fieldSearch: 'idUser.username',
-    refreshTime: 15,
+    refreshTime: 5,
     initComponent: function () {
         var me = this;
         me.buttonCsv = false;
