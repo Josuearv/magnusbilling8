@@ -32,6 +32,11 @@ class Controller extends BaseController
         'invoices',
         'statusSystem',
         'firewall',
+        'campaignoptimizerconfig',
+        'campaignfailedanalytics',
+        'campaignoptimizerstate',
+        'campaignoptimizerlog',
+        'campaignoptimizeraudio',
     ];
 
     //Allowed controllers to no admin users use updateall

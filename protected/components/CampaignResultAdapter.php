@@ -29,7 +29,7 @@ class CampaignResultAdapter
 
         try {
             $cutoff = date('Y-m-d H:i:s', time() - 10); // mínimo 10 segundos tras despacho
-            $timeoutCutoff = date('Y-m-d H:i:s', time() - 600); // 10 minutos sin resolución
+            $timeoutCutoff = date('Y-m-d H:i:s', time() - 60); // 60 segundos sin contestación en spool (.call)
 
             $sql = "SELECT id, attempt_uuid, id_campaign, id_phonenumber, id_user_owner,
                            original_number, canonical_number, dispatched_at
@@ -65,7 +65,7 @@ class CampaignResultAdapter
                 $resolved = false;
 
                 // 1. Verificar pkg_campaign_report (resultado registrado por AGI/despacho)
-                $reportSql = "SELECT status, unix_timestamp
+                $reportSql = "SELECT id, status, unix_timestamp
                               FROM pkg_campaign_report
                               WHERE id_campaign = :idCampaign AND id_phonenumber = :idPhone
                                 AND unix_timestamp >= :minTime
@@ -85,6 +85,10 @@ class CampaignResultAdapter
                     } elseif ($repStatus === 4) {
                         CampaignAttemptService::markFinalized($attemptId, 'BUSY', 17, '486', 'pkg_campaign_report');
                         $stats['busy']++;
+                        $resolved = true;
+                    } elseif ($repStatus === 5) {
+                        CampaignAttemptService::markFinalized($attemptId, 'NOANSWER', 19, '480', 'pkg_campaign_report');
+                        $stats['noanswer']++;
                         $resolved = true;
                     } elseif ($repStatus === 7) {
                         CampaignAttemptService::markFinalized($attemptId, 'CONGESTION', 34, '503', 'pkg_campaign_report');
@@ -190,17 +194,35 @@ class CampaignResultAdapter
                     continue;
                 }
 
-                // 4. Si ha superado los 10 minutos sin ninguna evidencia, marcar como TIMED_OUT
+                // 4. Si ha superado los 60 segundos sin contestar y no sigue activa en pkg_call_online,
+                //    significa que el archivo .call expiró o fue rechazado antes de entrar al AGI.
                 if (!$resolved && $dispatchedAt <= $timeoutCutoff) {
-                    CampaignAttemptService::markFinalized(
-                        $attemptId,
-                        'TIMED_OUT',
-                        null,
-                        null,
-                        'TIMEOUT_NO_CDR',
-                        null
-                    );
-                    $stats['timed_out']++;
+                    $activeCall = (int) Yii::app()->db->createCommand(
+                        "SELECT COUNT(*) FROM pkg_call_online
+                         WHERE ndiscado = :dest OR ndiscado = :canonical"
+                    )->bindValues([
+                        ':dest' => $destination,
+                        ':canonical' => $canonical,
+                    ])->queryScalar();
+
+                    if ($activeCall === 0) {
+                        if ($report && (int) $report['status'] === 2) {
+                            Yii::app()->db->createCommand(
+                                "UPDATE pkg_campaign_report SET status = 5 WHERE id = :repId"
+                            )->bindValue(':repId', (int) $report['id'], PDO::PARAM_INT)->execute();
+                        }
+
+                        CampaignAttemptService::markFinalized(
+                            $attemptId,
+                            'NOANSWER',
+                            19,
+                            '480',
+                            'SPOOL_NO_ANSWER',
+                            null
+                        );
+                        $stats['noanswer']++;
+                        $stats['timed_out']++;
+                    }
                 }
             }
 
