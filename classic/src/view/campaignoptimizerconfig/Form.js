@@ -111,7 +111,8 @@ Ext.define('MBilling.view.campaignoptimizerconfig.Form', {
                 xtype: 'textfield',
                 name: 'audio_pool_directory',
                 fieldLabel: t('Audio Directory'),
-                value: '/opt/audio',
+                value: '/opt/',
+                emptyText: '/opt/ (detecta subcarpetas audio1, audio2...)',
                 allowBlank: false
             },
             {

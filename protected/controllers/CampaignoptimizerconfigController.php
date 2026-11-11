@@ -25,37 +25,60 @@ class CampaignoptimizerconfigController extends Controller
         }
 
         // 2. Mapear alias de formulario hacia atributos del modelo
-        if (isset($values['max_calls_daily_per_recipient']) && !isset($values['max_daily_attempts'])) {
+        if (isset($values['max_calls_daily_per_recipient'])) {
             $values['max_daily_attempts'] = (int) $values['max_calls_daily_per_recipient'];
         }
-        if (isset($values['min_failures_temp_block']) && !isset($values['max_failed_attempts'])) {
+        if (isset($values['min_failures_temp_block'])) {
             $values['max_failed_attempts'] = (int) $values['min_failures_temp_block'];
         }
-        if (isset($values['schedule_weekday_start']) && !isset($values['weekday_start_time'])) {
+        if (isset($values['schedule_weekday_start'])) {
             $values['weekday_start_time'] = $values['schedule_weekday_start'];
         }
-        if (isset($values['schedule_weekday_end']) && !isset($values['weekday_stop_time'])) {
+        if (isset($values['schedule_weekday_end'])) {
             $values['weekday_stop_time'] = $values['schedule_weekday_end'];
         }
         if (isset($values['schedule_weekend_start'])) {
-            if (!isset($values['saturday_start_time'])) $values['saturday_start_time'] = $values['schedule_weekend_start'];
-            if (!isset($values['sunday_start_time'])) $values['sunday_start_time'] = $values['schedule_weekend_start'];
+            $values['saturday_start_time'] = $values['schedule_weekend_start'];
+            $values['sunday_start_time'] = $values['schedule_weekend_start'];
         }
         if (isset($values['schedule_weekend_end'])) {
-            if (!isset($values['saturday_stop_time'])) $values['saturday_stop_time'] = $values['schedule_weekend_end'];
-            if (!isset($values['sunday_stop_time'])) $values['sunday_stop_time'] = $values['schedule_weekend_end'];
+            $values['saturday_stop_time'] = $values['schedule_weekend_end'];
+            $values['sunday_stop_time'] = $values['schedule_weekend_end'];
         }
-        if (isset($values['jitter_range_minutes']) && !isset($values['jitter_max_minutes'])) {
+        if (isset($values['jitter_range_minutes'])) {
             $values['jitter_max_minutes'] = (int) $values['jitter_range_minutes'];
+            $values['enable_schedule_jitter'] = ((int) $values['jitter_range_minutes'] > 0) ? 1 : 0;
         }
-        if (isset($values['audio_pool_directory']) && !isset($values['audio_source_path'])) {
+        if (isset($values['audio_pool_directory'])) {
             $values['audio_source_path'] = $values['audio_pool_directory'];
+            if (!empty($values['audio_pool_directory'])) {
+                $values['enable_audio_rotation'] = 1;
+            }
         }
-        if (isset($values['audio_rotation_interval_minutes']) && !isset($values['audio_rotation_interval_min'])) {
+        if (isset($values['audio_rotation_interval_minutes'])) {
             $values['audio_rotation_interval_min'] = (int) $values['audio_rotation_interval_minutes'];
+            if ((int) $values['audio_rotation_interval_minutes'] > 0) {
+                $values['enable_audio_rotation'] = 1;
+            }
         }
 
         return parent::beforeSave($values);
+    }
+
+    public function afterSave($model, $values)
+    {
+        if ($this->success && isset($model->id_campaign) && (int) $model->id_campaign > 0) {
+            try {
+                $idCampaign = (int) $model->id_campaign;
+                $sourcePath = !empty($model->audio_source_path) ? $model->audio_source_path : '/opt/';
+                CampaignScheduleService::calculateScheduleForDay($idCampaign);
+                CampaignAudioService::discoverAndCatalogAudios($idCampaign, $sourcePath);
+                CampaignAudioService::rotateCampaignAudio($idCampaign, null, true);
+            } catch (Exception $e) {
+                Yii::log('Error in CampaignoptimizerconfigController::afterSave: ' . $e->getMessage(), CLogger::LEVEL_ERROR);
+            }
+        }
+        return parent::afterSave($model, $values);
     }
 
     /**

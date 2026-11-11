@@ -25,35 +25,85 @@ class CampaignAudioService
     public static function discoverAndCatalogAudios($idCampaign, $sourceBasePath = '/opt/')
     {
         $discovered = [];
-        $sourceBasePath = rtrim($sourceBasePath, '/\\') . '/';
+        $rawPath = rtrim(trim((string) $sourceBasePath), '/\\');
+        if ($rawPath === '') {
+            $rawPath = '/opt';
+        }
 
         try {
-            if (!is_dir($sourceBasePath)) {
-                Yii::log("Audio source path not found: {$sourceBasePath}", CLogger::LEVEL_WARNING);
+            $subdirs = [];
+            $systemDirs = ['/opt', '/var', '/usr', '/etc', '/tmp', '/home', '/root', '/srv', '/mnt'];
+
+            if (is_dir($rawPath)) {
+                // 1. Escanear subdirectorios tipo audio* (ej. /opt/audio1, /opt/audio2, ..., /opt/audio17)
+                $audioDirs = glob($rawPath . '/audio*', GLOB_ONLYDIR);
+                if (is_array($audioDirs)) {
+                    $subdirs = array_merge($subdirs, $audioDirs);
+                }
+
+                // Si es una carpeta dedicada (ej. /opt/audio o /opt/audios), incluir cualquier subcarpeta interna
+                if (!in_array($rawPath, $systemDirs, true)) {
+                    $anySubdirs = glob($rawPath . '/*', GLOB_ONLYDIR);
+                    if (is_array($anySubdirs)) {
+                        $subdirs = array_merge($subdirs, $anySubdirs);
+                    }
+                }
+
+                // Si el usuario configuró /opt/audio y además existen /opt/audio1, /opt/audio2 en el padre (/opt)
+                if (stripos(basename($rawPath), 'audio') === 0) {
+                    $siblingAudioDirs = glob(dirname($rawPath) . '/audio*', GLOB_ONLYDIR);
+                    if (is_array($siblingAudioDirs)) {
+                        $subdirs = array_merge($subdirs, $siblingAudioDirs);
+                    }
+                }
+
+                // Incluir también el directorio base por si los audios residen directamente allí
+                $subdirs[] = $rawPath;
+            } else {
+                // 2. Si el usuario configuró "/opt/audio" (prefijo) y en el VPS existen /opt/audio1, /opt/audio2...
+                $prefixDirs = glob($rawPath . '*', GLOB_ONLYDIR);
+                if (is_array($prefixDirs)) {
+                    $subdirs = array_merge($subdirs, $prefixDirs);
+                }
+
+                $parentDir = dirname($rawPath);
+                if (is_dir($parentDir)) {
+                    $parentAudioDirs = glob($parentDir . '/audio*', GLOB_ONLYDIR);
+                    if (is_array($parentAudioDirs)) {
+                        $subdirs = array_merge($subdirs, $parentAudioDirs);
+                    }
+                }
+            }
+
+            $subdirs = array_values(array_unique(array_filter($subdirs, 'is_dir')));
+            if (empty($subdirs)) {
+                Yii::log("Audio source path and audio* subdirs not found for: {$sourceBasePath}", CLogger::LEVEL_WARNING);
                 return $discovered;
             }
 
-            // 1. Escanear subdirectorios tipo audio* (ej. audio1, audio2, ..., audio17)
-            $subdirs = glob($sourceBasePath . 'audio*', GLOB_ONLYDIR);
-            if (!$subdirs) {
-                $subdirs = [];
-            }
-            // Incluir también el directorio base por si los audios residen directamente allí
-            $subdirs[] = rtrim($sourceBasePath, '/');
+            natsort($subdirs);
+            $subdirs = array_values($subdirs);
 
             $expectedBaseName = 'idCampaign_' . (int) $idCampaign;
+            $discoveredPaths = [];
 
             foreach ($subdirs as $dir) {
-                $tag = basename($dir);
+                $dirClean = rtrim($dir, '/\\');
+                $isSystemRoot = in_array($dirClean, $systemDirs, true);
+                $tag = basename($dirClean);
                 if (empty($tag) || $tag === '.' || $tag === '..') {
                     $tag = 'base';
                 }
 
-                // Buscar archivos de audio de la campaña en esta carpeta
-                $files = glob($dir . '/*');
+                // Buscar archivos en esta carpeta
+                $files = glob($dirClean . '/*');
                 if (!$files) {
                     continue;
                 }
+
+                // Filtrar primero los archivos de audio válidos en esta carpeta
+                $validAudioFiles = [];
+                $campaignSpecificFiles = [];
 
                 foreach ($files as $file) {
                     if (!is_file($file) || !is_readable($file)) {
@@ -62,27 +112,46 @@ class CampaignAudioService
 
                     $filename = basename($file);
                     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-                    // Debe ser un formato de audio admitido
                     if (!in_array($ext, self::VALID_FORMATS, true)) {
                         continue;
                     }
 
-                    // Debe coincidir con la campaña (ej. idCampaign_1.gsm) o ser el único audio en la subcarpeta
-                    $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME);
-                    if ($filenameWithoutExt !== $expectedBaseName && count($files) > 3) {
+                    if (filesize($file) <= 0) {
                         continue;
                     }
 
-                    $size = filesize($file);
-                    if ($size <= 0) {
-                        continue; // descartar archivos vacíos o truncados
+                    $filenameWithoutExt = pathinfo($filename, PATHINFO_FILENAME);
+
+                    // Si el archivo tiene formato idCampaign_X, solo aceptarlo si X coincide con $idCampaign
+                    if (preg_match('/^idCampaign_(\d+)$/i', $filenameWithoutExt, $matches)) {
+                        if ((int) $matches[1] === (int) $idCampaign) {
+                            $campaignSpecificFiles[] = $file;
+                        }
+                        continue;
                     }
 
+                    // Si estamos directamente en /opt (raíz del sistema), exigir que sea idCampaign_X
+                    if ($isSystemRoot) {
+                        continue;
+                    }
+
+                    $validAudioFiles[] = $file;
+                }
+
+                // Si en la subcarpeta (ej. audio1) hay un idCampaign_{id}.gsm específico, usarlo;
+                // de lo contrario, aceptar cualquier archivo .gsm/.wav dentro de audio1, audio2, etc.
+                $candidateFiles = !empty($campaignSpecificFiles) ? $campaignSpecificFiles : $validAudioFiles;
+
+                foreach ($candidateFiles as $file) {
+                    $filename = basename($file);
+                    $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+                    $size = filesize($file);
                     $checksum = hash_file('sha256', $file);
                     if (!$checksum) {
                         continue;
                     }
+
+                    $versionTag = count($candidateFiles) > 1 ? ($tag . '/' . $filename) : $tag;
 
                     // Buscar si ya existe en la base de datos
                     $audioModel = CampaignOptimizerAudio::model()->find(
@@ -93,11 +162,11 @@ class CampaignAudioService
                     if (!$audioModel) {
                         $audioModel = new CampaignOptimizerAudio();
                         $audioModel->id_campaign = (int) $idCampaign;
-                        $audioModel->version_tag = $tag;
                         $audioModel->file_path = $file;
                         $audioModel->is_active = 0;
                     }
 
+                    $audioModel->version_tag = substr($versionTag, 0, 60);
                     $audioModel->sha256_checksum = $checksum;
                     $audioModel->file_size_bytes = $size;
                     $audioModel->format = $ext;
@@ -105,6 +174,20 @@ class CampaignAudioService
                     $audioModel->save();
 
                     $discovered[] = $audioModel;
+                    $discoveredPaths[] = $file;
+                }
+            }
+
+            // Limpiar registros antiguos en BD cuyos archivos ya no existan en disco
+            if (!empty($discoveredPaths)) {
+                $existingModels = CampaignOptimizerAudio::model()->findAll(
+                    'id_campaign = :c',
+                    [':c' => (int) $idCampaign]
+                );
+                foreach ($existingModels as $oldModel) {
+                    if (!in_array($oldModel->file_path, $discoveredPaths, true) || !file_exists($oldModel->file_path)) {
+                        $oldModel->delete();
+                    }
                 }
             }
         } catch (Exception $e) {
@@ -133,11 +216,23 @@ class CampaignAudioService
                 [':c' => (int) $idCampaign]
             );
 
-            if (!$config || $config->enable_audio_rotation != 1) {
+            if (!$config) {
+                return ['rotated' => false, 'reason' => 'OPTIMIZER_NOT_ACTIVE'];
+            }
+
+            $hasAudioConfig = !empty($config->audio_source_path) && (int) $config->audio_rotation_interval_min > 0;
+            if ($config->enable_audio_rotation != 1 && !$hasAudioConfig && !$force) {
                 return ['rotated' => false, 'reason' => 'ROTATION_DISABLED'];
             }
 
-            $intervalMin = max(1, (int) $config->audio_rotation_interval_min ?: 37);
+            $intervalMin = max(1, (int) $config->audio_rotation_interval_min ?: 15);
+
+            // Verificar si el archivo físico de destino en Asterisk aún no existe; si falta, forzar rotación inicial
+            $targetGsm = $destinationDirectory . 'idCampaign_' . (int) $idCampaign . '.gsm';
+            $targetWav = $destinationDirectory . 'idCampaign_' . (int) $idCampaign . '.wav';
+            if (!is_readable($targetGsm) && !is_readable($targetWav)) {
+                $force = true;
+            }
 
             // 1. Verificar si ha transcurrido el intervalo configurado
             if (!$force) {
@@ -181,9 +276,14 @@ class CampaignAudioService
             }
 
             // 4. Preparar reemplazo atómico en el directorio de destino
-            if (!is_dir($destinationDirectory) && !@mkdir($destinationDirectory, 0755, true) && !is_dir($destinationDirectory)) {
+            $parentDir = dirname(rtrim($destinationDirectory, '/\\'));
+            if (is_dir($parentDir)) {
+                @chmod($parentDir, 0755);
+            }
+            if (!is_dir($destinationDirectory) && !@mkdir($destinationDirectory, 0777, true) && !is_dir($destinationDirectory)) {
                 return ['rotated' => false, 'reason' => 'DESTINATION_DIR_UNWRITABLE'];
             }
+            @chmod($destinationDirectory, 0777);
 
             $targetFilename = 'idCampaign_' . (int) $idCampaign . '.' . $selected->format;
             $targetPath = $destinationDirectory . $targetFilename;
@@ -201,8 +301,8 @@ class CampaignAudioService
                 return ['rotated' => false, 'reason' => 'CHECKSUM_MISMATCH_ON_COPY'];
             }
 
-            // Permisos adecuados para Asterisk
-            @chmod($stagePath, 0664);
+            // Permisos adecuados para Asterisk y Apache
+            @chmod($stagePath, 0666);
             @chown($stagePath, 'asterisk');
             @chgrp($stagePath, 'asterisk');
 
@@ -211,8 +311,19 @@ class CampaignAudioService
                 @unlink($stagePath);
                 return ['rotated' => false, 'reason' => 'ATOMIC_RENAME_FAILED'];
             }
+            @chmod($targetPath, 0666);
 
-            // 5. Actualizar estado de versión activa en la base de datos
+            // Eliminar extensión alternativa previa (.wav vs .gsm) para evitar que Asterisk reproduzca un archivo viejo
+            foreach (['gsm', 'wav'] as $altExt) {
+                if ($altExt !== $selected->format) {
+                    $altFile = $destinationDirectory . 'idCampaign_' . (int) $idCampaign . '.' . $altExt;
+                    if (file_exists($altFile)) {
+                        @unlink($altFile);
+                    }
+                }
+            }
+
+            // 5. Actualizar estado de versión activa en pkg_campaign_optimizer_audio y en pkg_campaign
             Yii::app()->db->createCommand(
                 "UPDATE pkg_campaign_optimizer_audio SET is_active = 0 WHERE id_campaign = :c"
             )->bindValue(':c', (int) $idCampaign, PDO::PARAM_INT)->execute();
@@ -220,6 +331,12 @@ class CampaignAudioService
             $selected->is_active = 1;
             $selected->validated_at = date('Y-m-d H:i:s');
             $selected->save();
+
+            Yii::app()->db->createCommand(
+                "UPDATE pkg_campaign SET audio = :audio WHERE id = :id"
+            )->bindValue(':audio', $targetFilename, PDO::PARAM_STR)
+             ->bindValue(':id', (int) $idCampaign, PDO::PARAM_INT)
+             ->execute();
 
             Yii::log("Audio rotated for campaign {$idCampaign}: version {$selected->version_tag} ({$targetFilename})", CLogger::LEVEL_INFO);
 
@@ -263,9 +380,7 @@ class CampaignAudioService
     {
         $results = [];
         try {
-            $configs = CampaignOptimizerConfig::model()->findAll(
-                'activated = 1 AND enable_audio_rotation = 1'
-            );
+            $configs = CampaignOptimizerConfig::model()->findAll('activated = 1');
             foreach ($configs as $config) {
                 $res = self::rotateCampaignAudio($config->id_campaign);
                 if ($res && !empty($res['rotated'])) {
@@ -276,5 +391,15 @@ class CampaignAudioService
             Yii::log('Error in rotateAllEligibleCampaigns: ' . $e->getMessage(), CLogger::LEVEL_ERROR);
         }
         return $results;
+    }
+
+    /**
+     * Alias compatible con CampaignOptimizerCommand CLI.
+     *
+     * @return int Número de campañas cuyo audio fue rotado
+     */
+    public static function rotateAudiosForAllActiveCampaigns()
+    {
+        return count(self::rotateAllEligibleCampaigns());
     }
 }

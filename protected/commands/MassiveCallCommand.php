@@ -170,6 +170,9 @@ class MassiveCallCommand extends ConsoleCommand
                 if (! file_exists($uploaddir)) {
                     $uploaddir = dirname(__FILE__) . '/../../sounds/';
                 }
+                if (class_exists('CampaignAudioService')) {
+                    CampaignAudioService::rotateCampaignAudio((int) $campaign->id, $uploaddir);
+                }
                 $audioWav = $uploaddir . 'idCampaign_' . $campaign->id . '.wav';
                 $audioGsm = $uploaddir . 'idCampaign_' . $campaign->id . '.gsm';
                 $hasAudio = file_exists($audioWav) || file_exists($audioGsm);

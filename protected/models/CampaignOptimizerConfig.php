@@ -91,37 +91,37 @@ class CampaignOptimizerConfig extends Model
         }
 
         // 2. Mapear alias recibidos del formulario hacia las columnas reales de BD
-        if ($this->max_calls_daily_per_recipient !== null && empty($this->max_daily_attempts)) {
+        if ($this->max_calls_daily_per_recipient !== null) {
             $this->max_daily_attempts = (int) $this->max_calls_daily_per_recipient;
         }
-        if ($this->min_failures_temp_block !== null && empty($this->max_failed_attempts)) {
+        if ($this->min_failures_temp_block !== null) {
             $this->max_failed_attempts = (int) $this->min_failures_temp_block;
         }
-        if (!empty($this->schedule_weekday_start) && empty($this->weekday_start_time)) {
+        if (!empty($this->schedule_weekday_start)) {
             $this->weekday_start_time = $this->schedule_weekday_start;
         }
-        if (!empty($this->schedule_weekday_end) && empty($this->weekday_stop_time)) {
+        if (!empty($this->schedule_weekday_end)) {
             $this->weekday_stop_time = $this->schedule_weekday_end;
         }
         if (!empty($this->schedule_weekend_start)) {
-            if (empty($this->saturday_start_time)) $this->saturday_start_time = $this->schedule_weekend_start;
-            if (empty($this->sunday_start_time)) $this->sunday_start_time = $this->schedule_weekend_start;
+            $this->saturday_start_time = $this->schedule_weekend_start;
+            $this->sunday_start_time = $this->schedule_weekend_start;
         }
         if (!empty($this->schedule_weekend_end)) {
-            if (empty($this->saturday_stop_time)) $this->saturday_stop_time = $this->schedule_weekend_end;
-            if (empty($this->sunday_stop_time)) $this->sunday_stop_time = $this->schedule_weekend_end;
+            $this->saturday_stop_time = $this->schedule_weekend_end;
+            $this->sunday_stop_time = $this->schedule_weekend_end;
         }
-        if ($this->jitter_range_minutes !== null && empty($this->jitter_max_minutes)) {
+        if ($this->jitter_range_minutes !== null) {
             $this->jitter_max_minutes = (int) $this->jitter_range_minutes;
         }
-        if (!empty($this->audio_pool_directory) && empty($this->audio_source_path)) {
+        if (!empty($this->audio_pool_directory)) {
             $this->audio_source_path = $this->audio_pool_directory;
         }
-        if ($this->audio_rotation_interval_minutes !== null && empty($this->audio_rotation_interval_min)) {
+        if ($this->audio_rotation_interval_minutes !== null) {
             $this->audio_rotation_interval_min = (int) $this->audio_rotation_interval_minutes;
         }
 
-        // 3. Garantizar valores predeterminados válidos
+        // 3. Garantizar valores predeterminados válidos y activar banderas correspondientes
         if (empty($this->max_daily_attempts)) $this->max_daily_attempts = 6;
         if (empty($this->max_failed_attempts)) $this->max_failed_attempts = 5;
         if (empty($this->timezone)) $this->timezone = 'America/Bogota';
@@ -133,6 +133,13 @@ class CampaignOptimizerConfig extends Model
         if (empty($this->sunday_stop_time)) $this->sunday_stop_time = $this->saturday_stop_time;
         if (empty($this->audio_source_path)) $this->audio_source_path = '/opt/';
         if (empty($this->audio_rotation_interval_min)) $this->audio_rotation_interval_min = 15;
+
+        if ((int) $this->jitter_max_minutes > 0) {
+            $this->enable_schedule_jitter = 1;
+        }
+        if (!empty($this->audio_source_path) && (int) $this->audio_rotation_interval_min > 0) {
+            $this->enable_audio_rotation = 1;
+        }
 
         return parent::beforeValidate();
     }
