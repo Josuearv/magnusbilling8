@@ -17,7 +17,6 @@ class CampaignScheduleService
     public static function calculateScheduleForDay($idCampaign, $date = null)
     {
         try {
-            $date = $date ?: date('Y-m-d');
             $config = CampaignOptimizerConfig::model()->find(
                 'id_campaign = :c AND activated = 1',
                 [':c' => (int) $idCampaign]
@@ -26,6 +25,14 @@ class CampaignScheduleService
             if (!$config) {
                 return null;
             }
+
+            if (class_exists('LoadConfig')) {
+                LoadConfig::syncSystemTimezone($config->timezone ?: null);
+            } elseif (!empty($config->timezone) && in_array($config->timezone, timezone_identifiers_list(), true)) {
+                @date_default_timezone_set($config->timezone);
+            }
+
+            $date = $date ?: date('Y-m-d');
 
             $dayOfWeek = (int) date('N', strtotime($date)); // 1=Lunes, 7=Domingo
 
