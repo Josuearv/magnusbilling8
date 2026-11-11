@@ -17,6 +17,47 @@ class CampaignoptimizerconfigController extends Controller
         parent::init();
     }
 
+    public function beforeSave($values)
+    {
+        // 1. Normalizar modo ENFORCING -> ACTIVE
+        if (isset($values['mode']) && $values['mode'] === 'ENFORCING') {
+            $values['mode'] = 'ACTIVE';
+        }
+
+        // 2. Mapear alias de formulario hacia atributos del modelo
+        if (isset($values['max_calls_daily_per_recipient']) && !isset($values['max_daily_attempts'])) {
+            $values['max_daily_attempts'] = (int) $values['max_calls_daily_per_recipient'];
+        }
+        if (isset($values['min_failures_temp_block']) && !isset($values['max_failed_attempts'])) {
+            $values['max_failed_attempts'] = (int) $values['min_failures_temp_block'];
+        }
+        if (isset($values['schedule_weekday_start']) && !isset($values['weekday_start_time'])) {
+            $values['weekday_start_time'] = $values['schedule_weekday_start'];
+        }
+        if (isset($values['schedule_weekday_end']) && !isset($values['weekday_stop_time'])) {
+            $values['weekday_stop_time'] = $values['schedule_weekday_end'];
+        }
+        if (isset($values['schedule_weekend_start'])) {
+            if (!isset($values['saturday_start_time'])) $values['saturday_start_time'] = $values['schedule_weekend_start'];
+            if (!isset($values['sunday_start_time'])) $values['sunday_start_time'] = $values['schedule_weekend_start'];
+        }
+        if (isset($values['schedule_weekend_end'])) {
+            if (!isset($values['saturday_stop_time'])) $values['saturday_stop_time'] = $values['schedule_weekend_end'];
+            if (!isset($values['sunday_stop_time'])) $values['sunday_stop_time'] = $values['schedule_weekend_end'];
+        }
+        if (isset($values['jitter_range_minutes']) && !isset($values['jitter_max_minutes'])) {
+            $values['jitter_max_minutes'] = (int) $values['jitter_range_minutes'];
+        }
+        if (isset($values['audio_pool_directory']) && !isset($values['audio_source_path'])) {
+            $values['audio_source_path'] = $values['audio_pool_directory'];
+        }
+        if (isset($values['audio_rotation_interval_minutes']) && !isset($values['audio_rotation_interval_min'])) {
+            $values['audio_rotation_interval_min'] = (int) $values['audio_rotation_interval_minutes'];
+        }
+
+        return parent::beforeSave($values);
+    }
+
     /**
      * Ejecuta inmediatamente la tarea de optimización en segundo plano.
      */

@@ -333,6 +333,19 @@ class MassiveCallCommand extends ConsoleCommand
                         if ($attempt) {
                             $attemptId = (int) $attempt->id;
                             $attemptUuid = (string) $attempt->attempt_uuid;
+                        } else {
+                            if (class_exists('CampaignOptimizerConfig')) {
+                                $optConfig = CampaignOptimizerConfig::model()->find(
+                                    'id_campaign = :c AND activated = 1',
+                                    [':c' => (int) $campaign->id]
+                                );
+                                if ($optConfig && ($optConfig->mode === 'ACTIVE' || $optConfig->mode === 'ENFORCING')) {
+                                    if ($this->debug >= 1) {
+                                        echo "Skipping phone " . $destination . ": rejected by CampaignOptimizer policy (quota exhausted or suspended).\n";
+                                    }
+                                    continue;
+                                }
+                            }
                         }
                     } catch (Exception $e) {
                         if ($this->debug >= 1) {

@@ -59,8 +59,8 @@ class CampaignAttemptService
                 $localDate
             );
 
-            // Si no es elegible y la campaña está en modo ACTIVE, se rechaza la llamada
-            if (!$eligibility['eligible'] && $eligibility['mode'] === 'ACTIVE') {
+            // Si no es elegible y la campaña está en modo ACTIVE o ENFORCING, se rechaza la llamada
+            if (!$eligibility['eligible'] && ($eligibility['mode'] === 'ACTIVE' || $eligibility['mode'] === 'ENFORCING')) {
                 return null;
             }
 

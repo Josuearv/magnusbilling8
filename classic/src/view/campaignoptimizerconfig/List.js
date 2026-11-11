@@ -101,8 +101,8 @@ Ext.define('MBilling.view.campaignoptimizerconfig.List', {
                 width: 135,
                 sortable: true,
                 renderer: function (val) {
-                    if (val === 'ENFORCING') {
-                        return '<span class="mb-badge mb-badge-success"><i class="x-fa fa-shield"></i> ENFORCING</span>';
+                    if (val === 'ENFORCING' || val === 'ACTIVE') {
+                        return '<span class="mb-badge mb-badge-success"><i class="x-fa fa-shield"></i> ' + (val === 'ACTIVE' ? 'ACTIVE' : 'ENFORCING') + '</span>';
                     } else if (val === 'OBSERVATION') {
                         return '<span class="mb-badge mb-badge-warning"><i class="x-fa fa-eye"></i> OBSERVATION</span>';
                     }

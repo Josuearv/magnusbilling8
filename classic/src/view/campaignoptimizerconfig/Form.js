@@ -30,6 +30,7 @@ Ext.define('MBilling.view.campaignoptimizerconfig.Form', {
                 editable: false,
                 store: [
                     ['OBSERVATION', 'OBSERVATION (Monitoreo)'],
+                    ['ACTIVE', 'ACTIVE (Aplicar límites)'],
                     ['ENFORCING', 'ENFORCING (Aplicar límites)'],
                     ['OFF', 'OFF (Desactivado)']
                 ],

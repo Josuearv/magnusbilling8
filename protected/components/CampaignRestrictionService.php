@@ -27,7 +27,7 @@ class CampaignRestrictionService
             return ['eligible' => true, 'reason' => null, 'mode' => 'NONE'];
         }
 
-        $mode = $config->mode; // 'OBSERVATION' o 'ACTIVE'
+        $mode = ($config->mode === 'ENFORCING' || $config->mode === 'ACTIVE') ? 'ACTIVE' : $config->mode; // 'OBSERVATION' o 'ACTIVE'
         $maxAttempts = (int) $config->max_daily_attempts;
 
         // 2. Verificar estado de política de la campaña (pkg_campaign_optimizer_state)
