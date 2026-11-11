@@ -996,13 +996,13 @@ find /etc/asterisk -name "*mbilling*" -exec chmod 660 {} \;
 
 mkdir -p /var/spool/asterisk/outgoing/.magnusbilling-tmp
 chown root:asterisk /var/spool/asterisk/outgoing
-chmod 730 /var/spool/asterisk/outgoing
+chmod 775 /var/spool/asterisk/outgoing
 chown $APACHE_USER:asterisk /var/spool/asterisk/outgoing/.magnusbilling-tmp
 chmod 770 /var/spool/asterisk/outgoing/.magnusbilling-tmp
-chown -R root:$APACHE_USER /usr/local/src/magnus
-chmod -R 730 /usr/local/src/magnus
+chown -R $APACHE_USER:asterisk /usr/local/src/magnus
+chmod -R 775 /usr/local/src/magnus
 chown -R root:asterisk /var/lib/asterisk/moh
-chmod -R 730 /var/lib/asterisk/moh
+chmod -R 775 /var/lib/asterisk/moh
 chown root:asterisk /etc/asterisk/res_config_mysql.conf
 chmod 0640 /etc/asterisk/res_config_mysql.conf
 

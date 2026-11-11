@@ -32,6 +32,28 @@ class MassiveCallCommand extends ConsoleCommand
             return 1;
         }
 
+        $magnusDir = '/usr/local/src/magnus';
+        $soundsDir = '/usr/local/src/magnus/sounds';
+        if (is_dir($magnusDir)) {
+            @chmod($magnusDir, 0755);
+        }
+        if (! is_dir($soundsDir)) {
+            @mkdir($soundsDir, 0777, true);
+        }
+        if (is_dir($soundsDir)) {
+            @chmod($soundsDir, 0777);
+            foreach (glob($soundsDir . '/idCampaign_*') ?: [] as $soundFile) {
+                @chmod($soundFile, 0666);
+            }
+        }
+        $agiDir = '/var/www/html/mbilling/resources/asterisk';
+        if (is_dir($agiDir)) {
+            @chmod($agiDir, 0755);
+            foreach (glob($agiDir . '/*.php') ?: [] as $agiPhp) {
+                @chmod($agiPhp, basename($agiPhp) === 'mbilling.php' ? 0755 : 0644);
+            }
+        }
+
         $config         = LoadConfig::getConfig();
         $UNIX_TIMESTAMP = "UNIX_TIMESTAMP(";
         $idCampaign     = isset($args[0]) ? (int) $args[0] : 0;
