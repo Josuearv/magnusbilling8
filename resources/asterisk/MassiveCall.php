@@ -159,6 +159,9 @@ class MassiveCall
                     $audio = Tts::create($MAGNUS, $agi, $ttsText);
                 } else {
                     $audio = $uploaddir . "idCampaign_" . $modelCampaign->id;
+                    if (! is_readable($audio . '.gsm') && ! is_readable($audio . '.wav')) {
+                        $agi->verbose("WARNING: Campaign audio file not found or not readable by asterisk at {$audio}.gsm/.wav", 1);
+                    }
                 }
 
                 $hasSecondCampaignAudio =
@@ -750,7 +753,7 @@ class MassiveCall
         $billingblock        = $modelRate->billingblock;
         $minimal_time_charge = $modelRate->minimal_time_charge;
 
-        $duration = $real_sessiontime = time() - $now;
+        $duration = $real_sessiontime = max(1, time() - $now);
 
         /*recondeo call*/
         if ($MAGNUS->config["global"]['bloc_time_call'] == 1 && $duration > 0) {
@@ -786,7 +789,7 @@ class MassiveCall
         $agi->verbose("[TEMPO DA LIGAÃ‡AO] " . $duration, 8);
 
         $MAGNUS->id_plan = $modelRate->id_plan;
-        if ($duration > 1) {
+        if ($duration >= 1) {
 
             if (isset($modelCampaign->enable_max_call) && $modelCampaign->enable_max_call == 1 && $duration >= $modelCampaign->nb_callmade) {
                 //desativa a campanha se o limite de chamadas foi alcançado
