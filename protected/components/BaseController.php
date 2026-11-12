@@ -1028,6 +1028,24 @@ class BaseController extends CController
             $this->filter .= ' AND ' . $defaultFilter;
         }
 
+        if (empty($this->relationFilter)) {
+            $tableName = $this->abstractModel->tableName();
+            $sql = "SELECT t.$namePk FROM $tableName t";
+            if (!empty($this->join)) {
+                $sql .= ' ' . $this->join;
+            }
+            if (!empty($this->filter)) {
+                $sql .= ' WHERE ' . $this->filter;
+            }
+            $cmd = Yii::app()->db->createCommand($sql);
+            if (!empty($this->paramsFilter)) {
+                foreach ($this->paramsFilter as $param => $val) {
+                    $cmd->bindValue($param, $val);
+                }
+            }
+            return $cmd->queryColumn();
+        }
+
         $records = $this->abstractModel->findAll([
             'select'    => "t.$namePk",
             'join'      => $this->join,

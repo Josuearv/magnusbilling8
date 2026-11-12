@@ -27,6 +27,7 @@ return [
     'preload'    => ['log'],
     # autoload das models e componentes
     'import'     => [
+        'system.console.*',
         'application.models.*',
         'application.components.*',
         'application.components.AGI.*',

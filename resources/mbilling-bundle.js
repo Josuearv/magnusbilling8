@@ -80984,6 +80984,7 @@ Ext.define('Ext.ux.grid.menu.ListMenu', {
      */
     single: false,
     plain: true,
+    minWidth: 140,
     constructor: function(cfg) {
         var me = this,
             options,
@@ -81024,12 +81025,17 @@ Ext.define('Ext.ux.grid.menu.ListMenu', {
             me.onLoad(me.store, me.store.getRange());
             me.loaded = true;
             me.autoStore = true;
-        } else {
-            me.add({
-                text: me.loadingText,
-                iconCls: 'loading-indicator'
-            });
-            me.store.on('load', me.onLoad, me);
+        } else if (me.store) {
+            if (me.store.getCount && me.store.getCount() > 0) {
+                me.onLoad(me.store, me.store.getRange());
+                me.loaded = true;
+            } else {
+                me.add({
+                    text: me.loadingText,
+                    iconCls: 'loading-indicator'
+                });
+                me.store.on('load', me.onLoad, me);
+            }
         }
     },
     destroy: function() {
@@ -81053,10 +81059,12 @@ Ext.define('Ext.ux.grid.menu.ListMenu', {
      */
     show: function() {
         var me = this;
-        if (me.loadOnShow && !me.loaded && !me.store.loading) {
+        if (me.store && me.store.getCount && me.store.getCount() > 0 && (!me.items || me.items.getCount() === 0 || (me.items.getCount() === 1 && me.items.getAt(0).text === me.loadingText))) {
+            me.onLoad(me.store, me.store.getRange());
+        } else if (me.loadOnShow && !me.loaded && me.store && !me.store.loading) {
             me.store.load();
         }
-        me.callParent();
+        return me.callParent(arguments);
     },
     /** @private */
     onLoad: function(store, records) {
@@ -81066,6 +81074,7 @@ Ext.define('Ext.ux.grid.menu.ListMenu', {
                 checkchange: me.checkChange,
                 scope: me
             };
+        records = records || (store && store.getRange ? store.getRange() : []);
         Ext.suspendLayouts();
         me.removeAll(true);
         gid = me.single ? Ext.id() : null;

@@ -147,7 +147,7 @@ class CallSummaryDayTrunkController extends Controller
                         COALESCE(SUM(buycost), 0) AS buycost,
                         COALESCE(SUM(sessionbill), 0) AS sessionbill
                     FROM pkg_cdr
-                    WHERE starttime >= :from AND starttime < :to AND id_trunk > 0
+                    WHERE starttime >= :from1 AND starttime < :to1 AND id_trunk > 0
                     GROUP BY id_trunk
                     UNION ALL
                     SELECT
@@ -158,7 +158,7 @@ class CallSummaryDayTrunkController extends Controller
                         0 AS buycost,
                         0 AS sessionbill
                     FROM pkg_cdr_failed
-                    WHERE starttime >= :from AND starttime < :to AND id_trunk > 0
+                    WHERE starttime >= :from2 AND starttime < :to2 AND id_trunk > 0
                     GROUP BY id_trunk
                 ) u
                 INNER JOIN pkg_trunk t ON t.id = u.id_trunk
@@ -166,8 +166,10 @@ class CallSummaryDayTrunkController extends Controller
                 ORDER BY SUM(u.sessionbill) DESC, SUM(u.nbcall) DESC, SUM(u.nbcall_fail) DESC
                 LIMIT 3
             ")->queryAll(true, [
-                ':from' => $todayFrom,
-                ':to'   => $todayTo,
+                ':from1' => $todayFrom,
+                ':to1'   => $todayTo,
+                ':from2' => $todayFrom,
+                ':to2'   => $todayTo,
             ]);
         } catch (Exception $e) {
             $liveTrunks = [];

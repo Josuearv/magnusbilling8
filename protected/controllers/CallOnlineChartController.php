@@ -38,10 +38,9 @@ class CallOnlineChartController extends Controller
 
     public function actionRead($asJson = true, $condition = null)
     {
-        LoadConfig::syncSystemTimezone();
-        require_once Yii::app()->basePath . '/commands/CallChartCommand.php';
-        if (class_exists('CallChartCommand')) {
-            CallChartCommand::syncOnlineCallsNow(2);
+        try {
+            LoadConfig::syncSystemTimezone();
+        } catch (Exception $e) {
         }
 
         $filter = isset($_GET['filter']) ? json_decode($_GET['filter']) : null;
@@ -83,19 +82,21 @@ class CallOnlineChartController extends Controller
                                COUNT(*) AS ans_cnt,
                                COUNT(*) AS tot_cnt
                         FROM pkg_cdr
-                        WHERE starttime >= :since
+                        WHERE starttime >= :s1
                         GROUP BY DATE_FORMAT(starttime, '%Y-%m-%d %H:%i:00')
                         UNION ALL
                         SELECT DATE_FORMAT(starttime, '%Y-%m-%d %H:%i:00') AS minute_bucket,
                                0 AS ans_cnt,
                                COUNT(*) AS tot_cnt
                         FROM pkg_cdr_failed
-                        WHERE starttime >= :since
+                        WHERE starttime >= :s2
                         GROUP BY DATE_FORMAT(starttime, '%Y-%m-%d %H:%i:00')
                     ) u
                     GROUP BY minute_bucket
                     ORDER BY minute_bucket ASC
-                ")->bindValue(':since', $sinceDate, PDO::PARAM_STR)->queryAll();
+                ")->bindValue(':s1', $sinceDate, PDO::PARAM_STR)
+                  ->bindValue(':s2', $sinceDate, PDO::PARAM_STR)
+                  ->queryAll();
 
                 foreach ($cdrMinutes as $bucket) {
                     $mDate = $bucket['minute_bucket'] ?? '';

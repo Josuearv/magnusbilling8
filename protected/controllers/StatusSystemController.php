@@ -22,7 +22,10 @@ class StatusSystemController extends Controller
 
     public function init()
     {
-        LoadConfig::syncSystemTimezone();
+        try {
+            LoadConfig::syncSystemTimezone();
+        } catch (Exception $e) {
+        }
         $this->instanceModel = new StatusSystem;
         $this->abstractModel = StatusSystem::model();
         $this->titleReport   = Yii::t('zii', 'Status system');
@@ -39,13 +42,9 @@ class StatusSystemController extends Controller
 
     public function setAttributesModels($attributes, $models)
     {
-        LoadConfig::syncSystemTimezone();
-        $callChartCmdPath = Yii::app()->basePath . '/commands/CallChartCommand.php';
-        if (is_file($callChartCmdPath)) {
-            require_once $callChartCmdPath;
-            if (class_exists('CallChartCommand')) {
-                CallChartCommand::syncOnlineCallsNow(2);
-            }
+        try {
+            LoadConfig::syncSystemTimezone();
+        } catch (Exception $e) {
         }
 
         if (empty($attributes)) {
@@ -71,60 +70,81 @@ class StatusSystemController extends Controller
             $attributes = array_reverse($attributes);
         }
 
-        $totalActiveUsers         = User::model()->count('active = 1');
-        $modelCallSummaryPerMonth = CallSummaryPerMonth::model()->find('month = :key', [':key' => date('Ym')]);
-        $profitVal                = isset($modelCallSummaryPerMonth->lucro) ? (float) $modelCallSummaryPerMonth->lucro : null;
-        if ($profitVal === null) {
-            $monthStart = date('Y-m-01 00:00:00');
-            $profitVal  = (float) Yii::app()->db->createCommand("
-                SELECT COALESCE(SUM(sessionbill - buycost), 0)
-                FROM pkg_cdr
-                WHERE starttime >= :monthStart
-            ")->bindValue(':monthStart', $monthStart, PDO::PARAM_STR)->queryScalar();
+        $totalActiveUsers = 0;
+        try {
+            $totalActiveUsers = (int) User::model()->count('active = 1');
+        } catch (Exception $e) {
         }
-        $monthprofit = number_format((float) $profitVal, 2);
+
+        $monthprofit = '0.00';
+        try {
+            $modelCallSummaryPerMonth = CallSummaryPerMonth::model()->find('month = :key', [':key' => date('Ym')]);
+            $profitVal                = isset($modelCallSummaryPerMonth->lucro) ? (float) $modelCallSummaryPerMonth->lucro : null;
+            if ($profitVal === null) {
+                $monthStart = date('Y-m-01 00:00:00');
+                $profitVal  = (float) Yii::app()->db->createCommand("
+                    SELECT COALESCE(SUM(sessionbill - buycost), 0)
+                    FROM pkg_cdr
+                    WHERE starttime >= :monthStart
+                ")->bindValue(':monthStart', $monthStart, PDO::PARAM_STR)->queryScalar();
+            }
+            $monthprofit = number_format((float) $profitVal, 2);
+        } catch (Exception $e) {
+        }
 
         $todayStart = date('Y-m-d 00:00:00');
+        $ccPeakVal  = 0;
+        $cpsValue   = 0;
 
-        $ccFromChart = (int) Yii::app()->db->createCommand("
-            SELECT COALESCE(MAX(total), 0)
-            FROM pkg_call_online_chart
-            WHERE date >= :today
-        ")->bindValue(':today', $todayStart, PDO::PARAM_STR)->queryScalar();
-
-        $ccLive = (int) CallOnLine::model()->count();
-
-        $cpsFromStatus = (int) Yii::app()->db->createCommand("
-            SELECT COALESCE(MAX(cps), 0)
-            FROM pkg_status_system
-            WHERE date >= :today
-        ")->bindValue(':today', $todayStart, PDO::PARAM_STR)->queryScalar();
-
-        $cpsFromCdr = 0;
         try {
-            $cpsFromCdr = (int) Yii::app()->db->createCommand("
-                SELECT COALESCE(MAX(cnt), 0) FROM (
-                    SELECT starttime, COUNT(*) AS cnt FROM (
-                        SELECT starttime FROM pkg_cdr WHERE starttime >= :today
-                        UNION ALL
-                        SELECT starttime FROM pkg_cdr_failed WHERE starttime >= :today
-                    ) u GROUP BY starttime
-                ) s
+            $ccFromChart = (int) Yii::app()->db->createCommand("
+                SELECT COALESCE(MAX(total), 0)
+                FROM pkg_call_online_chart
+                WHERE date >= :today
             ")->bindValue(':today', $todayStart, PDO::PARAM_STR)->queryScalar();
-        } catch (Exception $e) {
+
+            $ccLive = (int) CallOnLine::model()->count();
+
+            $cpsFromStatus = (int) Yii::app()->db->createCommand("
+                SELECT COALESCE(MAX(cps), 0)
+                FROM pkg_status_system
+                WHERE date >= :today
+            ")->bindValue(':today', $todayStart, PDO::PARAM_STR)->queryScalar();
+
             $cpsFromCdr = 0;
+            try {
+                $cpsFromCdr = (int) Yii::app()->db->createCommand("
+                    SELECT COALESCE(MAX(cnt), 0) FROM (
+                        SELECT starttime, COUNT(*) AS cnt FROM (
+                            SELECT starttime FROM pkg_cdr WHERE starttime >= :t1
+                            UNION ALL
+                            SELECT starttime FROM pkg_cdr_failed WHERE starttime >= :t2
+                        ) u GROUP BY starttime
+                    ) s
+                ")->bindValue(':t1', $todayStart, PDO::PARAM_STR)
+                  ->bindValue(':t2', $todayStart, PDO::PARAM_STR)
+                  ->queryScalar();
+            } catch (Exception $e) {
+                $cpsFromCdr = 0;
+            }
+
+            $cpsValue  = max($cpsFromStatus, $cpsFromCdr);
+            $ccPeakVal = max($ccFromChart, $ccLive, $cpsValue);
+        } catch (Exception $e) {
         }
 
-        $cpsValue  = max($cpsFromStatus, $cpsFromCdr);
-        $ccPeakVal = max($ccFromChart, $ccLive, $cpsValue);
         $maximumcc = 'CC ' . $ccPeakVal . ' | CPS ' . $cpsValue;
 
-        $modelRefill = Refill::model()->find([
-            'select'    => 'sum(credit) as credit',
-            'condition' => 'date >= :key',
-            'params'    => [':key' => date('Y-m-01 00:00:00')],
-        ]);
-        $monthRefill = isset($modelRefill->credit) ? number_format($modelRefill->credit, 2) : '0.00';
+        $monthRefill = '0.00';
+        try {
+            $modelRefill = Refill::model()->find([
+                'select'    => 'sum(credit) as credit',
+                'condition' => 'date >= :key',
+                'params'    => [':key' => date('Y-m-01 00:00:00')],
+            ]);
+            $monthRefill = isset($modelRefill->credit) ? number_format($modelRefill->credit, 2) : '0.00';
+        } catch (Exception $e) {
+        }
 
         $lastIdx       = count($attributes) - 1;
         $targetIndices = array_unique([0, $lastIdx]);

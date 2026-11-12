@@ -17,6 +17,10 @@
  * Magnusbilling.com <info@magnusbilling.com>
  *
  */
+if (!class_exists('CConsoleCommand', false)) {
+    Yii::import('system.console.CConsoleCommand');
+}
+
 class ConsoleCommand extends CConsoleCommand
 {
     public $debug = 0;
