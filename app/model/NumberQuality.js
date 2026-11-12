@@ -1,0 +1,43 @@
+Ext.define('MBilling.model.NumberQuality', {
+    extend: 'Ext.data.Model',
+    fields: [
+        { name: 'id', type: 'int' },
+        { name: 'canonical_number', type: 'string' },
+        { name: 'id_user', type: 'int' },
+        { name: 'id_campaign', type: 'int' },
+        { name: 'id_trunk', type: 'int' },
+        { name: 'window_days', type: 'int' },
+        { name: 'attempts', type: 'int' },
+        { name: 'answered', type: 'int' },
+        { name: 'failed', type: 'int' },
+        { name: 'cnt_short_5s', type: 'int' },
+        { name: 'cnt_6_30s', type: 'int' },
+        { name: 'cnt_31_179s', type: 'int' },
+        { name: 'cnt_mid_short', type: 'int' },
+        { name: 'cnt_long_180s', type: 'int' },
+        { name: 'asr_pct', type: 'float' },
+        { name: 'sdr_5s_pct', type: 'float' },
+        { name: 'mid_short_pct', type: 'float' },
+        { name: 'acd_sec', type: 'float' },
+        { name: 'duration_stddev', type: 'float' },
+        { name: 'duration_cv', type: 'float' },
+        { name: 'dominant_fail_cause', type: 'string' },
+        { name: 'dominant_fail_pct', type: 'float' },
+        { name: 'last_hangupcause', type: 'int' },
+        { name: 'buycost_total', type: 'float' },
+        { name: 'quality_score', type: 'float' },
+        { name: 'confidence', type: 'float' },
+        { name: 'quality_label', type: 'string' },
+        { name: 'reason_summary', type: 'string' },
+        { name: 'is_trunk_suspect', type: 'int' },
+        { name: 'last_call_at', type: 'date', dateFormat: 'Y-m-d H:i:s' },
+        { name: 'updated_at', type: 'date', dateFormat: 'Y-m-d H:i:s' },
+        'idUserusername',
+        'idCampaignname',
+        'idTrunktrunkcode'
+    ],
+    proxy: {
+        type: 'uxproxy',
+        module: 'numberquality'
+    }
+});

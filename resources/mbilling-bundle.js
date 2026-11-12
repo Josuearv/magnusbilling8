@@ -38290,6 +38290,67 @@ Ext.define('MBilling.store.MagnusSentinelIncident', {
 
 
 ;
+/* Source: app/model/NumberQuality.js */
+Ext.define('MBilling.model.NumberQuality', {
+    extend: 'Ext.data.Model',
+    fields: [
+        { name: 'id', type: 'int' },
+        { name: 'canonical_number', type: 'string' },
+        { name: 'id_user', type: 'int' },
+        { name: 'id_campaign', type: 'int' },
+        { name: 'id_trunk', type: 'int' },
+        { name: 'window_days', type: 'int' },
+        { name: 'attempts', type: 'int' },
+        { name: 'answered', type: 'int' },
+        { name: 'failed', type: 'int' },
+        { name: 'cnt_short_5s', type: 'int' },
+        { name: 'cnt_6_30s', type: 'int' },
+        { name: 'cnt_31_179s', type: 'int' },
+        { name: 'cnt_mid_short', type: 'int' },
+        { name: 'cnt_long_180s', type: 'int' },
+        { name: 'asr_pct', type: 'float' },
+        { name: 'sdr_5s_pct', type: 'float' },
+        { name: 'mid_short_pct', type: 'float' },
+        { name: 'acd_sec', type: 'float' },
+        { name: 'duration_stddev', type: 'float' },
+        { name: 'duration_cv', type: 'float' },
+        { name: 'dominant_fail_cause', type: 'string' },
+        { name: 'dominant_fail_pct', type: 'float' },
+        { name: 'last_hangupcause', type: 'int' },
+        { name: 'buycost_total', type: 'float' },
+        { name: 'quality_score', type: 'float' },
+        { name: 'confidence', type: 'float' },
+        { name: 'quality_label', type: 'string' },
+        { name: 'reason_summary', type: 'string' },
+        { name: 'is_trunk_suspect', type: 'int' },
+        { name: 'last_call_at', type: 'date', dateFormat: 'Y-m-d H:i:s' },
+        { name: 'updated_at', type: 'date', dateFormat: 'Y-m-d H:i:s' },
+        'idUserusername',
+        'idCampaignname',
+        'idTrunktrunkcode'
+    ],
+    proxy: {
+        type: 'uxproxy',
+        module: 'numberquality'
+    }
+});
+
+
+;
+/* Source: app/store/NumberQuality.js */
+Ext.define('MBilling.store.NumberQuality', {
+    extend: 'Ext.data.Store',
+    model: 'MBilling.model.NumberQuality',
+    remoteSort: true,
+    pageSize: 50,
+    sorters: [{
+        property: 'quality_score',
+        direction: 'ASC'
+    }]
+});
+
+
+;
 /* Source: app/model/Menu.js */
 /**
  * Classe que define a model "Callerid"
@@ -80695,6 +80756,724 @@ Ext.define('MBilling.view.magnusSentinel.Module', {
 
 
 ;
+/* Source: classic/src/view/numberquality/Controller.js */
+/**
+ * ViewController for CDR & ASR Number Quality Analytics.
+ */
+Ext.define('MBilling.view.numberquality.Controller', {
+    extend: 'Ext.app.ViewController',
+    alias: 'controller.numberquality',
+
+    onRenderModule: function () {
+        var me = this;
+        me.list = me.lookupReference('qualityList');
+        me.detail = me.lookupReference('qualityDetail');
+        me.banner = me.lookupReference('summaryBanner');
+        me.store = me.list.getStore();
+        me.activeTrunkId = 0;
+
+        me.onFilterChange();
+        me.loadSummary();
+    },
+
+    onDestroyModule: function () {
+        var me = this;
+        if (me.summaryReq) {
+            Ext.Ajax.abort(me.summaryReq);
+        }
+        if (me.detailReq) {
+            Ext.Ajax.abort(me.detailReq);
+        }
+    },
+
+    onFilterChange: function () {
+        var me = this;
+        if (!me.store) {
+            return;
+        }
+        var label = me.lookupReference('labelFilter').getValue();
+        var minAtt = me.lookupReference('minAttemptsFilter').getValue();
+        var query = Ext.String.trim(me.lookupReference('searchField').getValue() || '');
+
+        var params = {};
+        if (label) {
+            params.quality_label = label;
+        }
+        if (minAtt !== null && minAtt !== '' && parseInt(minAtt, 10) > 0) {
+            params.min_attempts = parseInt(minAtt, 10);
+        }
+        if (query !== '') {
+            params.query = query;
+        }
+        if (me.activeTrunkId > 0) {
+            params.id_trunk = me.activeTrunkId;
+        }
+
+        me.store.getProxy().setExtraParams(params);
+        me.store.loadPage(1);
+    },
+
+    onSearchSpecialKey: function (field, e) {
+        if (e.getKey() === e.ENTER) {
+            this.onFilterChange();
+        }
+    },
+
+    onClearFilters: function () {
+        var me = this;
+        me.activeTrunkId = 0;
+        me.lookupReference('labelFilter').setValue('');
+        me.lookupReference('minAttemptsFilter').setValue(5);
+        me.lookupReference('searchField').setValue('');
+        me.onFilterChange();
+        me.loadSummary();
+    },
+
+    loadSummary: function () {
+        var me = this;
+        if (me.summaryReq) {
+            Ext.Ajax.abort(me.summaryReq);
+        }
+        me.summaryReq = Ext.Ajax.request({
+            url: 'index.php/numberquality/summary',
+            method: 'GET',
+            success: function (res) {
+                var json = Ext.decode(res.responseText, true);
+                if (json && json.success) {
+                    me.renderSummaryBanner(json.kpis || {}, json.trunks || []);
+                }
+            }
+        });
+    },
+
+    renderSummaryBanner: function (k, trunks) {
+        var me = this;
+        if (!me.banner) {
+            return;
+        }
+        var html = '<div class="mb-nq-kpi-strip">' +
+            me.kpiCard('Números Malos', k.bad_numbers || 0, '#dc2626', 'Score bajo / patrones nocivos') +
+            me.kpiCard('Cortan <= 5s', k.bad_short_5s || 0, '#b91c1c', 'SDR <=5s >= 60%') +
+            me.kpiCard('Siempre < 3m', k.bad_under_3min || 0, '#d97706', '0 llamadas >= 180s') +
+            me.kpiCard('Posible Troncal', k.trunk_suspect || 0, '#6d28d9', 'Bueno en otra troncal') +
+            me.kpiCard('ASR / SDR<=5s Global',
+                parseFloat(k.global_asr_pct || 0).toFixed(1) + '% / ' + parseFloat(k.global_sdr_5s_pct || 0).toFixed(1) + '%',
+                '#0f172a',
+                (k.total_attempts || 0) + ' intentos analizados'
+            ) +
+            me.kpiCard('Costo en Malos', '$' + parseFloat(k.bad_buycost || 0).toFixed(2), '#334155',
+                k.last_updated_at ? 'Act: ' + Ext.util.Format.htmlEncode(k.last_updated_at) : 'Sin sincronizar') +
+            '</div>';
+
+        if (trunks && trunks.length > 0) {
+            html += '<div style="padding:5px 10px;background:#ffffff;border-bottom:1px solid #e2e8f0;font-size:11px;display:flex;gap:12px;flex-wrap:wrap;align-items:center;">' +
+                '<span style="font-weight:700;color:#475569;">TRUNKS (30d):</span>';
+            Ext.Array.each(trunks, function (tr) {
+                var activeStyle = (me.activeTrunkId === parseInt(tr.id_trunk, 10)) ? 'border:1px solid #2563eb;background:#eff6ff;' : 'border:1px solid #e2e8f0;background:#f8fafc;';
+                html += '<span style="' + activeStyle + 'border-radius:4px;padding:2px 7px;color:#1e293b;">' +
+                    '<b>' + Ext.util.Format.htmlEncode(tr.trunkcode) + '</b>: ' +
+                    'ASR ' + parseFloat(tr.asr_pct || 0).toFixed(1) + '% &middot; ' +
+                    '<=5s ' + parseFloat(tr.sdr_5s_pct || 0).toFixed(1) + '% ' +
+                    (parseInt(tr.suspect_numbers, 10) > 0 ? '(<span style="color:#6d28d9;font-weight:700;">' + tr.suspect_numbers + ' susp.</span>)' : '') +
+                    '</span>';
+            });
+            html += '</div>';
+        }
+
+        me.banner.update(html);
+    },
+
+    kpiCard: function (title, value, color, sub) {
+        return '<div class="mb-nq-kpi-card">' +
+            '<div class="mb-nq-kpi-title">' + Ext.util.Format.htmlEncode(title) + '</div>' +
+            '<div class="mb-nq-kpi-val" style="color:' + color + ';">' + Ext.util.Format.htmlEncode(String(value)) + '</div>' +
+            '<div class="mb-nq-kpi-sub">' + Ext.util.Format.htmlEncode(String(sub || '')) + '</div>' +
+            '</div>';
+    },
+
+    onSelectionChange: function (selModel, selected) {
+        var me = this;
+        var hasRec = selected && selected.length > 0;
+        me.toggleActionButtons(hasRec);
+
+        if (!hasRec) {
+            me.selectedRecord = null;
+            me.detail.setDetailData({ score: null, histogram: [], calls: [] });
+            return;
+        }
+
+        me.selectedRecord = selected[0];
+        if (me.detailReq) {
+            Ext.Ajax.abort(me.detailReq);
+        }
+        me.detail.setLoading(t('Loading...'));
+
+        me.detailReq = Ext.Ajax.request({
+            url: 'index.php/numberquality/detail',
+            method: 'GET',
+            params: {
+                canonical_number: me.selectedRecord.get('canonical_number'),
+                id_campaign: me.selectedRecord.get('id_campaign'),
+                id_trunk: me.selectedRecord.get('id_trunk')
+            },
+            callback: function (opts, ok, res) {
+                me.detail.setLoading(false);
+                if (!ok) {
+                    return;
+                }
+                var json = Ext.decode(res.responseText, true);
+                if (json && json.success) {
+                    var score = json.score || me.selectedRecord.getData();
+                    if (!score.campaign_name) {
+                        score.campaign_name = me.selectedRecord.get('idCampaignname') || 'General';
+                    }
+                    if (!score.trunk_code) {
+                        score.trunk_code = me.selectedRecord.get('idTrunktrunkcode') || 'N/A';
+                    }
+                    me.detail.setDetailData({
+                        score: score,
+                        histogram: json.histogram || [],
+                        calls: json.calls || []
+                    });
+                }
+            }
+        });
+    },
+
+    toggleActionButtons: function (enabled) {
+        this.lookupReference('btnSuspendTemp').setDisabled(!enabled);
+        this.lookupReference('btnRestrictPerm').setDisabled(!enabled);
+        this.lookupReference('btnReactivate').setDisabled(!enabled);
+    },
+
+    onRecalculate: function () {
+        var me = this;
+        Ext.Msg.confirm(
+            t('Recalculate Quality Analytics'),
+            t('This runs incremental CDR sync and recomputes rolling 30-day scores. Continue?'),
+            function (btn) {
+                if (btn !== 'yes') {
+                    return;
+                }
+                me.getView().setLoading(t('Calculating CDR analytics...'));
+                Ext.Ajax.request({
+                    url: 'index.php/numberquality/recalculate',
+                    method: 'POST',
+                    timeout: 120000,
+                    callback: function (opts, ok, res) {
+                        me.getView().setLoading(false);
+                        var json = ok ? Ext.decode(res.responseText, true) : null;
+                        if (json && json.success) {
+                            Ext.Msg.alert(
+                                t('Success'),
+                                t('Sync complete') + ': ' + (json.scores_updated || 0) + ' ' + t('destinations scored') +
+                                ' (' + (json.duration_sec || 0) + 's)'
+                            );
+                            me.onFilterChange();
+                            me.loadSummary();
+                        } else {
+                            Ext.Msg.alert(t('Error'), (json && (json.msg || json.reason)) || t('Failed to recalculate analytics.'));
+                        }
+                    }
+                });
+            }
+        );
+    },
+
+    onExportCsv: function () {
+        var me = this;
+        var params = Ext.Object.toQueryString(me.store.getProxy().getExtraParams() || {});
+        var url = 'index.php/numberquality/csv' + (params ? '?' + params : '');
+        window.open(url, '_blank');
+    },
+
+    onSuspendTemp: function () {
+        this.applyOperatorAction('TEMP_SUSPEND', t('Confirm 24h pause for this number?'));
+    },
+
+    onRestrictPerm: function () {
+        this.applyOperatorAction('RESTRICT_PERM', t('Confirm permanent restriction for this number?'));
+    },
+
+    onReactivate: function () {
+        this.applyOperatorAction('REACTIVATE', t('Confirm reactivation for this number?'));
+    },
+
+    applyOperatorAction: function (actionType, confirmMsg) {
+        var me = this;
+        if (!me.selectedRecord) {
+            return;
+        }
+        var num = me.selectedRecord.get('canonical_number');
+        Ext.Msg.confirm(t('Confirm Action'), confirmMsg + ' (' + Ext.util.Format.htmlEncode(num) + ')', function (btn) {
+            if (btn !== 'yes') {
+                return;
+            }
+            me.detail.setLoading(t('Applying...'));
+            Ext.Ajax.request({
+                url: 'index.php/numberquality/applySuggestion',
+                method: 'POST',
+                params: {
+                    id: me.selectedRecord.get('id'),
+                    action_type: actionType,
+                    hours: 24,
+                    canonical_number: num,
+                    id_campaign: me.selectedRecord.get('id_campaign'),
+                    id_user: me.selectedRecord.get('id_user')
+                },
+                callback: function (opts, ok, res) {
+                    me.detail.setLoading(false);
+                    var json = ok ? Ext.decode(res.responseText, true) : null;
+                    if (json && json.success) {
+                        Ext.Msg.alert(t('Success'), json.msg || t('Action applied.'));
+                        me.store.reload();
+                    } else {
+                        Ext.Msg.alert(t('Error'), (json && json.msg) || t('Failed to apply action.'));
+                    }
+                }
+            });
+        });
+    }
+});
+
+
+;
+/* Source: classic/src/view/numberquality/List.js */
+/**
+ * Grid view for CDR & ASR Number Quality Analytics.
+ */
+Ext.define('MBilling.view.numberquality.List', {
+    extend: 'Ext.grid.Panel',
+    alias: 'widget.numberqualitylist',
+    border: false,
+    columnLines: true,
+    selModel: {
+        mode: 'SINGLE'
+    },
+    viewConfig: {
+        loadMask: {
+            msg: t('Loading...')
+        },
+        emptyText: '<div class="grid-empty">' +
+            t('No scored destinations yet. Run Cron NumberQuality or click Recalculate Now.') +
+            '</div>',
+        deferEmptyText: false
+    },
+    listeners: {
+        selectionchange: 'onSelectionChange'
+    },
+
+    initComponent: function () {
+        var me = this;
+
+        me.store = Ext.create('MBilling.store.NumberQuality');
+
+        me.columns = [{
+            text: t('Score'),
+            dataIndex: 'quality_score',
+            width: 72,
+            align: 'center',
+            renderer: function (val, meta, rec) {
+                var num = parseFloat(val || 0).toFixed(0);
+                var label = rec.get('quality_label');
+                var cls = 'mb-nq-pill-good';
+                if (label === 'INSUFFICIENT_DATA') {
+                    cls = 'mb-nq-pill-muted';
+                } else if (label === 'TRUNK_SUSPECT') {
+                    cls = 'mb-nq-pill-trunk';
+                } else if (parseFloat(val) < 35) {
+                    cls = 'mb-nq-pill-bad';
+                } else if (parseFloat(val) < 60) {
+                    cls = 'mb-nq-pill-warn';
+                }
+                return '<span class="mb-nq-pill ' + cls + '">' + num + '</span>';
+            }
+        }, {
+            text: t('Diagnosis'),
+            dataIndex: 'quality_label',
+            width: 155,
+            renderer: function (val, meta, rec) {
+                var map = {
+                    BAD_SHORT_5S: { txt: 'Corta <=5s', cls: 'mb-nq-pill-bad' },
+                    BAD_UNDER_3MIN: { txt: 'Siempre <3m', cls: 'mb-nq-pill-bad' },
+                    RIGID_CUT_PATTERN: { txt: 'Corte Rígido', cls: 'mb-nq-pill-bad' },
+                    UNREACHABLE_FAIL_PATTERN: { txt: 'Fallo / ASR Crítico', cls: 'mb-nq-pill-bad' },
+                    TRUNK_SUSPECT: { txt: 'Posible Troncal', cls: 'mb-nq-pill-trunk' },
+                    WATCHLIST: { txt: 'Observación', cls: 'mb-nq-pill-warn' },
+                    HEALTHY: { txt: 'Saludable', cls: 'mb-nq-pill-good' },
+                    INSUFFICIENT_DATA: { txt: 'Poca Muestra', cls: 'mb-nq-pill-muted' }
+                };
+                var info = map[val] || { txt: val || 'N/A', cls: 'mb-nq-pill-muted' };
+                meta.tdAttr = 'data-qtip="' + Ext.util.Format.htmlEncode(rec.get('reason_summary') || '') + '"';
+                return '<span class="mb-nq-pill ' + info.cls + '">' + Ext.util.Format.htmlEncode(info.txt) + '</span>';
+            }
+        }, {
+            text: t('Destination'),
+            dataIndex: 'canonical_number',
+            width: 125,
+            renderer: function (val) {
+                return '<b style="color:#1e293b;">' + Ext.util.Format.htmlEncode(val) + '</b>';
+            }
+        }, {
+            text: t('Campaign'),
+            dataIndex: 'idCampaignname',
+            width: 120,
+            renderer: function (val, meta, rec) {
+                if (parseInt(rec.get('id_campaign'), 10) <= 0 || !val) {
+                    return '<span style="color:#94a3b8;">General</span>';
+                }
+                return Ext.util.Format.htmlEncode(val);
+            }
+        }, {
+            text: t('Trunk'),
+            dataIndex: 'idTrunktrunkcode',
+            width: 110,
+            renderer: function (val, meta, rec) {
+                if (parseInt(rec.get('id_trunk'), 10) <= 0 || !val) {
+                    return '<span style="color:#94a3b8;">N/A</span>';
+                }
+                return Ext.util.Format.htmlEncode(val);
+            }
+        }, {
+            text: t('Attempts'),
+            dataIndex: 'attempts',
+            width: 74,
+            align: 'right'
+        }, {
+            text: t('Answered'),
+            dataIndex: 'answered',
+            width: 68,
+            align: 'right'
+        }, {
+            text: 'ASR %',
+            dataIndex: 'asr_pct',
+            width: 72,
+            align: 'right',
+            renderer: function (val) {
+                var num = parseFloat(val || 0);
+                var color = num < 15 ? '#dc2626' : (num < 30 ? '#d97706' : '#16a34a');
+                return '<span style="font-weight:700;color:' + color + ';">' + num.toFixed(1) + '%</span>';
+            }
+        }, {
+            text: '<=5s %',
+            dataIndex: 'sdr_5s_pct',
+            width: 72,
+            align: 'right',
+            renderer: function (val) {
+                var num = parseFloat(val || 0);
+                var color = num >= 60 ? '#dc2626' : (num >= 35 ? '#d97706' : '#475569');
+                return '<span style="font-weight:700;color:' + color + ';">' + num.toFixed(1) + '%</span>';
+            }
+        }, {
+            text: '>=3 min',
+            dataIndex: 'cnt_long_180s',
+            width: 68,
+            align: 'right'
+        }, {
+            text: 'ACD (s)',
+            dataIndex: 'acd_sec',
+            width: 70,
+            align: 'right',
+            renderer: function (val) {
+                return parseFloat(val || 0).toFixed(1) + 's';
+            }
+        }, {
+            text: 'CV',
+            dataIndex: 'duration_cv',
+            width: 60,
+            align: 'right',
+            renderer: function (val) {
+                return parseFloat(val || 0).toFixed(2);
+            }
+        }, {
+            text: t('Dom. Fail'),
+            dataIndex: 'dominant_fail_cause',
+            width: 115,
+            renderer: function (val, meta, rec) {
+                if (!val || val === 'NONE') {
+                    return '-';
+                }
+                return Ext.util.Format.htmlEncode(val + ' (' + parseFloat(rec.get('dominant_fail_pct') || 0).toFixed(0) + '%)');
+            }
+        }, {
+            text: t('Cost'),
+            dataIndex: 'buycost_total',
+            width: 78,
+            align: 'right',
+            renderer: function (val) {
+                return '$' + parseFloat(val || 0).toFixed(3);
+            }
+        }, {
+            text: t('Detailed Reason'),
+            dataIndex: 'reason_summary',
+            flex: 1,
+            minWidth: 200,
+            renderer: function (val, meta) {
+                meta.tdAttr = 'data-qtip="' + Ext.util.Format.htmlEncode(val || '') + '"';
+                return Ext.util.Format.htmlEncode(val || '');
+            }
+        }];
+
+        me.dockedItems = [{
+            xtype: 'toolbar',
+            dock: 'top',
+            scrollable: true,
+            items: [{
+                xtype: 'combobox',
+                reference: 'labelFilter',
+                fieldLabel: t('Filter'),
+                labelWidth: 38,
+                width: 230,
+                editable: false,
+                value: '',
+                store: [
+                    ['', 'Todos'],
+                    ['BAD_ALL', 'Todos los Malos'],
+                    ['BAD_SHORT_5S', 'Cortan <= 5s'],
+                    ['BAD_UNDER_3MIN', 'Siempre < 3 min'],
+                    ['RIGID_CUT_PATTERN', 'Patrón Corte Rígido'],
+                    ['UNREACHABLE_FAIL_PATTERN', 'ASR Crítico / Fallos'],
+                    ['TRUNK_SUSPECT', 'Posible Falla de Troncal'],
+                    ['WATCHLIST', 'En Observación'],
+                    ['HEALTHY', 'Saludables'],
+                    ['INSUFFICIENT_DATA', 'Muestra Insuficiente']
+                ],
+                listeners: {
+                    change: 'onFilterChange'
+                }
+            }, {
+                xtype: 'combobox',
+                reference: 'minAttemptsFilter',
+                fieldLabel: t('Min. Int.'),
+                labelWidth: 55,
+                width: 140,
+                editable: false,
+                value: 5,
+                store: [
+                    [0, 'Todos'],
+                    [5, '>= 5'],
+                    [10, '>= 10'],
+                    [20, '>= 20'],
+                    [50, '>= 50']
+                ],
+                listeners: {
+                    change: 'onFilterChange'
+                }
+            }, {
+                xtype: 'textfield',
+                reference: 'searchField',
+                emptyText: t('Number, campaign, trunk or reason...'),
+                width: 215,
+                enableKeyEvents: true,
+                listeners: {
+                    specialkey: 'onSearchSpecialKey'
+                }
+            }, {
+                text: t('Search'),
+                iconCls: 'x-fa fa-search',
+                handler: 'onFilterChange'
+            }, {
+                text: t('Clear'),
+                iconCls: 'x-fa fa-eraser',
+                handler: 'onClearFilters'
+            }, '->', {
+                text: t('Recalculate Now'),
+                iconCls: 'x-fa fa-refresh',
+                handler: 'onRecalculate'
+            }, {
+                text: 'CSV',
+                iconCls: 'x-fa fa-download',
+                handler: 'onExportCsv'
+            }]
+        }, {
+            xtype: 'pagingtoolbar',
+            dock: 'bottom',
+            store: me.store,
+            displayInfo: true
+        }];
+
+        me.callParent(arguments);
+    }
+});
+
+
+;
+/* Source: classic/src/view/numberquality/Detail.js */
+/**
+ * Drilldown panel showing duration histogram, pattern stats, and recent CDRs
+ * for a selected destination number, plus explicit operator approval actions.
+ */
+Ext.define('MBilling.view.numberquality.Detail', {
+    extend: 'Ext.panel.Panel',
+    alias: 'widget.numberqualitydetail',
+    title: t('Destination Drilldown'),
+    scrollable: true,
+    bodyStyle: 'background:#ffffff;',
+
+    initComponent: function () {
+        var me = this;
+
+        me.tbar = [{
+            text: t('Pause 24h'),
+            reference: 'btnSuspendTemp',
+            iconCls: 'x-fa fa-pause',
+            disabled: true,
+            handler: 'onSuspendTemp'
+        }, {
+            text: t('Restrict'),
+            reference: 'btnRestrictPerm',
+            iconCls: 'x-fa fa-ban',
+            disabled: true,
+            handler: 'onRestrictPerm'
+        }, {
+            text: t('Reactivate'),
+            reference: 'btnReactivate',
+            iconCls: 'x-fa fa-check',
+            disabled: true,
+            handler: 'onReactivate'
+        }];
+
+        me.tpl = new Ext.XTemplate(
+            '<div class="mb-nq-detail-wrap">',
+            '<tpl if="!score">',
+            '  <div style="color:#64748b;padding:24px 8px;text-align:center;">',
+            '    ' + t('Select a destination row from the grid to inspect its duration distribution and call history.'),
+            '  </div>',
+            '</tpl>',
+            '<tpl if="score">',
+            '  <div style="border-bottom:1px solid #e2e8f0;padding-bottom:10px;margin-bottom:10px;">',
+            '    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">',
+            '      <div style="font-size:17px;font-weight:700;color:#0f172a;">{score.canonical_number:htmlEncode}</div>',
+            '      <span class="mb-nq-pill {[this.pillClass(values.score.quality_label)]}">{score.quality_label:htmlEncode}</span>',
+            '    </div>',
+            '    <div style="font-size:12px;color:#475569;margin-top:4px;">{score.reason_summary:htmlEncode}</div>',
+            '    <div style="font-size:11px;color:#64748b;margin-top:6px;">',
+            '      Score: <b>{score.quality_score}</b>/100 &middot; ',
+            '      Confianza: <b>{[Math.round((values.score.confidence || 0) * 100)]}%</b> &middot; ',
+            '      ACD: <b>{score.acd_sec}s</b> &middot; StdDev: <b>{score.duration_stddev}s</b> &middot; CV: <b>{score.duration_cv}</b>',
+            '    </div>',
+            '    <div style="font-size:11px;color:#64748b;margin-top:2px;">',
+            '      Campaña: <b>{score.campaign_name:htmlEncode}</b> &middot; Troncal: <b>{score.trunk_code:htmlEncode}</b>',
+            '    </div>',
+            '  </div>',
+            '  <div style="margin-bottom:12px;">',
+            '    <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#475569;margin-bottom:6px;">',
+            '      ' + t('Answered Duration Distribution') + ' ({score.answered} ' + t('answered') + ')',
+            '    </div>',
+            '    <tpl for="histogram">',
+            '      <div class="mb-nq-hist-row">',
+            '        <div class="mb-nq-hist-lbl">{bucket:htmlEncode}</div>',
+            '        <div class="mb-nq-hist-bar-bg">',
+            '          <div class="mb-nq-hist-bar-fill" style="width:{pct}%;background:{[this.barColor(values.bucket)]};"></div>',
+            '        </div>',
+            '        <div style="width:74px;text-align:right;color:#334155;">{count} ({pct}%)</div>',
+            '      </div>',
+            '    </tpl>',
+            '  </div>',
+            '  <div>',
+            '    <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#475569;margin-bottom:4px;">',
+            '      ' + t('Recent Call Attempts (max 50)') + '',
+            '    </div>',
+            '    <table class="mb-nq-call-table">',
+            '      <thead><tr>',
+            '        <th>' + t('Date') + '</th>',
+            '        <th>' + t('Trunk') + '</th>',
+            '        <th>' + t('Duration') + '</th>',
+            '        <th>' + t('Result / Cause') + '</th>',
+            '      </tr></thead>',
+            '      <tbody>',
+            '      <tpl for="calls">',
+            '        <tr>',
+            '          <td>{starttime:htmlEncode}</td>',
+            '          <td>{trunkcode:htmlEncode}</td>',
+            '          <td><tpl if="call_type === \'ANSWERED\'"><b>{duration_sec}s</b><tpl else>-</tpl></td>',
+            '          <td>',
+            '            <tpl if="call_type === \'ANSWERED\'">',
+            '              <span style="color:#16a34a;font-weight:600;">{cause_label:htmlEncode}</span>',
+            '            <tpl else>',
+            '              <span style="color:#dc2626;font-weight:600;">{cause_label:htmlEncode}</span>',
+            '            </tpl>',
+            '          </td>',
+            '        </tr>',
+            '      </tpl>',
+            '      <tpl if="calls.length === 0">',
+            '        <tr><td colspan="4" style="color:#94a3b8;text-align:center;padding:12px;">' + t('No recent call details in window.') + '</td></tr>',
+            '      </tpl>',
+            '      </tbody>',
+            '    </table>',
+            '  </div>',
+            '</tpl>',
+            '</div>',
+            {
+                pillClass: function (label) {
+                    if (label === 'HEALTHY') { return 'mb-nq-pill-good'; }
+                    if (label === 'TRUNK_SUSPECT') { return 'mb-nq-pill-trunk'; }
+                    if (label === 'WATCHLIST') { return 'mb-nq-pill-warn'; }
+                    if (label === 'INSUFFICIENT_DATA') { return 'mb-nq-pill-muted'; }
+                    return 'mb-nq-pill-bad';
+                },
+                barColor: function (bucket) {
+                    if (bucket === '0-5s') { return '#ef4444'; }
+                    if (bucket === '6-30s') { return '#f59e0b'; }
+                    if (bucket === '31-179s') { return '#3b82f6'; }
+                    return '#16a34a';
+                }
+            }
+        );
+
+        me.data = { score: null, histogram: [], calls: [] };
+        me.callParent(arguments);
+    },
+
+    setDetailData: function (payload) {
+        this.update(payload || { score: null, histogram: [], calls: [] });
+    }
+});
+
+
+;
+/* Source: classic/src/view/numberquality/Module.js */
+/**
+ * CDR & ASR Number Quality Analytics Module.
+ *
+ * Layout:
+ *  - north: KPI strip + trunk health quick filter summary
+ *  - center: Scored numbers grid with label chips & search
+ *  - east: Selected destination drilldown (histogram + 50 recent CDRs + operator actions)
+ */
+Ext.define('MBilling.view.numberquality.Module', {
+    extend: 'Ext.panel.Panel',
+    alias: 'widget.numberqualitymodule',
+    controller: 'numberquality',
+    layout: 'border',
+    border: false,
+    listeners: {
+        afterrender: 'onRenderModule',
+        destroy: 'onDestroyModule'
+    },
+    items: [{
+        xtype: 'component',
+        region: 'north',
+        reference: 'summaryBanner',
+        html: '<div class="mb-nq-kpi-strip"><div class="mb-nq-kpi-card"><div class="mb-nq-kpi-title">' +
+            t('Loading analytics...') + '</div></div></div>'
+    }, {
+        xtype: 'numberqualitylist',
+        region: 'center',
+        reference: 'qualityList'
+    }, {
+        xtype: 'numberqualitydetail',
+        region: 'east',
+        reference: 'qualityDetail',
+        width: 440,
+        minWidth: 320,
+        split: true,
+        collapsible: true
+    }]
+});
+
+
+;
 /* Source: classic/src/Application.js */
 /**
  * The main application class. An instance of this class is created by app.js when it calls
@@ -80707,8 +81486,8 @@ Ext.define('MBilling.Application', {
     name: 'MBilling',
     titleNotification: t('Notification'),
     msgSessionExpired: t('Your session has expired. Log in again.'),
-    views: ['userHistory.Controller', 'userHistory.Module', 'userHistory.List', 'userHistory.Form', 'main.MainController', 'main.Login', 'main.LoginController', 'main.ForgetPassword', 'main.GoogleAuthenticator', 'main.Main', 'main.Desktop', 'main.Help', 'main.Settings', 'main.About', 'main.ChangePassword', 'main.ImportLogo', 'main.ImportLoginBackground', 'main.SetUserData', 'groupModule.Controller', 'groupModule.Module', 'groupModule.List', 'groupModule.Form', 'groupModule.Field', 'groupUser.Controller', 'groupUser.Module', 'groupUser.List', 'groupUser.Form', 'groupUser.Combo', 'groupUser.Tag', 'module.Controller', 'module.Module', 'module.List', 'module.Form', 'module.Combo', 'module.Tag', 'user.Controller', 'user.Combo', 'user.Module', 'user.List', 'user.Form', 'user.Lookup', 'user.Bulk', 'configuration.Controller', 'configuration.Module', 'configuration.List', 'configuration.Form', 'general.BooleanCombo', 'general.GroupCombo', 'general.LcrtypeCombo', 'general.OfferTypeCombo', 'general.SipCombo', 'general.TypePaymentCombo', 'templateMail.Controller', 'templateMail.Module', 'templateMail.List', 'templateMail.Form', 'logUsers.Controller', 'logUsers.Module', 'logUsers.List', 'logUsers.Form', 'provider.Controller', 'provider.Combo', 'provider.Module', 'provider.List', 'provider.Form', 'provider.Lookup', 'providerCNL.Controller', 'providerCNL.Module', 'providerCNL.List', 'providerCNL.Form', 'providerCNL.ImportCsv', 'plan.Controller', 'plan.Combo', 'plan.Module', 'plan.List', 'plan.Form', 'plan.Tag', 'plan.Lookup', 'trunk.Controller', 'trunk.Combo', 'trunk.Module', 'trunk.List', 'trunk.Form', 'trunk.Lookup', 'trunk.Tag', 'trunkGroup.Controller', 'trunkGroup.Module', 'trunkGroup.List', 'trunkGroup.Form', 'trunkGroup.Lookup', 'trunkGroup.Combo', 'prefix.Controller', 'prefix.Combo', 'prefix.Module', 'prefix.List', 'prefix.Form', 'trunkSipCodes.Controller', 'trunkSipCodes.Module', 'trunkSipCodes.List', 'trunkSipCodes.Form', 'prefix.Lookup', 'sipTrace.Controller', 'sipTrace.Module', 'sipTrace.List', 'sipTrace.Form', 'rateProvider.Controller', 'rateProvider.Module', 'rateProvider.List', 'rateProvider.Form', 'rateProvider.ImportCsv', 'api.Controller', 'api.Module', 'api.List', 'api.Form', 'sip.Controller', 'sip.Module', 'sip.List', 'sip.Form', 'sip.Lookup', 'sip.Bulk', 'sip.ImportCsv', 'sip2.Controller', 'sip2.Module', 'sip2.List', 'sip2.Form', 'sip2.Lookup', 'sipuras.Controller', 'sipuras.Module', 'sipuras.List', 'sipuras.Form', 'iax.Controller', 'iax.Module', 'iax.List', 'iax.Form', 'iax.Lookup', 'callOnLine.Controller', 'callOnLine.Module', 'callOnLine.List', 'callOnLine.Form', 'callSummaryDayUser.Controller', 'callSummaryDayUser.Module', 'callSummaryDayUser.List', 'callSummaryDayUser.Form', 'callSummaryDayTrunk.Controller', 'callSummaryDayTrunk.Module', 'callSummaryDayTrunk.List', 'callSummaryDayTrunk.Form', 'callSummaryDayAgent.Controller', 'callSummaryDayAgent.Module', 'callSummaryDayAgent.List', 'callSummaryDayAgent.Form', 'callerid.Controller', 'callerid.Module', 'callerid.List', 'callerid.Form', 'alarm.Controller', 'alarm.Module', 'alarm.List', 'alarm.Form', 'holidays.Controller', 'holidays.Module', 'holidays.List', 'holidays.Form', 'restrictedPhonenumber.Controller', 'restrictedPhonenumber.Module', 'restrictedPhonenumber.List', 'restrictedPhonenumber.Form', 'restrictedPhonenumber.ImportCsv', 'did.Controller', 'did.Lookup', 'did.Combo', 'did.Module', 'did.List', 'did.Form', 'did.ImportCsv', 'didbuy.Module', 'diddestination.Controller', 'diddestination.Module', 'diddestination.List', 'diddestination.Form', 'diddestination.Combo', 'didUse.Controller', 'didUse.Module', 'didUse.List', 'didUse.Form', 'didHistory.Controller', 'didHistory.Module', 'didHistory.List', 'didHistory.Form', 'dashboard.Module', 'dashboardQueue.Module', 'ivr.Controller', 'ivr.Module', 'ivr.List', 'ivr.Form', 'ivr.Lookup', 'queue.Controller', 'queue.Combo', 'queue.Module', 'queue.List', 'queue.Form', 'queue.Lookup', 'queue.ListDashboard', 'queueMember.Controller', 'queueMember.Module', 'queueMember.List', 'queueMember.Form', 'queueMember.ListDashboard', 'refill.Controller', 'refill.Module', 'refill.List', 'refill.Form', 'refill.Chart', 'methodPay.Controller', 'methodPay.Module', 'methodPay.List', 'methodPay.Form', 'methodPay.Combo', 'voucher.Controller', 'voucher.Module', 'voucher.List', 'voucher.Form', 'refillprovider.Controller', 'refillprovider.Module', 'refillprovider.List', 'refillprovider.Form', 'offer.Controller', 'offer.Combo', 'offer.Module', 'offer.List', 'offer.Form', 'offerCdr.Controller', 'offerCdr.Module', 'offerCdr.List', 'offerCdr.Form', 'offerUse.Module', 'offerUse.List', 'offerUse.Form', 'campaignDashboard.Controller', 'campaignDashboard.Module', 'campaignDashboard.List', 'campaignDashboard.Form', 'campaignReport.Controller', 'campaignReport.Module', 'campaignReport.List', 'campaignReport.Form', 'campaign.Controller', 'campaign.Combo', 'campaign.Module', 'campaign.List', 'campaign.Form', 'campaignoptimizerconfig.Controller', 'campaignoptimizerconfig.Module', 'campaignoptimizerconfig.List', 'campaignoptimizerconfig.Form', 'campaignoptimizerconfig.FailedAnalyticsWindow', 'campaignoptimizerconfig.StateWindow', 'campaignoptimizerconfig.AudioWindow', 'campaignoptimizerconfig.LogWindow', 'campaignPoll.Controller', 'campaignPoll.Combo', 'campaignPoll.Module', 'campaignPoll.List', 'campaignPoll.Form', 'phoneNumber.Controller', 'phoneNumber.Module', 'phoneNumber.List', 'phoneNumber.Form', 'phoneNumber.ImportCsv', 'rate.Controller', 'rate.Module', 'rate.List', 'rate.Form', 'rate.ImportCsv', 'phoneBook.Controller', 'phoneBook.Combo', 'phoneBook.Module', 'phoneBook.List', 'phoneBook.Form', 'phoneBook.Tag', 'call.Controller', 'call.Module', 'call.List', 'call.Form', 'callArchive.Controller', 'callArchive.Module', 'callArchive.List', 'callArchive.Form', 'callFailed.Controller', 'callFailed.Module', 'callFailed.List', 'callFailed.Form', 'callSummaryPerDay.Controller', 'callSummaryPerDay.Module', 'callSummaryPerDay.List', 'callSummaryPerDay.Form', 'callSummaryPerMonth.Controller', 'callSummaryPerMonth.Module', 'callSummaryPerMonth.List', 'callSummaryPerMonth.Form', 'callSummaryMonthUser.Controller', 'callSummaryMonthUser.Module', 'callSummaryMonthUser.List', 'callSummaryMonthUser.Form', 'callSummaryMonthDid.Controller', 'callSummaryMonthDid.Module', 'callSummaryMonthDid.List', 'callSummaryMonthDid.Form', 'callSummaryMonthTrunk.Controller', 'callSummaryMonthTrunk.Module', 'callSummaryMonthTrunk.List', 'callSummaryMonthTrunk.Form', 'sms.Controller', 'sms.Module', 'sms.List', 'sms.Form', 'campaignPollInfo.Controller', 'campaignPollInfo.Module', 'campaignPollInfo.List', 'campaignPollInfo.Form', 'campaignPollInfo.Chart', 'campaignRestrictPhone.Controller', 'campaignRestrictPhone.Module', 'campaignRestrictPhone.List', 'campaignRestrictPhone.Form', 'campaignRestrictPhone.ImportCsv', 'campaignLog.Controller', 'campaignLog.Module', 'campaignLog.List', 'campaignLog.Form', 'campaignSend.Module', 'callShop.Controller', 'callShop.Module', 'callShop.List', 'callShop.Form', 'callShopCdr.Controller', 'callShopCdr.Module', 'callShopCdr.List', 'callShopCdr.Form', 'rateCallshop.Controller', 'rateCallshop.Module', 'rateCallshop.List', 'rateCallshop.Form', 'rateCallshop.ImportCsv', 'callSummaryCallShop.Controller', 'callSummaryCallShop.Module', 'callSummaryCallShop.List', 'callSummaryCallShop.Form', 'callSummaryCallShop.Chart', 'buycredit.Controller', 'buycredit.Module', 'firewall.Controller', 'firewall.Module', 'firewall.List', 'firewall.Form', 'userRate.Controller', 'userRate.Module', 'userRate.List', 'userRate.Form', 'didww.Module', 'extra.Module', 'extra2.Module', 'extra3.Module', 'callOnlineChart.Module', 'callOnlineChart.List', 'callOnlineChart.Form', 'callOnlineChart.Chart', 'smtps.Controller', 'smtps.List', 'smtps.Form', 'smtps.Module', 'servers.Tag', 'servers.Controller', 'servers.List', 'servers.Form', 'servers.Module', 'servers.Combo', 'callSummaryPerUser.Controller', 'callSummaryPerUser.List', 'callSummaryPerUser.Form', 'callSummaryPerUser.Module', 'callSummaryPerTrunk.Controller', 'callSummaryPerTrunk.List', 'callSummaryPerTrunk.Form', 'callSummaryPerTrunk.Module', 'backup.Controller', 'backup.List', 'backup.Form', 'backup.Module', 'backup.ImportCsv', 'gAuthenticator.Controller', 'gAuthenticator.List', 'gAuthenticator.Form', 'gAuthenticator.Module', 'groupUserGroup.Controller', 'groupUserGroup.List', 'groupUserGroup.Form', 'groupUserGroup.Module', 'services.Controller', 'services.List', 'services.Form', 'services.Module', 'services.Lookup', 'servicesUse.Controller', 'servicesUse.List', 'servicesUse.Form', 'servicesUse.Module', 'callBack.Controller', 'callBack.Module', 'callBack.List', 'callBack.Form', 'userType.Controller', 'userType.Combo', 'magnusSentinel.Controller', 'magnusSentinel.Module', 'magnusSentinel.List', 'magnusSentinel.Detail', 'magnusSentinel.Health', 'magnusSentinel.Resources', 'magnusSentinel.Summary'],
-    stores: ['UserHistory', 'CampaignDashBoard', 'DidHistory', 'TrunkSipCodes', 'CampaignReport', 'TrunkGroup', 'TrunkChart', 'Alarm', 'Holidays', 'StatusSystem', 'ProviderCNL', 'CallOnlineChart', 'Help', 'Api', 'CallSummaryMonthTrunk', 'CallArchive', 'CallSummaryMonthUser', 'CallSummaryMonthDid', 'RateProvider', 'GroupModule', 'GroupUser', 'CallSummaryDayTrunk', 'CallSummaryDayAgent', 'CallSummaryDayUser', 'Module', 'User', 'Configuration', 'TemplateMail', 'LogUsers', 'Provider', 'Plan', 'Trunk', 'Prefix', 'PrefixCombo', 'Sip', 'Sip2', 'Iax', 'Sipuras', 'CallOnLine', 'Callerid', 'RestrictedPhonenumber', 'Did', 'Diddestination', 'DidUse', 'Ivr', 'Queue', 'QueueMember', 'QueueDashBoard', 'QueueMemberDashBoard', 'Refill', 'RefillChart', 'MethodPay', 'Voucher', 'Refillprovider', 'Offer', 'OfferCdr', 'OfferUse', 'Campaign', 'CampaignLog', 'CampaignPoll', 'CallSummaryPerTrunk', 'PhoneBook', 'Rate', 'PhoneNumber', 'Call', 'CallFailed', 'CallSummaryPerDay', 'CallSummaryPerMonth', 'Sms', 'CampaignPollInfo', 'CampaignPollInfoChart', 'CampaignRestrictPhone', 'CallShop', 'CallShopCdr', 'SipTrace', 'RateCallshop', 'CallSummaryCallShop', 'Firewall', 'UserRate', 'Smtps', 'Servers', 'CallSummaryPerUser', 'Backup', 'GAuthenticator', 'GroupUserGroup', 'Services', 'ServicesUse', 'CallBack', 'CampaignOptimizerConfig', 'CampaignOptimizerAudio', 'CampaignOptimizerLog', 'CampaignOptimizerState', 'CampaignFailedAnalytics', 'MagnusSentinelIncident', 'SendCreditProducts', 'SendCreditRates', 'SendCreditSummary', 'Signup', 'UserType'],
+    views: ['userHistory.Controller', 'userHistory.Module', 'userHistory.List', 'userHistory.Form', 'main.MainController', 'main.Login', 'main.LoginController', 'main.ForgetPassword', 'main.GoogleAuthenticator', 'main.Main', 'main.Desktop', 'main.Help', 'main.Settings', 'main.About', 'main.ChangePassword', 'main.ImportLogo', 'main.ImportLoginBackground', 'main.SetUserData', 'groupModule.Controller', 'groupModule.Module', 'groupModule.List', 'groupModule.Form', 'groupModule.Field', 'groupUser.Controller', 'groupUser.Module', 'groupUser.List', 'groupUser.Form', 'groupUser.Combo', 'groupUser.Tag', 'module.Controller', 'module.Module', 'module.List', 'module.Form', 'module.Combo', 'module.Tag', 'user.Controller', 'user.Combo', 'user.Module', 'user.List', 'user.Form', 'user.Lookup', 'user.Bulk', 'configuration.Controller', 'configuration.Module', 'configuration.List', 'configuration.Form', 'general.BooleanCombo', 'general.GroupCombo', 'general.LcrtypeCombo', 'general.OfferTypeCombo', 'general.SipCombo', 'general.TypePaymentCombo', 'templateMail.Controller', 'templateMail.Module', 'templateMail.List', 'templateMail.Form', 'logUsers.Controller', 'logUsers.Module', 'logUsers.List', 'logUsers.Form', 'provider.Controller', 'provider.Combo', 'provider.Module', 'provider.List', 'provider.Form', 'provider.Lookup', 'providerCNL.Controller', 'providerCNL.Module', 'providerCNL.List', 'providerCNL.Form', 'providerCNL.ImportCsv', 'plan.Controller', 'plan.Combo', 'plan.Module', 'plan.List', 'plan.Form', 'plan.Tag', 'plan.Lookup', 'trunk.Controller', 'trunk.Combo', 'trunk.Module', 'trunk.List', 'trunk.Form', 'trunk.Lookup', 'trunk.Tag', 'trunkGroup.Controller', 'trunkGroup.Module', 'trunkGroup.List', 'trunkGroup.Form', 'trunkGroup.Lookup', 'trunkGroup.Combo', 'prefix.Controller', 'prefix.Combo', 'prefix.Module', 'prefix.List', 'prefix.Form', 'trunkSipCodes.Controller', 'trunkSipCodes.Module', 'trunkSipCodes.List', 'trunkSipCodes.Form', 'prefix.Lookup', 'sipTrace.Controller', 'sipTrace.Module', 'sipTrace.List', 'sipTrace.Form', 'rateProvider.Controller', 'rateProvider.Module', 'rateProvider.List', 'rateProvider.Form', 'rateProvider.ImportCsv', 'api.Controller', 'api.Module', 'api.List', 'api.Form', 'sip.Controller', 'sip.Module', 'sip.List', 'sip.Form', 'sip.Lookup', 'sip.Bulk', 'sip.ImportCsv', 'sip2.Controller', 'sip2.Module', 'sip2.List', 'sip2.Form', 'sip2.Lookup', 'sipuras.Controller', 'sipuras.Module', 'sipuras.List', 'sipuras.Form', 'iax.Controller', 'iax.Module', 'iax.List', 'iax.Form', 'iax.Lookup', 'callOnLine.Controller', 'callOnLine.Module', 'callOnLine.List', 'callOnLine.Form', 'callSummaryDayUser.Controller', 'callSummaryDayUser.Module', 'callSummaryDayUser.List', 'callSummaryDayUser.Form', 'callSummaryDayTrunk.Controller', 'callSummaryDayTrunk.Module', 'callSummaryDayTrunk.List', 'callSummaryDayTrunk.Form', 'callSummaryDayAgent.Controller', 'callSummaryDayAgent.Module', 'callSummaryDayAgent.List', 'callSummaryDayAgent.Form', 'callerid.Controller', 'callerid.Module', 'callerid.List', 'callerid.Form', 'alarm.Controller', 'alarm.Module', 'alarm.List', 'alarm.Form', 'holidays.Controller', 'holidays.Module', 'holidays.List', 'holidays.Form', 'restrictedPhonenumber.Controller', 'restrictedPhonenumber.Module', 'restrictedPhonenumber.List', 'restrictedPhonenumber.Form', 'restrictedPhonenumber.ImportCsv', 'did.Controller', 'did.Lookup', 'did.Combo', 'did.Module', 'did.List', 'did.Form', 'did.ImportCsv', 'didbuy.Module', 'diddestination.Controller', 'diddestination.Module', 'diddestination.List', 'diddestination.Form', 'diddestination.Combo', 'didUse.Controller', 'didUse.Module', 'didUse.List', 'didUse.Form', 'didHistory.Controller', 'didHistory.Module', 'didHistory.List', 'didHistory.Form', 'dashboard.Module', 'dashboardQueue.Module', 'ivr.Controller', 'ivr.Module', 'ivr.List', 'ivr.Form', 'ivr.Lookup', 'queue.Controller', 'queue.Combo', 'queue.Module', 'queue.List', 'queue.Form', 'queue.Lookup', 'queue.ListDashboard', 'queueMember.Controller', 'queueMember.Module', 'queueMember.List', 'queueMember.Form', 'queueMember.ListDashboard', 'refill.Controller', 'refill.Module', 'refill.List', 'refill.Form', 'refill.Chart', 'methodPay.Controller', 'methodPay.Module', 'methodPay.List', 'methodPay.Form', 'methodPay.Combo', 'voucher.Controller', 'voucher.Module', 'voucher.List', 'voucher.Form', 'refillprovider.Controller', 'refillprovider.Module', 'refillprovider.List', 'refillprovider.Form', 'offer.Controller', 'offer.Combo', 'offer.Module', 'offer.List', 'offer.Form', 'offerCdr.Controller', 'offerCdr.Module', 'offerCdr.List', 'offerCdr.Form', 'offerUse.Module', 'offerUse.List', 'offerUse.Form', 'campaignDashboard.Controller', 'campaignDashboard.Module', 'campaignDashboard.List', 'campaignDashboard.Form', 'campaignReport.Controller', 'campaignReport.Module', 'campaignReport.List', 'campaignReport.Form', 'campaign.Controller', 'campaign.Combo', 'campaign.Module', 'campaign.List', 'campaign.Form', 'campaignoptimizerconfig.Controller', 'campaignoptimizerconfig.Module', 'campaignoptimizerconfig.List', 'campaignoptimizerconfig.Form', 'campaignoptimizerconfig.FailedAnalyticsWindow', 'campaignoptimizerconfig.StateWindow', 'campaignoptimizerconfig.AudioWindow', 'campaignoptimizerconfig.LogWindow', 'campaignPoll.Controller', 'campaignPoll.Combo', 'campaignPoll.Module', 'campaignPoll.List', 'campaignPoll.Form', 'phoneNumber.Controller', 'phoneNumber.Module', 'phoneNumber.List', 'phoneNumber.Form', 'phoneNumber.ImportCsv', 'rate.Controller', 'rate.Module', 'rate.List', 'rate.Form', 'rate.ImportCsv', 'phoneBook.Controller', 'phoneBook.Combo', 'phoneBook.Module', 'phoneBook.List', 'phoneBook.Form', 'phoneBook.Tag', 'call.Controller', 'call.Module', 'call.List', 'call.Form', 'callArchive.Controller', 'callArchive.Module', 'callArchive.List', 'callArchive.Form', 'callFailed.Controller', 'callFailed.Module', 'callFailed.List', 'callFailed.Form', 'callSummaryPerDay.Controller', 'callSummaryPerDay.Module', 'callSummaryPerDay.List', 'callSummaryPerDay.Form', 'callSummaryPerMonth.Controller', 'callSummaryPerMonth.Module', 'callSummaryPerMonth.List', 'callSummaryPerMonth.Form', 'callSummaryMonthUser.Controller', 'callSummaryMonthUser.Module', 'callSummaryMonthUser.List', 'callSummaryMonthUser.Form', 'callSummaryMonthDid.Controller', 'callSummaryMonthDid.Module', 'callSummaryMonthDid.List', 'callSummaryMonthDid.Form', 'callSummaryMonthTrunk.Controller', 'callSummaryMonthTrunk.Module', 'callSummaryMonthTrunk.List', 'callSummaryMonthTrunk.Form', 'sms.Controller', 'sms.Module', 'sms.List', 'sms.Form', 'campaignPollInfo.Controller', 'campaignPollInfo.Module', 'campaignPollInfo.List', 'campaignPollInfo.Form', 'campaignPollInfo.Chart', 'campaignRestrictPhone.Controller', 'campaignRestrictPhone.Module', 'campaignRestrictPhone.List', 'campaignRestrictPhone.Form', 'campaignRestrictPhone.ImportCsv', 'campaignLog.Controller', 'campaignLog.Module', 'campaignLog.List', 'campaignLog.Form', 'campaignSend.Module', 'callShop.Controller', 'callShop.Module', 'callShop.List', 'callShop.Form', 'callShopCdr.Controller', 'callShopCdr.Module', 'callShopCdr.List', 'callShopCdr.Form', 'rateCallshop.Controller', 'rateCallshop.Module', 'rateCallshop.List', 'rateCallshop.Form', 'rateCallshop.ImportCsv', 'callSummaryCallShop.Controller', 'callSummaryCallShop.Module', 'callSummaryCallShop.List', 'callSummaryCallShop.Form', 'callSummaryCallShop.Chart', 'buycredit.Controller', 'buycredit.Module', 'firewall.Controller', 'firewall.Module', 'firewall.List', 'firewall.Form', 'userRate.Controller', 'userRate.Module', 'userRate.List', 'userRate.Form', 'didww.Module', 'extra.Module', 'extra2.Module', 'extra3.Module', 'callOnlineChart.Module', 'callOnlineChart.List', 'callOnlineChart.Form', 'callOnlineChart.Chart', 'smtps.Controller', 'smtps.List', 'smtps.Form', 'smtps.Module', 'servers.Tag', 'servers.Controller', 'servers.List', 'servers.Form', 'servers.Module', 'servers.Combo', 'callSummaryPerUser.Controller', 'callSummaryPerUser.List', 'callSummaryPerUser.Form', 'callSummaryPerUser.Module', 'callSummaryPerTrunk.Controller', 'callSummaryPerTrunk.List', 'callSummaryPerTrunk.Form', 'callSummaryPerTrunk.Module', 'backup.Controller', 'backup.List', 'backup.Form', 'backup.Module', 'backup.ImportCsv', 'gAuthenticator.Controller', 'gAuthenticator.List', 'gAuthenticator.Form', 'gAuthenticator.Module', 'groupUserGroup.Controller', 'groupUserGroup.List', 'groupUserGroup.Form', 'groupUserGroup.Module', 'services.Controller', 'services.List', 'services.Form', 'services.Module', 'services.Lookup', 'servicesUse.Controller', 'servicesUse.List', 'servicesUse.Form', 'servicesUse.Module', 'callBack.Controller', 'callBack.Module', 'callBack.List', 'callBack.Form', 'userType.Controller', 'userType.Combo', 'magnusSentinel.Controller', 'magnusSentinel.Module', 'magnusSentinel.List', 'magnusSentinel.Detail', 'magnusSentinel.Health', 'magnusSentinel.Resources', 'magnusSentinel.Summary', 'numberquality.Controller', 'numberquality.Module', 'numberquality.List', 'numberquality.Detail'],
+    stores: ['UserHistory', 'CampaignDashBoard', 'DidHistory', 'TrunkSipCodes', 'CampaignReport', 'TrunkGroup', 'TrunkChart', 'Alarm', 'Holidays', 'StatusSystem', 'ProviderCNL', 'CallOnlineChart', 'Help', 'Api', 'CallSummaryMonthTrunk', 'CallArchive', 'CallSummaryMonthUser', 'CallSummaryMonthDid', 'RateProvider', 'GroupModule', 'GroupUser', 'CallSummaryDayTrunk', 'CallSummaryDayAgent', 'CallSummaryDayUser', 'Module', 'User', 'Configuration', 'TemplateMail', 'LogUsers', 'Provider', 'Plan', 'Trunk', 'Prefix', 'PrefixCombo', 'Sip', 'Sip2', 'Iax', 'Sipuras', 'CallOnLine', 'Callerid', 'RestrictedPhonenumber', 'Did', 'Diddestination', 'DidUse', 'Ivr', 'Queue', 'QueueMember', 'QueueDashBoard', 'QueueMemberDashBoard', 'Refill', 'RefillChart', 'MethodPay', 'Voucher', 'Refillprovider', 'Offer', 'OfferCdr', 'OfferUse', 'Campaign', 'CampaignLog', 'CampaignPoll', 'CallSummaryPerTrunk', 'PhoneBook', 'Rate', 'PhoneNumber', 'Call', 'CallFailed', 'CallSummaryPerDay', 'CallSummaryPerMonth', 'Sms', 'CampaignPollInfo', 'CampaignPollInfoChart', 'CampaignRestrictPhone', 'CallShop', 'CallShopCdr', 'SipTrace', 'RateCallshop', 'CallSummaryCallShop', 'Firewall', 'UserRate', 'Smtps', 'Servers', 'CallSummaryPerUser', 'Backup', 'GAuthenticator', 'GroupUserGroup', 'Services', 'ServicesUse', 'CallBack', 'CampaignOptimizerConfig', 'CampaignOptimizerAudio', 'CampaignOptimizerLog', 'CampaignOptimizerState', 'CampaignFailedAnalytics', 'MagnusSentinelIncident', 'NumberQuality', 'SendCreditProducts', 'SendCreditRates', 'SendCreditSummary', 'Signup', 'UserType'],
     mainView: 'MBilling.view.main.Start',
     init: function () {
         Ext.Boot.load(window.lang === 'de'

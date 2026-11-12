@@ -690,6 +690,7 @@ echo "
 * * * * * php /var/www/html/mbilling/cron.php didwww
 */5 * * * * php /var/www/html/mbilling/cron.php alarm
 * * * * * php /var/www/html/mbilling/cron.php TrunkSIPCodes
+*/5 * * * * flock -n /tmp/NumberQuality.lock php /var/www/html/mbilling/cron.php NumberQuality
 59 23 * * * php /var/www/html/mbilling/cron.php NotifyClientDaily
 " > $CRONPATH
 chmod 600 $CRONPATH

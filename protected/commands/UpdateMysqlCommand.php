@@ -456,6 +456,14 @@ class UpdateMysqlCommand extends CConsoleCommand
             $this->update($version);
         }
 
+        //2026-11-12 Number Quality CDR Analytics tables & menu registration
+        if ($version == '8.0.0.16') {
+            $this->logMessage('Applying database migration 8.0.0.16 -> 8.0.0.17 (Number Quality CDR Analytics).');
+            $this->ensureNumberQualityTables();
+            $version = '8.0.0.17';
+            $this->update($version);
+        }
+
     }
 
     private function tableExists($table)
@@ -863,6 +871,136 @@ class UpdateMysqlCommand extends CConsoleCommand
         if ($this->tableExists('pkg_campaign_report')) {
             if (!$this->indexExists('pkg_campaign_report', 'idx_report_status_time')) {
                 $this->executeDB("ALTER TABLE `pkg_campaign_report` ADD KEY `idx_report_status_time` (`status`, `unix_timestamp`)");
+            }
+        }
+    }
+
+    /**
+     * Ensures CDR Number Quality Analytics tables and Reports menu permissions exist.
+     *
+     * @return void
+     */
+    private function ensureNumberQualityTables()
+    {
+        if (! $this->tableExists('pkg_cdr_number_quality_daily')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_cdr_number_quality_daily` (
+                    `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    `day` DATE NOT NULL,
+                    `canonical_number` VARCHAR(32) NOT NULL,
+                    `id_user` INT NOT NULL DEFAULT 0,
+                    `id_campaign` INT NOT NULL DEFAULT 0,
+                    `id_trunk` INT NOT NULL DEFAULT 0,
+                    `attempts` INT NOT NULL DEFAULT 0,
+                    `answered` INT NOT NULL DEFAULT 0,
+                    `failed` INT NOT NULL DEFAULT 0,
+                    `cnt_short_5s` INT NOT NULL DEFAULT 0,
+                    `cnt_6_30s` INT NOT NULL DEFAULT 0,
+                    `cnt_31_179s` INT NOT NULL DEFAULT 0,
+                    `cnt_mid_short` INT NOT NULL DEFAULT 0,
+                    `cnt_long_180s` INT NOT NULL DEFAULT 0,
+                    `sum_duration` BIGINT NOT NULL DEFAULT 0,
+                    `sum_duration_sq` DOUBLE NOT NULL DEFAULT 0,
+                    `min_duration` INT NULL DEFAULT NULL,
+                    `max_duration` INT NULL DEFAULT NULL,
+                    `fail_no_answer` INT NOT NULL DEFAULT 0,
+                    `fail_busy` INT NOT NULL DEFAULT 0,
+                    `fail_cancel` INT NOT NULL DEFAULT 0,
+                    `fail_congestion` INT NOT NULL DEFAULT 0,
+                    `fail_chanunavail` INT NOT NULL DEFAULT 0,
+                    `fail_other` INT NOT NULL DEFAULT 0,
+                    `last_terminatecauseid` INT NOT NULL DEFAULT 0,
+                    `last_hangupcause` INT NOT NULL DEFAULT 0,
+                    `sum_buycost` DECIMAL(15,6) NOT NULL DEFAULT 0.000000,
+                    `last_call_at` DATETIME NULL DEFAULT NULL,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_nq_daily` (`day`, `canonical_number`, `id_campaign`, `id_trunk`, `id_user`),
+                    KEY `idx_nq_daily_day` (`day`),
+                    KEY `idx_nq_daily_num` (`canonical_number`, `day`),
+                    KEY `idx_nq_daily_campaign` (`id_campaign`, `day`),
+                    KEY `idx_nq_daily_trunk` (`id_trunk`, `day`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if (! $this->tableExists('pkg_cdr_number_quality_score')) {
+            $this->executeDB(
+                "CREATE TABLE `pkg_cdr_number_quality_score` (
+                    `id` INT NOT NULL AUTO_INCREMENT,
+                    `canonical_number` VARCHAR(32) NOT NULL,
+                    `id_user` INT NOT NULL DEFAULT 0,
+                    `id_campaign` INT NOT NULL DEFAULT 0,
+                    `id_trunk` INT NOT NULL DEFAULT 0,
+                    `window_days` INT NOT NULL DEFAULT 30,
+                    `attempts` INT NOT NULL DEFAULT 0,
+                    `answered` INT NOT NULL DEFAULT 0,
+                    `failed` INT NOT NULL DEFAULT 0,
+                    `cnt_short_5s` INT NOT NULL DEFAULT 0,
+                    `cnt_6_30s` INT NOT NULL DEFAULT 0,
+                    `cnt_31_179s` INT NOT NULL DEFAULT 0,
+                    `cnt_mid_short` INT NOT NULL DEFAULT 0,
+                    `cnt_long_180s` INT NOT NULL DEFAULT 0,
+                    `asr_pct` DECIMAL(6,2) NOT NULL DEFAULT 0.00,
+                    `sdr_5s_pct` DECIMAL(6,2) NOT NULL DEFAULT 0.00,
+                    `mid_short_pct` DECIMAL(6,2) NOT NULL DEFAULT 0.00,
+                    `acd_sec` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `duration_stddev` DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+                    `duration_cv` DECIMAL(8,4) NOT NULL DEFAULT 0.0000,
+                    `dominant_fail_cause` VARCHAR(32) NOT NULL DEFAULT 'NONE',
+                    `dominant_fail_pct` DECIMAL(6,2) NOT NULL DEFAULT 0.00,
+                    `last_hangupcause` INT NOT NULL DEFAULT 0,
+                    `buycost_total` DECIMAL(15,6) NOT NULL DEFAULT 0.000000,
+                    `quality_score` DECIMAL(6,2) NOT NULL DEFAULT 50.00,
+                    `confidence` DECIMAL(5,4) NOT NULL DEFAULT 0.0000,
+                    `quality_label` VARCHAR(32) NOT NULL DEFAULT 'INSUFFICIENT_DATA',
+                    `reason_summary` VARCHAR(255) NOT NULL DEFAULT '',
+                    `is_trunk_suspect` TINYINT(1) NOT NULL DEFAULT 0,
+                    `last_call_at` DATETIME NULL DEFAULT NULL,
+                    `updated_at` DATETIME NOT NULL,
+                    PRIMARY KEY (`id`),
+                    UNIQUE KEY `uq_nq_score` (`canonical_number`, `id_campaign`, `id_trunk`, `id_user`),
+                    KEY `idx_nq_score_label` (`quality_label`, `quality_score`),
+                    KEY `idx_nq_score_campaign` (`id_campaign`, `quality_label`),
+                    KEY `idx_nq_score_trunk` (`id_trunk`, `quality_label`),
+                    KEY `idx_nq_score_attempts` (`attempts`),
+                    KEY `idx_nq_score_last_call` (`last_call_at`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
+            );
+        }
+
+        if ($this->tableExists('pkg_module') && $this->tableExists('pkg_group_module')) {
+            $reportsParentId = (int) Yii::app()->db->createCommand(
+                "SELECT id FROM pkg_module WHERE text = :txt AND id_module IS NULL LIMIT 1"
+            )->bindValue(':txt', "t('Reports')", PDO::PARAM_STR)->queryScalar();
+            if ($reportsParentId <= 0) {
+                $reportsParentId = 9;
+            }
+
+            $existingModId = (int) Yii::app()->db->createCommand(
+                "SELECT id FROM pkg_module WHERE module = :mod LIMIT 1"
+            )->bindValue(':mod', 'numberquality', PDO::PARAM_STR)->queryScalar();
+
+            if ($existingModId <= 0) {
+                $this->executeDB(
+                    "INSERT INTO `pkg_module` (`text`, `module`, `icon_cls`, `id_module`, `priority`)
+                     SELECT \"t('Number Quality')\", 'numberquality', 'x-fa fa-stethoscope', {$reportsParentId}, 15
+                     FROM DUAL
+                     WHERE NOT EXISTS (SELECT 1 FROM `pkg_module` WHERE `module` = 'numberquality')"
+                );
+                $existingModId = (int) Yii::app()->db->createCommand(
+                    "SELECT id FROM pkg_module WHERE module = :mod LIMIT 1"
+                )->bindValue(':mod', 'numberquality', PDO::PARAM_STR)->queryScalar();
+            }
+
+            if ($existingModId > 0) {
+                $this->executeDB(
+                    "INSERT INTO `pkg_group_module` (`id_group`, `id_module`, `action`, `show_menu`, `createShortCut`, `createQuickStart`)
+                     SELECT 1, {$existingModId}, 'ru', 1, 0, 0
+                     FROM DUAL
+                     WHERE NOT EXISTS (
+                         SELECT 1 FROM `pkg_group_module` WHERE `id_group` = 1 AND `id_module` = {$existingModId}
+                     )"
+                );
             }
         }
     }
