@@ -58,6 +58,7 @@ class NumberqualityController extends Controller
 
     public function actionRead($asJson = true, $condition = null)
     {
+        $this->paramsFilter = array();
         $parts = array();
 
         $label = trim((string) Yii::app()->request->getParam('quality_label', ''));
@@ -91,11 +92,12 @@ class NumberqualityController extends Controller
         $query = trim((string) Yii::app()->request->getParam('query', ''));
         if ($query !== '') {
             $cleanDigits = preg_replace('/[^0-9]/', '', $query);
+            $this->relationFilter = array('idCampaign', 'idTrunk');
             $parts[] = '(t.canonical_number LIKE :nq_q1
                          OR t.reason_summary LIKE :nq_q2
                          OR t.dominant_fail_cause LIKE :nq_q2
-                         OR EXISTS (SELECT 1 FROM pkg_campaign nc WHERE nc.id = t.id_campaign AND nc.name LIKE :nq_q2)
-                         OR EXISTS (SELECT 1 FROM pkg_trunk nt WHERE nt.id = t.id_trunk AND nt.trunkcode LIKE :nq_q2))';
+                         OR idCampaign.name LIKE :nq_q2
+                         OR idTrunk.trunkcode LIKE :nq_q2)';
             $this->paramsFilter[':nq_q1'] = '%' . ($cleanDigits !== '' ? $cleanDigits : $query) . '%';
             $this->paramsFilter[':nq_q2'] = '%' . $query . '%';
         }

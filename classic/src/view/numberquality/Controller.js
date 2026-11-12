@@ -64,7 +64,7 @@ Ext.define('MBilling.view.numberquality.Controller', {
         var me = this;
         me.activeTrunkId = 0;
         me.lookupReference('labelFilter').setValue('');
-        me.lookupReference('minAttemptsFilter').setValue(5);
+        me.lookupReference('minAttemptsFilter').setValue(0);
         me.lookupReference('searchField').setValue('');
         me.onFilterChange();
         me.loadSummary();
@@ -144,6 +144,9 @@ Ext.define('MBilling.view.numberquality.Controller', {
         }
 
         me.selectedRecord = selected[0];
+        if (me.detail && me.detail.collapsed) {
+            me.detail.expand();
+        }
         if (me.detailReq) {
             Ext.Ajax.abort(me.detailReq);
         }

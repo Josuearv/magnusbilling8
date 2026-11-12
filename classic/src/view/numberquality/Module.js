@@ -30,8 +30,8 @@ Ext.define('MBilling.view.numberquality.Module', {
         xtype: 'numberqualitydetail',
         region: 'east',
         reference: 'qualityDetail',
-        width: 440,
-        minWidth: 320,
+        width: 350,
+        minWidth: 260,
         split: true,
         collapsible: true
     }]

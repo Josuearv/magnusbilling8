@@ -80823,7 +80823,7 @@ Ext.define('MBilling.view.numberquality.Controller', {
         var me = this;
         me.activeTrunkId = 0;
         me.lookupReference('labelFilter').setValue('');
-        me.lookupReference('minAttemptsFilter').setValue(5);
+        me.lookupReference('minAttemptsFilter').setValue(0);
         me.lookupReference('searchField').setValue('');
         me.onFilterChange();
         me.loadSummary();
@@ -80903,6 +80903,9 @@ Ext.define('MBilling.view.numberquality.Controller', {
         }
 
         me.selectedRecord = selected[0];
+        if (me.detail && me.detail.collapsed) {
+            me.detail.expand();
+        }
         if (me.detailReq) {
             Ext.Ajax.abort(me.detailReq);
         }
@@ -81217,13 +81220,16 @@ Ext.define('MBilling.view.numberquality.List', {
         me.dockedItems = [{
             xtype: 'toolbar',
             dock: 'top',
-            scrollable: true,
+            minHeight: 40,
+            layout: {
+                overflowHandler: 'Menu'
+            },
             items: [{
                 xtype: 'combobox',
                 reference: 'labelFilter',
                 fieldLabel: t('Filter'),
                 labelWidth: 38,
-                width: 230,
+                width: 205,
                 editable: false,
                 value: '',
                 store: [
@@ -81245,12 +81251,13 @@ Ext.define('MBilling.view.numberquality.List', {
                 xtype: 'combobox',
                 reference: 'minAttemptsFilter',
                 fieldLabel: t('Min. Int.'),
-                labelWidth: 55,
-                width: 140,
+                labelWidth: 52,
+                width: 130,
                 editable: false,
-                value: 5,
+                value: 0,
                 store: [
                     [0, 'Todos'],
+                    [3, '>= 3'],
                     [5, '>= 5'],
                     [10, '>= 10'],
                     [20, '>= 20'],
@@ -81262,8 +81269,8 @@ Ext.define('MBilling.view.numberquality.List', {
             }, {
                 xtype: 'textfield',
                 reference: 'searchField',
-                emptyText: t('Number, campaign, trunk or reason...'),
-                width: 215,
+                emptyText: t('Number, campaign, trunk...'),
+                width: 185,
                 enableKeyEvents: true,
                 listeners: {
                     specialkey: 'onSearchSpecialKey'
@@ -81465,8 +81472,8 @@ Ext.define('MBilling.view.numberquality.Module', {
         xtype: 'numberqualitydetail',
         region: 'east',
         reference: 'qualityDetail',
-        width: 440,
-        minWidth: 320,
+        width: 350,
+        minWidth: 260,
         split: true,
         collapsible: true
     }]

@@ -13,7 +13,7 @@ class NumberQualityService
 {
     const SUMMARY_NAME        = 'pkg_cdr_number_quality';
     const DEFAULT_WINDOW_DAYS = 30;
-    const DEFAULT_MIN_ATTEMPTS = 5;
+    const DEFAULT_MIN_ATTEMPTS = 3;
     const PRIOR_WEIGHT        = 5.0;
     const SHORT_5S_MAX        = 5;
     const MID_SHORT_MAX       = 179;

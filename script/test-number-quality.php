@@ -19,14 +19,14 @@ function assertTrue($cond, $label)
 
 // 1. Insufficient sample
 $r1 = NumberQualityService::evaluateMetrics([
-    'attempts' => 3,
-    'answered' => 3,
+    'attempts' => 2,
+    'answered' => 2,
     'failed' => 0,
-    'cnt_short_5s' => 3,
-    'sum_duration' => 9,
-    'sum_duration_sq' => 27,
+    'cnt_short_5s' => 2,
+    'sum_duration' => 6,
+    'sum_duration_sq' => 18,
 ]);
-assertTrue($r1['quality_label'] === 'INSUFFICIENT_DATA', 'Fewer than 5 attempts -> INSUFFICIENT_DATA');
+assertTrue($r1['quality_label'] === 'INSUFFICIENT_DATA', 'Fewer than 3 attempts -> INSUFFICIENT_DATA');
 
 // 2. Frequent short <=5s calls -> BAD_SHORT_5S
 $r2 = NumberQualityService::evaluateMetrics([
