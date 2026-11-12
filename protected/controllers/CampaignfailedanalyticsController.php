@@ -19,10 +19,6 @@ class CampaignfailedanalyticsController extends Controller
 
     public function beforeRead($values)
     {
-        if (class_exists('CampaignAnalyticsService')) {
-            CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(3);
-        }
-
         // Mapear columnas virtuales de ordenamiento a columnas físicas de pkg_campaign_failed_analytics
         if (isset($_GET[$this->nameParamSort]) && is_string($_GET[$this->nameParamSort])) {
             $sortMap = [
@@ -91,19 +87,52 @@ class CampaignfailedanalyticsController extends Controller
             return $attributes;
         }
 
-        // Pre-cargar fechas de expiración de suspensión para las filas listadas
+        // Pre-cargar fechas de expiración de suspensión únicamente para los contactos de la página actual
         $suspendedMap = [];
-        try {
-            $rows = Yii::app()->db->createCommand(
-                "SELECT st.id_campaign, p.number AS canonical_number, st.policy_status, st.suspension_expires_at
-                 FROM pkg_campaign_optimizer_state st
-                 INNER JOIN pkg_phonenumber p ON p.id = st.id_phonenumber"
-            )->queryAll();
-            foreach ($rows as $r) {
-                $key = (int) $r['id_campaign'] . ':' . trim((string) $r['canonical_number']);
-                $suspendedMap[$key] = $r;
+        $targetNumbers = [];
+        $targetCampaigns = [];
+
+        foreach ($attributes as $row) {
+            if (!empty($row['canonical_number'])) {
+                $targetNumbers[] = trim((string) $row['canonical_number']);
             }
-        } catch (Exception $e) {
+            if (!empty($row['id_campaign'])) {
+                $targetCampaigns[] = (int) $row['id_campaign'];
+            }
+        }
+        $targetNumbers = array_values(array_unique($targetNumbers));
+        $targetCampaigns = array_values(array_unique($targetCampaigns));
+
+        if (!empty($targetNumbers) && !empty($targetCampaigns)) {
+            try {
+                $numPlaceholders = [];
+                $campPlaceholders = [];
+                $bindings = [];
+
+                foreach ($targetNumbers as $idx => $num) {
+                    $key = ':num' . $idx;
+                    $numPlaceholders[] = $key;
+                    $bindings[$key] = $num;
+                }
+                foreach ($targetCampaigns as $idx => $camp) {
+                    $key = ':camp' . $idx;
+                    $campPlaceholders[] = $key;
+                    $bindings[$key] = $camp;
+                }
+
+                $sql = "SELECT st.id_campaign, p.number AS canonical_number, st.policy_status, st.suspension_expires_at
+                        FROM pkg_campaign_optimizer_state st
+                        INNER JOIN pkg_phonenumber p ON p.id = st.id_phonenumber
+                        WHERE st.id_campaign IN (" . implode(',', $campPlaceholders) . ")
+                          AND p.number IN (" . implode(',', $numPlaceholders) . ")";
+
+                $rows = Yii::app()->db->createCommand($sql)->queryAll(true, $bindings);
+                foreach ($rows as $r) {
+                    $key = (int) $r['id_campaign'] . ':' . trim((string) $r['canonical_number']);
+                    $suspendedMap[$key] = $r;
+                }
+            } catch (Exception $e) {
+            }
         }
 
         foreach ($attributes as $i => $row) {
@@ -147,7 +176,7 @@ class CampaignfailedanalyticsController extends Controller
     {
         $this->checkActionAccess([], $this->instanceModel->getModule(), 'canRead');
         if (class_exists('CampaignAnalyticsService')) {
-            CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(3);
+            CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(60);
         }
         $idCampaign = (int) Yii::app()->request->getParam('id_campaign');
         $date = Yii::app()->request->getParam('date') ?: date('Y-m-d');

@@ -146,8 +146,9 @@ class CampaignAnalyticsService
      * @param int $throttleSeconds Segundos mínimos entre sincronizaciones completas (0 = forzar)
      * @return void
      */
-    public static function syncAllAnalyticsAndFailedCdr($throttleSeconds = 3)
+    public static function syncAllAnalyticsAndFailedCdr($throttleSeconds = 60)
     {
+        $hasLock = false;
         try {
             $stampFile = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'mbilling_failed_analytics_sync.stamp';
             if ($throttleSeconds > 0 && @is_file($stampFile)) {
@@ -156,9 +157,14 @@ class CampaignAnalyticsService
                     return;
                 }
             }
-            @touch($stampFile);
 
             $db = Yii::app()->db;
+            $lockAcquired = (int) $db->createCommand("SELECT GET_LOCK('mbilling_failed_analytics_sync', 0)")->queryScalar();
+            if ($lockAcquired !== 1) {
+                return;
+            }
+            $hasLock = true;
+            @touch($stampFile);
 
             // 1. Normalizar intentos TIMED_OUT previos hacia NOANSWER (hangupcause 19 / SIP 480)
             $db->createCommand(
@@ -171,7 +177,7 @@ class CampaignAnalyticsService
             )->execute();
 
             // 2. Backfill de pkg_campaign_report hacia pkg_campaign_optimizer_attempt
-            //    para llamadas despachadas hace > 65s que quedaron en status 2 (Sent), 4 (Busy/AMD), 5 (No Answer) o 7 (Congestion)
+            //    para llamadas despachadas en las últimas 24h que quedaron en status 2 (Sent), 4 (Busy/AMD), 5 (No Answer) o 7 (Congestion)
             $db->createCommand(
                 "INSERT INTO pkg_campaign_optimizer_attempt
                     (attempt_uuid, id_campaign, id_phonenumber, id_user_owner,
@@ -217,6 +223,7 @@ class CampaignAnalyticsService
                  WHERE r.status IN (2, 4, 5, 7)
                    AND r.unix_timestamp > 0
                    AND r.unix_timestamp <= UNIX_TIMESTAMP() - 65
+                   AND r.unix_timestamp >= UNIX_TIMESTAMP() - 86400
                    AND a.id IS NULL
                  LIMIT 2000"
             )->execute();
@@ -226,7 +233,7 @@ class CampaignAnalyticsService
                 CampaignResultAdapter::reconcileDispatchedAttempts(1000);
             }
 
-            // 4. Sincronizar y consolidar pkg_campaign_failed_analytics desde pkg_campaign_optimizer_attempt
+            // 4. Sincronizar y consolidar pkg_campaign_failed_analytics desde pkg_campaign_optimizer_attempt (últimos 7 días)
             $db->createCommand(
                 "INSERT INTO pkg_campaign_failed_analytics
                     (id_campaign, canonical_number, local_date, total_fails,
@@ -248,6 +255,7 @@ class CampaignAnalyticsService
                  FROM pkg_campaign_optimizer_attempt a
                  WHERE a.status IN ('BUSY', 'NOANSWER', 'FAILED', 'CANCEL', 'CONGESTION', 'TIMED_OUT')
                    AND a.canonical_number != ''
+                   AND a.reserved_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
                  GROUP BY a.id_campaign, a.canonical_number, DATE(a.reserved_at)
                  ON DUPLICATE KEY UPDATE
                     total_fails = VALUES(total_fails),
@@ -305,7 +313,7 @@ class CampaignAnalyticsService
                  END"
             )->execute();
 
-            // 6. Backfill hacia pkg_cdr_failed (Call Failed) para intentos fallidos de campaña
+            // 6. Backfill hacia pkg_cdr_failed (Call Failed) para intentos fallidos de campaña (últimas 24h)
             $db->createCommand(
                 "INSERT INTO pkg_cdr_failed
                     (id_user, id_plan, id_trunk, id_prefix, id_server, sessionid, uniqueid,
@@ -355,12 +363,20 @@ class CampaignAnalyticsService
                     ON cf.calledstation = LEFT(a.original_number, 30)
                    AND cf.starttime = COALESCE(a.dispatched_at, a.reserved_at)
                  WHERE a.status IN ('BUSY', 'NOANSWER', 'FAILED', 'CANCEL', 'CONGESTION', 'TIMED_OUT')
+                   AND a.reserved_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
                    AND cf.id IS NULL
                  ORDER BY a.id DESC
                  LIMIT 1000"
             )->execute();
         } catch (Exception $e) {
             Yii::log('Error in syncAllAnalyticsAndFailedCdr: ' . $e->getMessage(), CLogger::LEVEL_ERROR);
+        } finally {
+            if ($hasLock) {
+                try {
+                    Yii::app()->db->createCommand("SELECT RELEASE_LOCK('mbilling_failed_analytics_sync')")->execute();
+                } catch (Exception $e) {
+                }
+            }
         }
     }
 

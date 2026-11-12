@@ -312,7 +312,7 @@ class UpdateMysqlCommand extends CConsoleCommand
                 port varchar(7) NOT NULL DEFAULT '5060',
                 PRIMARY KEY (id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;"
-            );  
+            );
 
            $WAN_IF = trim(shell_exec(
                 "ip -4 route show default | awk '{for(i=1;i<=NF;i++) if(\$i==\"dev\"){print \$(i+1); exit}}'"
@@ -330,7 +330,7 @@ class UpdateMysqlCommand extends CConsoleCommand
                 . "|| printf '%s\n' " . escapeshellarg($cronLine)
                 . " >> /etc/crontab"
             );
-       
+
             $version = '8.0.0.10';
             $this->update($version);
         }
@@ -837,5 +837,33 @@ class UpdateMysqlCommand extends CConsoleCommand
                 SELECT 1 FROM pkg_group_module gm WHERE gm.id_group=1 AND gm.id_module=m.id
             );";
         $this->executeDB($sql);
+
+        // Optimización de índices para acelerar Analítica de Fallos y Campañas
+        if ($this->tableExists('pkg_campaign_failed_analytics')) {
+            if (!$this->indexExists('pkg_campaign_failed_analytics', 'idx_fa_last_attempt')) {
+                $this->executeDB("ALTER TABLE `pkg_campaign_failed_analytics` ADD KEY `idx_fa_last_attempt` (`last_attempt_at`)");
+            }
+            if (!$this->indexExists('pkg_campaign_failed_analytics', 'idx_fa_date_campaign')) {
+                $this->executeDB("ALTER TABLE `pkg_campaign_failed_analytics` ADD KEY `idx_fa_date_campaign` (`local_date`, `id_campaign`)");
+            }
+            if (!$this->indexExists('pkg_campaign_failed_analytics', 'idx_fa_status_cache')) {
+                $this->executeDB("ALTER TABLE `pkg_campaign_failed_analytics` ADD KEY `idx_fa_status_cache` (`status_cache`)");
+            }
+        }
+
+        if ($this->tableExists('pkg_campaign_optimizer_attempt')) {
+            if (!$this->indexExists('pkg_campaign_optimizer_attempt', 'idx_att_camp_phone')) {
+                $this->executeDB("ALTER TABLE `pkg_campaign_optimizer_attempt` ADD KEY `idx_att_camp_phone` (`id_campaign`, `id_phonenumber`)");
+            }
+            if (!$this->indexExists('pkg_campaign_optimizer_attempt', 'idx_att_status_reserved')) {
+                $this->executeDB("ALTER TABLE `pkg_campaign_optimizer_attempt` ADD KEY `idx_att_status_reserved` (`status`, `reserved_at`)");
+            }
+        }
+
+        if ($this->tableExists('pkg_campaign_report')) {
+            if (!$this->indexExists('pkg_campaign_report', 'idx_report_status_time')) {
+                $this->executeDB("ALTER TABLE `pkg_campaign_report` ADD KEY `idx_report_status_time` (`status`, `unix_timestamp`)");
+            }
+        }
     }
 }

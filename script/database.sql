@@ -538,6 +538,7 @@ CREATE TABLE `pkg_campaign_report` (
   `status` tinyint(1) NOT NULL DEFAULT '2',
   PRIMARY KEY (`id`),
   KEY `unix_timestamp` (`unix_timestamp`),
+  KEY `idx_report_status_time` (`status`, `unix_timestamp`),
   KEY `fk_pkg_campaign_report_pkg_campaign` (`id_campaign`),
   KEY `fk_pkg_campaign_report_pkg_phonenumber` (`id_phonenumber`),
   KEY `fk_pkg_campaign_report_pkg_user` (`id_user`),
@@ -3760,6 +3761,8 @@ CREATE TABLE `pkg_campaign_optimizer_attempt` (
   KEY `ix_attempt_uniqueid_server` (`uniqueid`,`id_server`),
   KEY `ix_attempt_canonical_date` (`canonical_number`,`reserved_at`),
   KEY `ix_attempt_status_dispatched` (`status`,`dispatched_at`),
+  KEY `idx_att_camp_phone` (`id_campaign`, `id_phonenumber`),
+  KEY `idx_att_status_reserved` (`status`, `reserved_at`),
   CONSTRAINT `fk_opt_attempt_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_opt_attempt_user` FOREIGN KEY (`id_user_owner`) REFERENCES `pkg_user` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -3814,6 +3817,9 @@ CREATE TABLE `pkg_campaign_failed_analytics` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_campaign_dest_date_analytics` (`id_campaign`,`canonical_number`,`local_date`),
   KEY `ix_analytics_lookup` (`canonical_number`,`last_attempt_at`),
+  KEY `idx_fa_last_attempt` (`last_attempt_at`),
+  KEY `idx_fa_date_campaign` (`local_date`, `id_campaign`),
+  KEY `idx_fa_status_cache` (`status_cache`),
   CONSTRAINT `fk_opt_analytics_campaign` FOREIGN KEY (`id_campaign`) REFERENCES `pkg_campaign` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
