@@ -421,14 +421,24 @@ Ext.define('Ext.ux.panel.Chart', {
     rendererPie: function(fieldDescription, rendererFieldValue, rendererFieldDescription, limitCharLabelTip) {
         return function(tooltip, record, item) {
             var me = this,
-                description = record.get(fieldDescription),
-                value = record.get(item.field);
-            description = rendererFieldDescription ? rendererFieldDescription(description) : description;
-            value = rendererFieldValue ? rendererFieldValue(value, description) : value;
-            description = Ext.String.ellipsis(description, limitCharLabelTip) + ': ';
-            title = description + value;
-            tooltip.setHtml(title);
-        }
+                description = (record && typeof record.get === 'function') ? record.get(fieldDescription) : '',
+                value = (record && typeof record.get === 'function' && item) ? record.get(item.field) : '';
+            try {
+                if (rendererFieldDescription && typeof rendererFieldDescription === 'function') {
+                    description = rendererFieldDescription(description);
+                }
+            } catch (e) {}
+            try {
+                if (rendererFieldValue && typeof rendererFieldValue === 'function') {
+                    value = rendererFieldValue(value, description);
+                }
+            } catch (e) {}
+            description = Ext.String.ellipsis(description || '', limitCharLabelTip) + ': ';
+            var title = description + (value !== undefined ? value : '');
+            if (tooltip && typeof tooltip.setHtml === 'function') {
+                tooltip.setHtml(title);
+            }
+        };
     },
     rendererDefault: function(tooltip, value) {
         return value;

@@ -48,7 +48,13 @@ Ext.define('MBilling.view.callOnlineChart.Chart', {
             return t(value.charAt(0).toUpperCase() + value.slice(1));
         }
         me.rendererFieldValue = function(axis, label, layoutContext) {
-            return layoutContext.renderer(label);
+            if (layoutContext && typeof layoutContext.renderer === 'function') {
+                return layoutContext.renderer(label);
+            }
+            if (typeof axis === 'number') {
+                return axis % 1 === 0 ? axis : axis.toFixed(1);
+            }
+            return axis !== undefined ? axis : (label !== undefined ? label : '');
         };
         me.tbarChart = [{
             text: '1 ' + t('hour'),

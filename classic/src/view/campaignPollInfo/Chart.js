@@ -36,10 +36,13 @@ Ext.define('MBilling.view.campaignPollInfo.Chart', {
             itemId: 'tbTextSum',
             reference: 'tbTextSum'
         }];
-        me.rendererFieldValue = Ext.util.Format.numberRenderer('0'),
-            me.rendererFieldValue = function(axis, label, layoutContext) {
+        me.rendererFieldValue = Ext.util.Format.numberRenderer('0');
+        me.rendererFieldValue = function(axis, label, layoutContext) {
+            if (layoutContext && typeof layoutContext.renderer === 'function') {
                 return layoutContext.renderer(label);
-            };
+            }
+            return axis !== undefined ? axis : (label !== undefined ? label : '');
+        };
         me.store = Ext.data.StoreManager.lookup(me.store);
         me.store.setRemoteFilter(true);
         filters = me.list.filters.getFilterData();

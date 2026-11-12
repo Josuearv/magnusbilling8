@@ -78487,14 +78487,24 @@ Ext.define('Ext.ux.panel.Chart', {
     rendererPie: function(fieldDescription, rendererFieldValue, rendererFieldDescription, limitCharLabelTip) {
         return function(tooltip, record, item) {
             var me = this,
-                description = record.get(fieldDescription),
-                value = record.get(item.field);
-            description = rendererFieldDescription ? rendererFieldDescription(description) : description;
-            value = rendererFieldValue ? rendererFieldValue(value, description) : value;
-            description = Ext.String.ellipsis(description, limitCharLabelTip) + ': ';
-            title = description + value;
-            tooltip.setHtml(title);
-        }
+                description = (record && typeof record.get === 'function') ? record.get(fieldDescription) : '',
+                value = (record && typeof record.get === 'function' && item) ? record.get(item.field) : '';
+            try {
+                if (rendererFieldDescription && typeof rendererFieldDescription === 'function') {
+                    description = rendererFieldDescription(description);
+                }
+            } catch (e) {}
+            try {
+                if (rendererFieldValue && typeof rendererFieldValue === 'function') {
+                    value = rendererFieldValue(value, description);
+                }
+            } catch (e) {}
+            description = Ext.String.ellipsis(description || '', limitCharLabelTip) + ': ';
+            var title = description + (value !== undefined ? value : '');
+            if (tooltip && typeof tooltip.setHtml === 'function') {
+                tooltip.setHtml(title);
+            }
+        };
     },
     rendererDefault: function(tooltip, value) {
         return value;
@@ -78624,10 +78634,13 @@ Ext.define('MBilling.view.campaignPollInfo.Chart', {
             itemId: 'tbTextSum',
             reference: 'tbTextSum'
         }];
-        me.rendererFieldValue = Ext.util.Format.numberRenderer('0'),
-            me.rendererFieldValue = function(axis, label, layoutContext) {
+        me.rendererFieldValue = Ext.util.Format.numberRenderer('0');
+        me.rendererFieldValue = function(axis, label, layoutContext) {
+            if (layoutContext && typeof layoutContext.renderer === 'function') {
                 return layoutContext.renderer(label);
-            };
+            }
+            return axis !== undefined ? axis : (label !== undefined ? label : '');
+        };
         me.store = Ext.data.StoreManager.lookup(me.store);
         me.store.setRemoteFilter(true);
         filters = me.list.filters.getFilterData();
@@ -78777,7 +78790,13 @@ Ext.define('MBilling.view.callOnlineChart.Chart', {
             return t(value.charAt(0).toUpperCase() + value.slice(1));
         }
         me.rendererFieldValue = function(axis, label, layoutContext) {
-            return layoutContext.renderer(label);
+            if (layoutContext && typeof layoutContext.renderer === 'function') {
+                return layoutContext.renderer(label);
+            }
+            if (typeof axis === 'number') {
+                return axis % 1 === 0 ? axis : axis.toFixed(1);
+            }
+            return axis !== undefined ? axis : (label !== undefined ? label : '');
         };
         me.tbarChart = [{
             text: '1 ' + t('hour'),
