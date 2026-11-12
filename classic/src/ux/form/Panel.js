@@ -173,6 +173,7 @@ Ext.define('Ext.ux.form.Panel', {
         me.hideBbar = me.dockedItems = [{
             xtype: 'toolbar',
             dock: 'bottom',
+            minHeight: 42,
             items: itemsTbar
         }];
         me.callParent(arguments);

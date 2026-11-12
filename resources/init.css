@@ -6098,13 +6098,25 @@ body,
     color: #1e293b !important;
 }
 
-/* Window Docked Bottom Toolbar (Actions / Import / Save) */
+/* Form Panel & Window Docked Bottom Toolbar (Actions / Import / Save) */
+.x-panel .x-toolbar.x-docked-bottom,
+.x-panel .x-toolbar-default.x-docked-bottom,
 .x-window .x-toolbar.x-docked-bottom,
 .x-window .x-toolbar-default.x-docked-bottom {
     background: #f8fafc !important;
     border-top: 1px solid #e2e8f0 !important;
     border-bottom: none !important;
-    padding: 8px 16px !important;
+    min-height: 42px !important;
+    padding: 5px 14px !important;
+    overflow: visible !important;
+}
+
+.x-panel .x-toolbar.x-docked-bottom .x-box-inner,
+.x-panel .x-toolbar-default.x-docked-bottom .x-box-inner,
+.x-window .x-toolbar.x-docked-bottom .x-box-inner,
+.x-window .x-toolbar-default.x-docked-bottom .x-box-inner {
+    min-height: 32px !important;
+    overflow: visible !important;
 }
 
 .x-window .x-toolbar.x-docked-bottom .x-toolbar-text,
@@ -6125,9 +6137,11 @@ body,
     border: 1px solid #1d4ed8 !important;
     border-radius: 5px !important;
     box-shadow: 0 1px 2px rgba(37, 99, 235, 0.2) !important;
-    padding: 4px 16px !important;
-    min-width: 90px !important;
-    height: auto !important;
+    padding: 3px 14px !important;
+    min-width: 85px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    box-sizing: border-box !important;
     cursor: pointer !important;
     transition: all 0.15s ease !important;
 }
@@ -6160,9 +6174,11 @@ body,
     border: 1px solid #cbd5e1 !important;
     border-radius: 5px !important;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
-    padding: 4px 16px !important;
-    min-width: 90px !important;
-    height: auto !important;
+    padding: 3px 14px !important;
+    min-width: 85px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    box-sizing: border-box !important;
     cursor: pointer !important;
     transition: all 0.15s ease !important;
 }
