@@ -324,6 +324,24 @@ El frontend requiere 4 archivos en la vista y 2 en el núcleo de la aplicación:
      });
      ```
 
+#### Reglas Críticas de Maquetación y Geometría en ExtJS:
+* **Toolbars Inferiores Acoplados (`dock: 'bottom'`)**: Los contenedores acoplados en `Ext.ux.form.Panel` calculan su altura estática en JavaScript antes de que apliquen los estilos CSS externos. Para evitar que los botones de acción ("Guardar", "Cancelar") queden recortados verticalmente a la mitad por el `overflow: hidden` nativo de ExtJS:
+  1. En `classic/src/ux/form/Panel.js`, fijar siempre `minHeight: 42` en el toolbar inferior (`me.dockedItems`).
+  2. En `resources/init.css`, mantener `.x-panel .x-toolbar.x-docked-bottom` y `.x-window .x-toolbar.x-docked-bottom` con `min-height: 42px !important; padding: 5px 14px !important; overflow: visible !important;` y sus contenedores `.x-box-inner` con `overflow: visible !important; min-height: 32px !important;`.
+  3. Los botones de acción `.mb-btn-primary` y `.mb-btn-secondary` deben mantener dimensiones simétricas: `height: 30px !important; min-height: 30px !important; box-sizing: border-box !important; padding: 3px 14px !important;`.
+
+#### Compilación Obligatoria del Bundle Frontend (`build-frontend.mjs`):
+* Sencha ExtJS en MagnusBilling 8 empaqueta todo el código del cliente en `resources/mbilling-bundle.js`. Los archivos individuales en `classic/` o `app/` **NO** se cargan directamente en tiempo de ejecución.
+* **CADA VEZ** que se modifique cualquier archivo en `app/`, `classic/src/` o `resources/init.css`, es **ESTRICTAMENTE OBLIGATORIO** ejecutar:
+  ```bash
+  node script/build-frontend.mjs
+  ```
+* Este comando regenera `resources/mbilling-bundle.js` con su hash de revisión SHA-256 y actualiza automáticamente los 28 manifiestos JSON (los 27 temas más el manifiesto de contingencia `bootstrap.json`).
+* Para validar que no existan manifiestos desfasados antes de comitear:
+  ```bash
+  node script/build-frontend.mjs --check
+  ```
+
 ---
 
 ### Paso 5: Tareas Programadas y Comandos CLI (Cron)
@@ -400,17 +418,30 @@ Cuando se presente un fallo o error en el sistema, consultar los logs en el sigu
 | Componente | Archivo de Log / Comando de Inspección | Qué buscar |
 | :--- | :--- | :--- |
 | **Backend Yii** | `/var/www/html/mbilling/protected/runtime/application.log` | Excepciones PHP, errores de SQL, stack traces de controllers. |
+| **Frontend / Web** | DevTools del Navegador (`F12`) > Console & Network | Errores HTTP 500 en endpoints AJAX (`statusSystem/read`, etc.), 404 en manifiestos (`bootstrap.json`), y excepciones de ExtJS (`TypeError`). |
 | **Asterisk CLI** | `asterisk -rvvvvv` | Fallos de marcado PJSIP, rechazos SIP (403, 404, 503), ejecución de AGI. |
 | **Asterisk Log** | `/var/log/asterisk/full` | Registro histórico detallado de llamadas y CDRs. |
 | **PJSIP Endpoints** | En Asterisk CLI: `pjsip show endpoints` / `pjsip show aors` | Registro y disponibilidad de troncales y extensiones. |
 | **Servidor Web** | `/var/log/apache2/error.log` | Errores 500, bloqueos de `.htaccess`, fallos de PHP-FPM. |
 | **Crons y Tareas** | `/var/log/syslog` o `journalctl -u cron -f` | Ejecución y salida de `cron.php MassiveCall` o tareas programadas. |
 
+### Diagnóstico de Consola del Navegador y Filtrado de Ruido de Extensiones
+
+Al depurar incidencias reportadas en la consola de JavaScript (`F12` > Console), el agente debe aplicar este criterio de discriminación inmediata:
+
+1. **Errores de Extensiones de Terceros (Falsos Positivos - Externos al PBX)**:
+   * **`chrome-extension://...`**: Recursos bloqueados por Manifest V3 de extensiones del usuario (grabadores de pantalla, Loom, bloqueadores de anuncios).
+   * **`content-main.js` / `injectApolloEverywhere` / `TypeError: crypto.randomUUID is not a function`**: Ocurre cuando el panel web se accede mediante protocolo no seguro **HTTP** (`http://`). Los navegadores Chromium desactivan la API criptográfica nativa fuera de contextos seguros (HTTPS o localhost). Extensiones de terceros (como Apollo.io o grabadores) inyectadas en la página fallan al asumir que `crypto.randomUUID()` está disponible. Estos errores corren en el mundo aislado de la extensión y **NO afectan** la lógica del sistema.
+   * **Regla Operativa**: Antes de atribuir un fallo a MagnusBilling, solicitar al usuario reproducir el escenario en una **Ventana de Incógnito (`Ctrl + Shift + N`)** sin extensiones activas o configurar certificado SSL (**HTTPS**).
+
+2. **Errores Reales del Microloader de ExtJS**:
+   * **`bootstrap.js:1 Failed to load resource: 404 (Not Found)`**: Indica que el microloader intentó cargar el manifiesto de contingencia `bootstrap.json` antes de inicializar el tema dinámico. El archivo `bootstrap.json` debe existir **siempre** en la raíz y ser regenerado junto con los 27 temas mediante `node script/build-frontend.mjs`.
+
 ---
 
 ## 7. Checklist Obligatorio del Agente antes de Finalizar una Tarea
 
-Antes de entregar cualquier cambio al usuario o dar por concluida una tarea, el agente debe verificar cada uno de estos 7 puntos:
+Antes de entregar cualquier cambio al usuario o dar por concluida una tarea, el agente debe verificar cada uno de estos 8 puntos:
 
 - [ ] **1. Rama Correcta**: El cambio está realizado y comiteado en la rama **`development`** (NUNCA en `source`, NUNCA directamente en `main`).
 - [ ] **2. Sintaxis PHP**: Todo archivo PHP creado o modificado pasa la validación de sintaxis: `php -l <archivo.php>`.
@@ -418,4 +449,5 @@ Antes de entregar cualquier cambio al usuario o dar por concluida una tarea, el 
 - [ ] **4. Seguridad SQL**: Todas las consultas a base de datos utilizan binding de parámetros PDO (`:param`).
 - [ ] **5. Compatibilidad Asterisk**: Verificar tecnología y dialstring del flujo real; PJSIP es la referencia de instalación nueva, no un reemplazo global automático.
 - [ ] **6. Integridad de Migración**: Si se agregaron campos o tablas, están documentados y contemplados en `UpdateMysqlCommand.php` y `script/database.sql`.
-- [ ] **7. Push Remoto**: Los commits han sido subidos exitosamente a `origin development` en GitHub.
+- [ ] **7. Compilación y Manifiestos de Frontend**: Si se modificó algún archivo en `app/`, `classic/src/`, `resources/init.css` o `index.html`, se ejecutó `node script/build-frontend.mjs`, se verificó con `node script/build-frontend.mjs --check` (784 fuentes y 28 manifiestos sincronizados incluyendo `bootstrap.json`) y se comiteó el bundle compilado.
+- [ ] **8. Push Remoto**: Los commits han sido subidos exitosamente a `origin development` en GitHub.
