@@ -59,6 +59,7 @@ $r3 = NumberQualityService::evaluateMetrics([
     'fail_no_answer' => 2,
 ]);
 assertTrue($r3['quality_label'] === 'BAD_UNDER_3MIN', '0 calls >=3m with high mid-short -> BAD_UNDER_3MIN (got ' . $r3['quality_label'] . ')');
+assertTrue($r3['quality_score'] < 60.0, 'BAD_UNDER_3MIN score below 60 (got ' . $r3['quality_score'] . ')');
 
 // 4. Rigid timer cutoff loop (all ~30s +/- 1s) -> RIGID_CUT_PATTERN
 // 8 calls of ~30s: mean=30, sum_sq = 8 * (30^2 + 1^2) = 7208 -> stddev=1.0, CV=0.033
@@ -73,6 +74,7 @@ $r4 = NumberQualityService::evaluateMetrics([
     'fail_busy' => 1,
 ]);
 assertTrue($r4['quality_label'] === 'RIGID_CUT_PATTERN', 'Low duration CV < 0.22 -> RIGID_CUT_PATTERN (got ' . $r4['quality_label'] . ')');
+assertTrue($r4['quality_score'] < 55.0, 'RIGID_CUT_PATTERN score below 55 (got ' . $r4['quality_score'] . ')');
 
 // 5. Unreachable / failure dominant -> UNREACHABLE_FAIL_PATTERN
 $r5 = NumberQualityService::evaluateMetrics([

@@ -66,29 +66,38 @@ class NumberQualityService
         $bMidShort = self::clamp((float) ($baseline['mid_short'] ?? 0.40), 0.05, 0.85);
         $bLong     = self::clamp(1.0 - $bSdr5 - $bMidShort, 0.05, 0.80);
 
-        $alpha     = self::PRIOR_WEIGHT;
-        $pAsr      = ($answered + $alpha * $bAsr) / ($attempts + $alpha);
-        $pShort5   = ($cntShort5s + $alpha * $bSdr5) / ($answered + $alpha);
-        $pLong     = ($cntLong180s + $alpha * $bLong) / ($answered + $alpha);
-        $confidence = round($attempts / ($attempts + $alpha), 4);
+        $alpha       = self::PRIOR_WEIGHT;
+        $effAnswered = max(0, $answered - $cntShort5s);
+        $bEffAsr     = max(0.05, $bAsr * (1.0 - $bSdr5));
+        $pEffAsr     = ($effAnswered + $alpha * $bEffAsr) / ($attempts + $alpha);
+        $pShort5     = ($cntShort5s + $alpha * $bSdr5) / ($answered + $alpha);
+        $pLong       = ($cntLong180s + $alpha * $bLong) / ($answered + $alpha);
+        $confidence  = round($attempts / ($attempts + $alpha), 4);
 
-        // Weighted 0..100 score (higher = healthier destination)
-        $asrComp     = self::clamp($pAsr / max(0.35, $bAsr), 0.0, 1.0) * 35.0;
-        $short5Comp  = (1.0 - self::clamp($pShort5 / 0.60, 0.0, 1.0)) * 25.0;
-        $longComp    = self::clamp($pLong / 0.35, 0.0, 1.0) * 20.0;
+        // Weighted 0..100 score (higher = healthier destination; <=5s calls do not inflate ASR)
+        $asrComp    = self::clamp($pEffAsr / max(0.35, $bEffAsr), 0.0, 1.0) * 35.0;
+        $short5Comp = (1.0 - self::clamp($pShort5 / 0.50, 0.0, 1.0)) * 25.0;
+        $longComp   = self::clamp($pLong / 0.40, 0.0, 1.0) * 25.0;
 
-        $failRatio = $attempts > 0 ? ($failed / $attempts) : 0.0;
-        $hardFailWeight = in_array($domFail['cause'], array('CHANUNAVAIL', 'CONGESTION', 'BUSY'), true) ? 12.0 : 8.0;
-        $failPenalty = self::clamp($failRatio, 0.0, 1.0) * $hardFailWeight;
+        $failRatio   = $attempts > 0 ? ($failed / $attempts) : 0.0;
+        $failWeight  = in_array($domFail['cause'], array('CHANUNAVAIL', 'CONGESTION', 'BUSY'), true) ? 10.0 : 7.0;
+        $nonFailComp = max(0.0, 10.0 - (self::clamp($failRatio, 0.0, 1.0) * $failWeight));
 
+        $patternComp = 5.0;
         $patternPenalty = 0.0;
         if ($answered >= 5 && $cv > 0.0 && $cv < 0.25 && $acdSec < self::LONG_MIN) {
-            $patternPenalty = (1.0 - ($cv / 0.25)) * 8.0;
+            $patternComp    = ($cv / 0.25) * 5.0;
+            $patternPenalty = (1.0 - ($cv / 0.25)) * 12.0;
+        }
+
+        $under3mPenalty = 0.0;
+        if ($answered >= 4 && $cntLong180s === 0) {
+            $under3mPenalty = min(22.0, $answered * 3.0);
         }
 
         $score = round(
             self::clamp(
-                $asrComp + $short5Comp + $longComp + (12.0 - $failPenalty) + (8.0 - $patternPenalty),
+                $asrComp + $short5Comp + $longComp + $nonFailComp + $patternComp - $patternPenalty - $under3mPenalty,
                 0.0,
                 100.0
             ),
