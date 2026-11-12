@@ -22,6 +22,7 @@ class StatusSystemController extends Controller
 
     public function init()
     {
+        LoadConfig::syncSystemTimezone();
         $this->instanceModel = new StatusSystem;
         $this->abstractModel = StatusSystem::model();
         $this->titleReport   = Yii::t('zii', 'Status system');
@@ -38,6 +39,15 @@ class StatusSystemController extends Controller
 
     public function setAttributesModels($attributes, $models)
     {
+        LoadConfig::syncSystemTimezone();
+        $callChartCmdPath = Yii::app()->basePath . '/commands/CallChartCommand.php';
+        if (is_file($callChartCmdPath)) {
+            require_once $callChartCmdPath;
+            if (class_exists('CallChartCommand')) {
+                CallChartCommand::syncOnlineCallsNow(2);
+            }
+        }
+
         if (empty($attributes)) {
             $attributes = [[]];
         }
@@ -47,46 +57,76 @@ class StatusSystemController extends Controller
             if (!empty($attributes[$i]['date'])) {
                 $attributes[$i]['date'] = date('H:i', strtotime($attributes[$i]['date']));
             }
-            $attributes[$i]['networkin']  = isset($attributes[$i]['networkin']) ? (float)$attributes[$i]['networkin'] : 0.0;
-            $attributes[$i]['networkout'] = isset($attributes[$i]['networkout']) ? (float)$attributes[$i]['networkout'] : 0.0;
+            $attributes[$i]['networkin']  = isset($attributes[$i]['networkin']) ? (float) $attributes[$i]['networkin'] : 0.0;
+            $attributes[$i]['networkout'] = isset($attributes[$i]['networkout']) ? (float) $attributes[$i]['networkout'] : 0.0;
         }
 
         if (count($attributes) === 1 && !empty($attributes[0]['date'])) {
-            $prev = $attributes[0];
-            $prev['date'] = date('H:i', strtotime('-1 minute'));
-            $prev['networkin'] = 0.0;
+            $prev               = $attributes[0];
+            $prev['date']       = date('H:i', strtotime('-1 minute'));
+            $prev['networkin']  = 0.0;
             $prev['networkout'] = 0.0;
-            $attributes = [$prev, $attributes[0]];
+            $attributes         = [$prev, $attributes[0]];
         } elseif (count($attributes) > 1) {
             $attributes = array_reverse($attributes);
         }
 
-        $totalActiveUsers = User::model()->count('active = 1');
+        $totalActiveUsers         = User::model()->count('active = 1');
         $modelCallSummaryPerMonth = CallSummaryPerMonth::model()->find('month = :key', [':key' => date('Ym')]);
-        $monthprofit = isset($modelCallSummaryPerMonth->lucro) ? number_format($modelCallSummaryPerMonth->lucro, 2) : '0.00';
+        $profitVal                = isset($modelCallSummaryPerMonth->lucro) ? (float) $modelCallSummaryPerMonth->lucro : null;
+        if ($profitVal === null) {
+            $monthStart = date('Y-m-01 00:00:00');
+            $profitVal  = (float) Yii::app()->db->createCommand("
+                SELECT COALESCE(SUM(sessionbill - buycost), 0)
+                FROM pkg_cdr
+                WHERE starttime >= :monthStart
+            ")->bindValue(':monthStart', $monthStart, PDO::PARAM_STR)->queryScalar();
+        }
+        $monthprofit = number_format((float) $profitVal, 2);
 
-        $modelCallOnlineChart = CallOnlineChart::model()->find([
-            'condition' => 'date > :key',
-            'params'    => [':key' => date('Y-m-d')],
-            'order'     => 'total DESC',
-        ]);
+        $todayStart = date('Y-m-d 00:00:00');
 
-        $totalCPS = StatusSystem::model()->find([
-            'condition' => 'date > :key',
-            'params'    => [':key' => date('Y-m-d 00:00:00')],
-            'order'     => 'cps DESC',
-        ]);
-        $cpsValue = (isset($totalCPS->cps)) ? $totalCPS->cps : 0;
-        $maximumcc = isset($modelCallOnlineChart->total) ? 'CC ' . $modelCallOnlineChart->total . ' | CPS ' . $cpsValue : 'CC 0 | CPS ' . $cpsValue;
+        $ccFromChart = (int) Yii::app()->db->createCommand("
+            SELECT COALESCE(MAX(total), 0)
+            FROM pkg_call_online_chart
+            WHERE date >= :today
+        ")->bindValue(':today', $todayStart, PDO::PARAM_STR)->queryScalar();
+
+        $ccLive = (int) CallOnLine::model()->count();
+
+        $cpsFromStatus = (int) Yii::app()->db->createCommand("
+            SELECT COALESCE(MAX(cps), 0)
+            FROM pkg_status_system
+            WHERE date >= :today
+        ")->bindValue(':today', $todayStart, PDO::PARAM_STR)->queryScalar();
+
+        $cpsFromCdr = 0;
+        try {
+            $cpsFromCdr = (int) Yii::app()->db->createCommand("
+                SELECT COALESCE(MAX(cnt), 0) FROM (
+                    SELECT starttime, COUNT(*) AS cnt FROM (
+                        SELECT starttime FROM pkg_cdr WHERE starttime >= :today
+                        UNION ALL
+                        SELECT starttime FROM pkg_cdr_failed WHERE starttime >= :today
+                    ) u GROUP BY starttime
+                ) s
+            ")->bindValue(':today', $todayStart, PDO::PARAM_STR)->queryScalar();
+        } catch (Exception $e) {
+            $cpsFromCdr = 0;
+        }
+
+        $cpsValue  = max($cpsFromStatus, $cpsFromCdr);
+        $ccPeakVal = max($ccFromChart, $ccLive, $cpsValue);
+        $maximumcc = 'CC ' . $ccPeakVal . ' | CPS ' . $cpsValue;
 
         $modelRefill = Refill::model()->find([
             'select'    => 'sum(credit) as credit',
-            'condition' => 'date > :key',
-            'params'    => [':key' => date('Y-m') . '-01'],
+            'condition' => 'date >= :key',
+            'params'    => [':key' => date('Y-m-01 00:00:00')],
         ]);
         $monthRefill = isset($modelRefill->credit) ? number_format($modelRefill->credit, 2) : '0.00';
 
-        $lastIdx = count($attributes) - 1;
+        $lastIdx       = count($attributes) - 1;
         $targetIndices = array_unique([0, $lastIdx]);
 
         foreach ($targetIndices as $idx) {

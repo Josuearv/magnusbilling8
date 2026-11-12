@@ -59,10 +59,14 @@ Ext.define('Ext.ux.panel.Chart', {
     sprites: [],
     series: [],
     donut: 0,
-    constructor: function() {
+    constructor: function(config) {
         var me = this;
+        Ext.apply(me, config);
         if (Ext.isString(me.store)) {
-            me.store = Ext.data.StoreManager.lookup(me.store);
+            var storeName = me.store;
+            me.store = Ext.data.StoreManager.lookup(storeName) || Ext.create('MBilling.store.' + storeName, {
+                storeId: storeName
+            });
             me.store.load({
                 scope: me,
                 callback: function() {
@@ -79,8 +83,15 @@ Ext.define('Ext.ux.panel.Chart', {
             charts = [],
             buttonsChart = [],
             seriesLine = [],
+            hasCustomBbarItems = false,
             store,
             rawData;
+        me.bbarChart = Ext.isArray(me.bbarChart) ? Ext.Array.clone(me.bbarChart) : [];
+        me.tbarChart = Ext.isArray(me.tbarChart) ? Ext.Array.clone(me.tbarChart) : [];
+        me.seriesLine = Ext.isArray(me.seriesLine) ? Ext.Array.clone(me.seriesLine) : [];
+        me.sprites = Ext.isArray(me.sprites) ? Ext.Array.clone(me.sprites) : [];
+        me.series = Ext.isArray(me.series) ? Ext.Array.clone(me.series) : [];
+        hasCustomBbarItems = me.bbarChart.length > 0;
         if (me.charts.length === 1) {
             me.defaultChart = me.charts[0];
         }
@@ -355,21 +366,23 @@ Ext.define('Ext.ux.panel.Chart', {
             charts.push(me.chartPie);
             buttonsChart.push(btnPie);
         }
-        me.bbarChart.push('->', {
-            xtype: 'buttongroup',
-            toggleGroup: 'typeChart',
-            hidden: me.hiddenButtonsCharts,
-            defaults: {
-                enableToggle: true,
-                allowDepress: false,
+        if (!me.hiddenButtonsCharts) {
+            me.bbarChart.push('->', {
+                xtype: 'buttongroup',
                 toggleGroup: 'typeChart',
-                listeners: {
-                    scope: me,
-                    toggle: me.activeChart
-                }
-            },
-            items: buttonsChart
-        });
+                hidden: me.hiddenButtonsCharts,
+                defaults: {
+                    enableToggle: true,
+                    allowDepress: false,
+                    toggleGroup: 'typeChart',
+                    listeners: {
+                        scope: me,
+                        toggle: me.activeChart
+                    }
+                },
+                items: buttonsChart
+            });
+        }
         me.items = charts;
         if (me.showDownload) {
             me.tbarChart.push('->', {
@@ -379,8 +392,12 @@ Ext.define('Ext.ux.panel.Chart', {
                 handler: me.onDownload
             });
         }
-        me.tbar = me.tbarChart;
-        me.bbar = me.bbarChart;
+        if (me.tbarChart && me.tbarChart.length) {
+            me.tbar = me.tbarChart;
+        }
+        if ((hasCustomBbarItems || !me.hiddenButtonsCharts) && me.bbarChart && me.bbarChart.length) {
+            me.bbar = me.bbarChart;
+        }
         me.callParent(arguments);
         if (me.getLayout() && typeof me.getLayout().setActiveItem === 'function') {
             var targetChart = me.down('#' + me.defaultChart);

@@ -104,6 +104,15 @@ class MassiveCall
             $agi->verbose($sql, 25);
             $agi->exec($sql);
 
+            if (isset($modelCampaign->record_call) && $modelCampaign->record_call == 1) {
+                $MAGNUS->record_call = 1;
+            }
+            if ($MAGNUS->record_call == 1 || (isset($MAGNUS->config['global']['global_record_calls']) && $MAGNUS->config['global']['global_record_calls'] == 1)) {
+                $MAGNUS->record_call = 1;
+                $MAGNUS->sip_account = 'mc_' . $idCampaign;
+                $MAGNUS->startRecordCall($agi, '', false, false);
+            }
+
             $forward_number = $modelCampaign->forward_number;
 
             if ($agi->get_variable("MBILLINGRESULT", true) && preg_match('/AGI\|FORWARD/', $agi->get_variable("MBILLINGRESULT", true))) {
@@ -831,6 +840,7 @@ class MassiveCall
             $id_call = $CalcAgi->saveCDR($agi, $MAGNUS, true);
         }
 
+        $MAGNUS->stopRecordCall($agi);
         $MAGNUS->hangup($agi);
     }
 }

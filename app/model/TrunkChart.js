@@ -48,6 +48,15 @@ Ext.define('MBilling.model.TrunkChart', {
     }, {
         name: 'lucro',
         type: 'float'
+    }, {
+        name: 'sumsessionbill',
+        type: 'float'
+    }, {
+        name: 'sumnbcall',
+        type: 'int'
+    }, {
+        name: 'nbcall_fail',
+        type: 'int'
     }, 'idTrunktrunkcode'],
     proxy: {
         type: 'uxproxy',

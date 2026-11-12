@@ -21,85 +21,47 @@ class StatusSystemCommand extends ConsoleCommand
 {
     public function run($args)
     {
+        LoadConfig::syncSystemTimezone();
 
-        $sql          = "SELECT id FROM  `pkg_cdr_failed` WHERE  `starttime` > '" . date('Y-m-d H:i:s', strtotime('-1 hour')) . "' LIMIT 1";
-        $resultFailed = Yii::app()->db->createCommand($sql)->queryAll();
-
-        if (isset($resultFailed[0]['id'])) {
-            $sql          = "SELECT SUBSTRING(uniqueid,1,10) as uniqueid, starttime FROM  `pkg_cdr_failed` WHERE  `id` > " . $resultFailed[0]['id'];
-            $resultFailed = Yii::app()->db->createCommand($sql)->queryAll();
-        } else {
-            $sql          = "SELECT SUBSTRING(uniqueid,1,10) as uniqueid, starttime FROM  `pkg_cdr_failed` WHERE  `starttime` > '" . date('Y-m-d H:i:s', strtotime('-1 hour')) . "' LIMIT 1";
-            $resultFailed = Yii::app()->db->createCommand($sql)->queryAll();
-        }
-
-        $sql            = "SELECT id FROM  `pkg_cdr` WHERE  `starttime` > '" . date('Y-m-d H:i:s', strtotime('-1 hour')) . "' LIMIT 1";
-        $resultAnswered = Yii::app()->db->createCommand($sql)->queryAll();
-
-        if (isset($resultAnswered[0]['id'])) {
-
-            $sql            = "SELECT SUBSTRING(uniqueid,1,10) as uniqueid, starttime FROM  `pkg_cdr` WHERE  `id` > " . $resultAnswered[0]['id'];
-            $resultAnswered = Yii::app()->db->createCommand($sql)->queryAll();
-        } else {
-            $sql            = "SELECT SUBSTRING(uniqueid,1,10) as uniqueid, starttime FROM  `pkg_cdr` WHERE  `starttime` > '" . date('Y-m-d H:i:s', strtotime('-1 hour')) . "' LIMIT 1";
-            $resultAnswered = Yii::app()->db->createCommand($sql)->queryAll();
-        }
-
-        $result = array_merge($resultFailed, $resultAnswered);
-
-        $byGroup = $this->group_by("uniqueid", $result);
-        $old_CPS = [];
-        foreach ($byGroup as $time => $group) {
-            $cps         = count($group);
-            $hour_minute = date('Y-m-d H:i', $time) . ':00';
-            if ( ! isset($old_CPS[$hour_minute])) {
-                $old_CPS[$hour_minute] = 0;
-            }
-            if ($cps > $old_CPS[$hour_minute]) {
-                $old_CPS[$hour_minute] = $cps;
-                $sql                   = "UPDATE pkg_status_system SET cps = " . $cps . "  WHERE date = '" . $hour_minute . "' ";
-                try {
-                    Yii::app()->db->createCommand($sql)->execute();
-                } catch (Exception $e) {
-
-                }
-            }
-        }
-
-        $sysinfo = new sysinfo;
-
+        $sysinfo  = new sysinfo;
         $loadavg  = $sysinfo->loadavg(true);
         $cpu_info = $sysinfo->cpu_info();
 
+        $rx1 = 0;
+        $tx1 = 0;
         foreach ($sysinfo->network() as $net_name => $net) {
             $net_name = trim($net_name);
-
-            if (preg_match('/eth|ens|enp|venet|w\.g|eno/', $net_name)) {
-                $rx1 = $net["rx_bytes"];
-                $tx1 = $net["tx_bytes"];
-                break;
+            if ($net_name === 'lo' || $net_name === '') {
+                continue;
+            }
+            if (preg_match('/^(eth|ens|enp|venet|w\.g|eno|bond|br|veth|wlan)/i', $net_name) || (($net['rx_bytes'] ?? 0) > 0 || ($net['tx_bytes'] ?? 0) > 0)) {
+                $rx1 += (float) ($net["rx_bytes"] ?? 0);
+                $tx1 += (float) ($net["tx_bytes"] ?? 0);
             }
         }
         sleep(10);
+        $rx2 = 0;
+        $tx2 = 0;
         foreach ($sysinfo->network() as $net_name => $net) {
             $net_name = trim($net_name);
-
-            if (preg_match('/eth|ens|enp|venet|w\.g|eno/', $net_name)) {
-                $rx2 = $net["rx_bytes"];
-                $tx2 = $net["tx_bytes"];
-                break;
+            if ($net_name === 'lo' || $net_name === '') {
+                continue;
+            }
+            if (preg_match('/^(eth|ens|enp|venet|w\.g|eno|bond|br|veth|wlan)/i', $net_name) || (($net['rx_bytes'] ?? 0) > 0 || ($net['tx_bytes'] ?? 0) > 0)) {
+                $rx2 += (float) ($net["rx_bytes"] ?? 0);
+                $tx2 += (float) ($net["tx_bytes"] ?? 0);
             }
         }
-        $networkin  =  ! isset($rx1) ? 0 : (($rx2 - $rx1) / 1000) / 10;
-        $networkout =  ! isset($tx1) ? 0 : (($tx2 - $tx1) / 1000) / 10;
+        $networkin  = $rx2 >= $rx1 ? (($rx2 - $rx1) / 1000) / 10 : 0;
+        $networkout = $tx2 >= $tx1 ? (($tx2 - $tx1) / 1000) / 10 : 0;
 
         $memory = $sysinfo->memory();
 
-        $loadavg['avg'][0] = is_numeric($loadavg['avg'][0]) ? $loadavg['avg'][0] : 0;
+        $loadavg['avg'][0] = is_numeric($loadavg['avg'][0] ?? null) ? $loadavg['avg'][0] : 0;
 
-        $memTotal = number_format(intval($memory["ram"]["total"]) / 1024000, 2);
-        $memFree  = number_format(intval($memory["ram"]["t_free"]) / 1024000, 2);
-        $memUsed  = $memTotal - $memFree;
+        $memTotal = (float) number_format(intval($memory["ram"]["total"] ?? 0) / 1024000, 2, '.', '');
+        $memFree  = (float) number_format(intval($memory["ram"]["t_free"] ?? 0) / 1024000, 2, '.', '');
+        $memUsed  = max(0, $memTotal - $memFree);
 
         $uptime = $sysinfo->formtSecundsDay($sysinfo->uptime());
 
@@ -111,17 +73,106 @@ class StatusSystemCommand extends ConsoleCommand
             $disk_perc = intval($res[1]);
         }
 
-        $sql = "INSERT INTO pkg_status_system (date, cpuMediaUso, cpuPercent,memTotal, memUsed, networkin, networkout,cpuModel,uptime, disk_free,disk_perc) VALUES
-                    ('" . date('Y-m-d H:i:') . '00' . "','" . $loadavg['avg'][0] . "','" . number_format($loadavg['cpupercent'], 2) . "',
-                    '" . $memTotal . "','" . $memUsed . "', '" . $networkin . "','" . $networkout . "','" . $cpu_info['model'] . "','" . $uptime . "','" . $disk_free . "','" . $disk_perc . "')";
-        try {
-            Yii::app()->db->createCommand($sql)->execute();
+        $currentMinute = date('Y-m-d H:i:') . '00';
+        $cpuPercentVal = number_format((float) ($loadavg['cpupercent'] ?? 0), 2, '.', '');
+        $cpuModelVal   = isset($cpu_info['model']) ? (string) $cpu_info['model'] : '';
 
-        } catch (Exception $e) {
-            $sql    = "SELECT * FROM pkg_status_system WHERE date = '" . date('Y-m-d H:i:') . '00' . "' ";
-            $result = Yii::app()->db->createCommand($sql)->queryAll();
+        $existingRow = Yii::app()->db->createCommand("SELECT id FROM pkg_status_system WHERE date = :date LIMIT 1")
+            ->bindValue(':date', $currentMinute, PDO::PARAM_STR)
+            ->queryRow();
+
+        if ($existingRow) {
+            Yii::app()->db->createCommand("
+                UPDATE pkg_status_system
+                SET cpuMediaUso = :cpuMediaUso,
+                    cpuPercent = :cpuPercent,
+                    memTotal = :memTotal,
+                    memUsed = :memUsed,
+                    networkin = :networkin,
+                    networkout = :networkout,
+                    cpuModel = :cpuModel,
+                    uptime = :uptime,
+                    disk_free = :disk_free,
+                    disk_perc = :disk_perc
+                WHERE id = :id
+            ")->execute([
+                ':cpuMediaUso' => $loadavg['avg'][0],
+                ':cpuPercent'  => $cpuPercentVal,
+                ':memTotal'    => $memTotal,
+                ':memUsed'     => $memUsed,
+                ':networkin'   => $networkin,
+                ':networkout'  => $networkout,
+                ':cpuModel'    => $cpuModelVal,
+                ':uptime'      => $uptime,
+                ':disk_free'   => $disk_free,
+                ':disk_perc'   => $disk_perc,
+                ':id'          => (int) $existingRow['id'],
+            ]);
+        } else {
+            try {
+                Yii::app()->db->createCommand("
+                    INSERT INTO pkg_status_system
+                        (date, cpuMediaUso, cpuPercent, memTotal, memUsed, networkin, networkout, cpuModel, uptime, disk_free, disk_perc, cps)
+                    VALUES
+                        (:date, :cpuMediaUso, :cpuPercent, :memTotal, :memUsed, :networkin, :networkout, :cpuModel, :uptime, :disk_free, :disk_perc, 0)
+                ")->execute([
+                    ':date'        => $currentMinute,
+                    ':cpuMediaUso' => $loadavg['avg'][0],
+                    ':cpuPercent'  => $cpuPercentVal,
+                    ':memTotal'    => $memTotal,
+                    ':memUsed'     => $memUsed,
+                    ':networkin'   => $networkin,
+                    ':networkout'  => $networkout,
+                    ':cpuModel'    => $cpuModelVal,
+                    ':uptime'      => $uptime,
+                    ':disk_free'   => $disk_free,
+                    ':disk_perc'   => $disk_perc,
+                ]);
+            } catch (Exception $e) {
+            }
         }
 
+        $oneHourAgo = date('Y-m-d H:i:s', strtotime('-1 hour'));
+
+        $resultFailed = Yii::app()->db->createCommand("
+            SELECT UNIX_TIMESTAMP(starttime) AS ts, starttime
+            FROM pkg_cdr_failed
+            WHERE starttime >= :since
+        ")->bindValue(':since', $oneHourAgo, PDO::PARAM_STR)->queryAll();
+
+        $resultAnswered = Yii::app()->db->createCommand("
+            SELECT UNIX_TIMESTAMP(starttime) AS ts, starttime
+            FROM pkg_cdr
+            WHERE starttime >= :since
+        ")->bindValue(':since', $oneHourAgo, PDO::PARAM_STR)->queryAll();
+
+        $result  = array_merge($resultFailed, $resultAnswered);
+        $byGroup = $this->group_by("ts", $result);
+        $old_CPS = [];
+        foreach ($byGroup as $time => $group) {
+            if (!is_numeric($time) || (int) $time <= 0) {
+                continue;
+            }
+            $cps         = count($group);
+            $hour_minute = date('Y-m-d H:i', (int) $time) . ':00';
+            if (!isset($old_CPS[$hour_minute])) {
+                $old_CPS[$hour_minute] = 0;
+            }
+            if ($cps > $old_CPS[$hour_minute]) {
+                $old_CPS[$hour_minute] = $cps;
+                try {
+                    Yii::app()->db->createCommand("
+                        UPDATE pkg_status_system
+                        SET cps = GREATEST(COALESCE(cps, 0), :cps)
+                        WHERE date = :date
+                    ")->execute([
+                        ':cps'  => (int) $cps,
+                        ':date' => $hour_minute,
+                    ]);
+                } catch (Exception $e) {
+                }
+            }
+        }
     }
     public function group_by($key, $data)
     {

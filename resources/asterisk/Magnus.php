@@ -59,6 +59,7 @@ class Magnus
     public $id_offer;
     public $planTechPrefix = '';
     public $record_call;
+    public $isRecordingStarted = false;
     public $mix_monitor_format = 'gsm';
     public $prefix_local;
     public $id_agent;
@@ -191,6 +192,10 @@ class Magnus
                 'callerId' => (string) $this->CallerID,
             ]);
             exit;
+        }
+
+        if ($this->isRecordingStarted) {
+            $this->stopRecordCall($agi);
         }
 
         if ($code == '') {
@@ -828,25 +833,39 @@ class Magnus
         }
     }
 
-    public function startRecordCall(&$agi, $addicional = '', $isDid = false)
+    public function startRecordCall(&$agi, $addicional = '', $isDid = false, $onlyWhenBridged = true)
     {
-        if ($this->record_call == 1 || $this->config['global']['global_record_calls'] == 1) {
-
+        if ($this->record_call == 1 || (isset($this->config['global']['global_record_calls']) && $this->config['global']['global_record_calls'] == 1)) {
+            if ($this->isRecordingStarted) {
+                return;
+            }
+            if (!empty($this->config['global']['MixMonitor_format'])) {
+                $this->mix_monitor_format = $this->config['global']['MixMonitor_format'];
+            }
+            $accFolder = !empty($this->accountcode) ? $this->accountcode : (!empty($this->username) ? $this->username : 'default');
+            $recordDir = '/var/spool/asterisk/monitor/' . $accFolder;
+            if (!is_dir($recordDir)) {
+                @mkdir($recordDir, 0775, true);
+            }
+            $bridgeOpt = $onlyWhenBridged ? ',b' : '';
             if ($isDid == true) {
-                $command_mixmonitor = "MixMonitor /var/spool/asterisk/monitor/$this->accountcode/{$addicional}-{$this->CallerID}.{$this->uniqueid}." . $this->mix_monitor_format . ",b";
+                $command_mixmonitor = "MixMonitor {$recordDir}/{$addicional}-{$this->CallerID}.{$this->uniqueid}." . $this->mix_monitor_format . $bridgeOpt;
             } else {
-                $command_mixmonitor = "MixMonitor /var/spool/asterisk/monitor/$this->accountcode/{$this->sip_account}-{$this->destination}{$addicional}.{$this->uniqueid}." . $this->mix_monitor_format . ",b";
+                $sipAcc = !empty($this->sip_account) ? $this->sip_account : $accFolder;
+                $command_mixmonitor = "MixMonitor {$recordDir}/{$sipAcc}-{$this->destination}{$addicional}.{$this->uniqueid}." . $this->mix_monitor_format . $bridgeOpt;
             }
             $agi->execute($command_mixmonitor);
             $agi->verbose($command_mixmonitor, 6);
+            $this->isRecordingStarted = true;
         }
     }
 
     public function stopRecordCall(&$agi)
     {
-        if ($this->record_call == 1 || $this->config['global']['global_record_calls'] == 1) {
+        if ($this->isRecordingStarted || $this->record_call == 1 || (isset($this->config['global']['global_record_calls']) && $this->config['global']['global_record_calls'] == 1)) {
             $agi->verbose("EXEC StopMixMonitor (" . $this->uniqueid . ")", 6);
             $agi->execute("StopMixMonitor");
+            $this->isRecordingStarted = false;
         }
     }
 

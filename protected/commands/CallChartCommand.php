@@ -61,6 +61,12 @@ class CallChartCommand extends ConsoleCommand
     public function run($args)
     {
         LoadConfig::syncSystemTimezone();
+        $lockFile = '/tmp/mbilling_callchart_daemon.lock';
+        $lockFp   = @fopen($lockFile, 'c+');
+        if ($lockFp !== false && !@flock($lockFp, LOCK_EX | LOCK_NB)) {
+            @fclose($lockFp);
+            return;
+        }
         $startedMtime = @filemtime(__FILE__);
         $this->debug  = 0;
         $this->isDid();
@@ -75,6 +81,8 @@ class CallChartCommand extends ConsoleCommand
             }
             try {
                 LoadConfig::syncSystemTimezone();
+                $this->isDid();
+                $this->isSIPCall();
                 Servers::model()->updateAll(['status' => 1], 'status = 2');
                 $calls = AsteriskAccess::getCoreShowCdrChannels();
             } catch (Exception $e) {
@@ -86,6 +94,10 @@ class CallChartCommand extends ConsoleCommand
 
             echo "use cdr show \n\n";
             $this->user_cdr_show($calls, true);
+        }
+        if ($lockFp !== false) {
+            @flock($lockFp, LOCK_UN);
+            @fclose($lockFp);
         }
     }
 
@@ -197,7 +209,10 @@ class CallChartCommand extends ConsoleCommand
                     $des_chan = $trunk = '';
                 }
 
-                $last_app  = trim((string) ($call[3] ?? ''));
+                $last_app = trim((string) ($call[3] ?? ''));
+                if ($last_app === '' || strtolower($last_app) === 'billing') {
+                    $last_app = trim((string) ($call[7] ?? ''));
+                }
                 $cdr       = isset($call[10]) && is_numeric(trim((string) $call[10])) ? (int) trim((string) $call[10]) : 0;
                 $originate = $sip_account;
 
@@ -231,183 +246,14 @@ class CallChartCommand extends ConsoleCommand
                     if (empty($uniqueid)) {
                         $uniqueid = $phoneIdPart !== '' ? $phoneIdPart : substr(md5($channel), 0, 16);
                     }
-                } elseif ($last_app == 'Dial' || $last_app == 'Mbilling') {
-
-                    if ($status == 'Ringing') {
-                        echo "return because status is Ringing";
-                        continue;
-                    }
-
-                    if (preg_match('/^MC\!/', $sip_account)) {
-                        echo "torpedo\n";
-                        $campaingName  = preg_split('/\!/', $call[1]);
+                } elseif ($last_app == 'Queue') {
+                    if (preg_match('/^MC\!/', trim((string) ($call[1] ?? '')))) {
+                        $campaingName  = preg_split('/\!/', trim((string) $call[1]));
                         $modelCampaing = $this->findCampaignByTokenPart($campaingName[1] ?? '');
                         $id_user       = isset($modelCampaing->id_user) ? $modelCampaing->id_user : 'NULL';
                         $trunk         = "Campaign " . ($modelCampaing ? $modelCampaing->name : ($campaingName[1] ?? ''));
+                        $uniqueid      = $campaingName[2] ?? '';
                     } else {
-
-                        //check if is a DID call
-                        if (false !== $key = array_search($ndiscado, $this->didsNumbers)) {
-                            $modelDid = $this->dids[$key];
-                        }
-                        //check if is a call to sip account
-                        else if (false !== $key = array_search($ndiscado, $this->sipNames)) {
-                            $modelSip = $this->sips[$key];
-                        }
-
-                        if (isset($modelDid['id'])) {
-                            $type    = 'DID';
-                            $trunk   = 'DID Call ' . $modelDid['did'];
-                            $id_user = isset($modelDid['id_user']) ? $modelDid['id_user'] : null;
-
-                            $didChannel = AsteriskAccess::getCoreShowChannel($channel);
-                            if (isset($didChannel['UniqueID'])) {
-                                $cdr = time() - intval($didChannel['UniqueID']);
-                            }
-
-                            if ($des_chan != '<none>') {
-                                if (isset($didChannel['SIPADDHEADER01=P-SipAccount'])) {
-                                    $sip_account = $trunk = $didChannel['SIPADDHEADER01=P-SipAccount'];
-                                } else if (isset($didChannel['DIALEDPEERNUMBER'])) {
-                                    $sip_account = $didChannel['DIALEDPEERNUMBER'];
-                                }
-                            }
-                        } else if (isset($modelSip['id'])) {
-                            echo "is a SIP call $ndiscado\n";
-                            $type        = 'SIP';
-                            $sip_account = $originate;
-                            $trunk       = Yii::t('zii', 'SIP Call');
-                            $id_user     = $modelSip['id_user'];
-                            $is_sip_call = true;
-                        } else {
-
-                            //se é autenticado por techprefix
-
-                            //try get user
-                            if (preg_match('/^PJSIP\/sipproxy\-/', $channel)) {
-
-                                $sip_account = trim($call[1]);
-
-                                if (false !== $key = array_search($sip_account, $this->sipNames)) {
-                                    $modelSip1 = Sip::model()->find('name = :key', [':key' => $this->sips[$key]['name']]);
-                                } else {
-                                    continue;
-                                }
-                            } else if (strlen($ndiscado) > 15) {
-                                $tech     = substr($ndiscado, 0, $ip_tech_length);
-                                $modelSip1 = Sip::model()->find('techprefix = :key AND host != "dynamic" ', [':key' => $tech]);
-                            }
-
-                            if (isset($modelSip1->id)) {
-                                $modelSip = $modelSip1;
-                                $id_user = $modelSip->id_user;
-                            }
-
-                            if (! isset($modelSip->name)) {
-                                echo " $sip_account $status aqui\n";
-                                if ($status == 'Ring') {
-                                    $sip_account = $originate;
-                                }
-                                if (strlen($sip_account) > 3) {
-                                    //echo "check per sip_account $originate\n";
-                                    if (false !== $key = array_search($originate, $this->sipNames)) {
-                                        $modelSip = Sip::model()->find('name = :key', [':key' => $this->sips[$key]['name']]);
-                                    }
-                                } else if (strlen($accountcode)) {
-                                    //echo "check per accountcode $accountcode\n";
-                                    $modelSip = Sip::model()->find(
-                                        'accountcode = :key',
-                                        [
-                                            ':key' => $accountcode,
-                                        ]
-                                    );
-                                }
-
-                                if (! isset($modelSip->name)) {
-
-                                    if (preg_match('/^IAX/', strtoupper($channel))) {
-                                        $modelSip = Iax::model()->find('name = :key', [':key' => $originate]);
-                                    } else {
-                                        //check if is via IP from proxy
-                                        $callProxy = AsteriskAccess::getCoreShowChannel($channel, null, $call['server']);
-                                        $modelSip  = Sip::model()->find('host = :key', [':key' => $callProxy['X-AUTH-IP']]);
-                                    }
-                                }
-                            }
-
-
-
-                            $type        = 'pstn';
-                            $id_user     = $modelSip['id_user'];
-                            $sip_account = $modelSip['name'];
-                        }
-
-                        if ($type == '') {
-                            echo "not fount the type call \n";
-                            continue;
-                        }
-                    }
-                } elseif ($last_app == 'AGI' || $last_app == 'AppDial2') {
-                    if (preg_match('/^MC\!/', trim((string) ($call[1] ?? '')))) {
-
-                        //torpedo
-                        $campaingName = preg_split('/\!/', trim((string) $call[1]));
-
-                        $modelCampaing = $this->findCampaignByTokenPart($campaingName[1] ?? '');
-
-                        $id_user = isset($modelCampaing->id_user) ? $modelCampaing->id_user : 'NULL';
-                        $trunk   = "Campaign " . ($modelCampaing ? $modelCampaing->name : ($campaingName[1] ?? ''));
-                    } else {
-                        //check if is a DID number
-                        //DID call ivr   -> SIP/addphone-000000|           |9999999999    |           |Up|(g729)|<none>             |AGI  |4|5
-                        if (false !== $key = array_search($call[2], $this->didsNumbers)) {
-                            $modelDid = $this->dids[$key];
-                        }
-                        if (isset($modelDid['id'])) {
-
-                            $id_user = $modelDid['id_user'];
-
-                            switch ($modelDid['voip_call']) {
-                                case 2:
-                                    $trunk = $originate . ' IVR';
-                                    break;
-                                case 3:
-                                    $trunk = $originate . ' CallingCard';
-                                    break;
-                                case 4:
-                                    $trunk = $originate . ' portalDeVoz';
-                                    break;
-                                case 4:
-                                    $trunk = $originate . ' CID Callback';
-                                    break;
-                                case 5:
-                                    $trunk = $originate . ' CID Callback';
-                                    break;
-                                case 6:
-                                    $trunk = $originate . ' 0800 Callback';
-                                    break;
-                                default:
-                                    $trunk = $originate . ' DID Call';
-                                    break;
-                            }
-                        } else {
-                            $id_user = 'NULL';
-                        }
-                    }
-                } elseif ($last_app == 'Queue') {
-
-                    if (preg_match('/^MC\!/', trim((string) ($call[1] ?? '')))) {
-                        //torpedo
-                        $campaingName = preg_split('/\!/', trim((string) $call[1]));
-
-                        $modelCampaing = $this->findCampaignByTokenPart($campaingName[1] ?? '');
-
-                        $id_user  = isset($modelCampaing->id_user) ? $modelCampaing->id_user : 'NULL';
-                        $trunk    = "Campaign " . ($modelCampaing ? $modelCampaing->name : ($campaingName[1] ?? ''));
-                        $uniqueid = $campaingName[2] ?? '';
-                    } else {
-
-                        //check if is a DID number
                         if (false !== $key = array_search($call[2], $this->didsNumbers)) {
                             $modelDid = $this->dids[$key];
                         }
@@ -425,7 +271,128 @@ class CallChartCommand extends ConsoleCommand
                                 }
                             }
                         } else {
-                            $id_user = 'NULL';
+                            $id_user = isset($modelSip1->id_user) ? $modelSip1->id_user : 'NULL';
+                            $trunk   = $ndiscado . ' Queue';
+                        }
+                    }
+                } elseif (in_array($last_app, ['Dial', 'Mbilling', 'AGI', 'AppDial', 'AppDial2', 'BackGround', 'Playback', 'AMD', 'Wait', 'MixMonitor', 'VoiceMail'], true)) {
+
+                    if (preg_match('/^MC\!/', $sip_account) || preg_match('/^MC\!/', trim((string) ($call[1] ?? '')))) {
+                        $campaingName  = preg_split('/\!/', trim((string) ($call[1] ?? $sip_account)));
+                        $modelCampaing = $this->findCampaignByTokenPart($campaingName[1] ?? '');
+                        $id_user       = isset($modelCampaing->id_user) ? $modelCampaing->id_user : 'NULL';
+                        $trunk         = "Campaign " . ($modelCampaing ? $modelCampaing->name : ($campaingName[1] ?? ''));
+                    } else {
+                        // Check if it is a DID call
+                        if (false !== $key = array_search($ndiscado, $this->didsNumbers)) {
+                            $modelDid = $this->dids[$key];
+                        } elseif (false !== $key = array_search($ndiscado, $this->sipNames)) {
+                            // Check if it is a call to a SIP account
+                            $modelSip = $this->sips[$key];
+                        }
+
+                        if (isset($modelDid['id'])) {
+                            $type    = 'DID';
+                            $id_user = isset($modelDid['id_user']) ? $modelDid['id_user'] : null;
+
+                            if ($last_app == 'AGI' || $last_app == 'AppDial2' || $last_app == 'BackGround' || $last_app == 'Playback') {
+                                switch ($modelDid['voip_call'] ?? 0) {
+                                    case 2:
+                                        $trunk = $originate . ' IVR';
+                                        break;
+                                    case 3:
+                                        $trunk = $originate . ' CallingCard';
+                                        break;
+                                    case 4:
+                                        $trunk = $originate . ' portalDeVoz';
+                                        break;
+                                    case 5:
+                                        $trunk = $originate . ' CID Callback';
+                                        break;
+                                    case 6:
+                                        $trunk = $originate . ' 0800 Callback';
+                                        break;
+                                    default:
+                                        $trunk = $originate . ' DID Call';
+                                        break;
+                                }
+                            } else {
+                                $trunk      = 'DID Call ' . $modelDid['did'];
+                                $didChannel = AsteriskAccess::getCoreShowChannel($channel);
+                                if (isset($didChannel['UniqueID'])) {
+                                    $cdr = time() - intval($didChannel['UniqueID']);
+                                }
+
+                                if ($des_chan != '<none>') {
+                                    if (isset($didChannel['SIPADDHEADER01=P-SipAccount'])) {
+                                        $sip_account = $trunk = $didChannel['SIPADDHEADER01=P-SipAccount'];
+                                    } elseif (isset($didChannel['DIALEDPEERNUMBER'])) {
+                                        $sip_account = $didChannel['DIALEDPEERNUMBER'];
+                                    }
+                                }
+                            }
+                        } elseif (isset($modelSip['id'])) {
+                            $type        = 'SIP';
+                            $sip_account = $originate;
+                            $trunk       = Yii::t('zii', 'SIP Call');
+                            $id_user     = $modelSip['id_user'];
+                            $is_sip_call = true;
+                        } else {
+                            if (preg_match('/^PJSIP\/sipproxy\-/', $channel)) {
+                                $sip_account = trim((string) ($call[1] ?? ''));
+                                if (false !== $key = array_search($sip_account, $this->sipNames)) {
+                                    $modelSip1 = Sip::model()->find('name = :key', [':key' => $this->sips[$key]['name']]);
+                                } else {
+                                    continue;
+                                }
+                            } elseif (strlen($ndiscado) > 15) {
+                                $tech      = substr($ndiscado, 0, $ip_tech_length);
+                                $modelSip1 = Sip::model()->find('techprefix = :key AND host != "dynamic" ', [':key' => $tech]);
+                            }
+
+                            if (isset($modelSip1->id)) {
+                                $modelSip = $modelSip1;
+                                $id_user  = $modelSip->id_user;
+                            }
+
+                            if (!isset($modelSip->name)) {
+                                if ($status == 'Ring' || $status == 'Ringing') {
+                                    $sip_account = $originate;
+                                }
+                                if (strlen($sip_account) > 3 && false !== ($key = array_search($originate, $this->sipNames))) {
+                                    $modelSip = Sip::model()->find('name = :key', [':key' => $this->sips[$key]['name']]);
+                                } elseif (strlen($accountcode)) {
+                                    $modelSip = Sip::model()->find('accountcode = :key', [':key' => $accountcode]);
+                                } elseif (!empty($call[8])) {
+                                    $modelSip = Sip::model()->find('accountcode = :key OR name = :key', [':key' => trim((string) $call[8])]);
+                                }
+
+                                if (!isset($modelSip->name)) {
+                                    if (preg_match('/^IAX/', strtoupper($channel))) {
+                                        $modelSip = Iax::model()->find('name = :key', [':key' => $originate]);
+                                    } else {
+                                        $callProxy = AsteriskAccess::getCoreShowChannel($channel, null, $call['server']);
+                                        if (!empty($callProxy['X-AUTH-IP'])) {
+                                            $modelSip = Sip::model()->find('host = :key', [':key' => $callProxy['X-AUTH-IP']]);
+                                        }
+                                    }
+                                }
+                            }
+
+                            $type        = 'pstn';
+                            $id_user     = isset($modelSip['id_user']) ? $modelSip['id_user'] : 'NULL';
+                            $sip_account = isset($modelSip['name']) ? $modelSip['name'] : $originate;
+
+                            if (!is_numeric($id_user) && !empty($call[8])) {
+                                $userByAcc = User::model()->find('username = :key', [':key' => trim((string) $call[8])]);
+                                if ($userByAcc) {
+                                    $id_user = (int) $userByAcc->id;
+                                }
+                            }
+                        }
+
+                        if ($type == '') {
+                            continue;
                         }
                     }
                 } else {
@@ -522,7 +489,7 @@ class CallChartCommand extends ConsoleCommand
 
     private function isDid()
     {
-        $sql               = "SELECT did, id, id_user FROM pkg_did WHERE reserved = 1";
+        $sql               = "SELECT did, id, id_user, voip_call FROM pkg_did WHERE reserved = 1";
         $this->dids        = Yii::app()->db->createCommand($sql)->queryAll();
         $this->didsNumbers = isset($this->dids[0]) ? array_column($this->dids, 'did') : [];
     }

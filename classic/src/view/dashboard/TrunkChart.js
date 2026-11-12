@@ -23,10 +23,9 @@ Ext.define('MBilling.view.dashboard.TrunkChart', {
     alias: 'widget.trunkchart',
     controller: 'main',
     store: 'TrunkChart',
-    fieldDescription: '',
+    fieldDescription: 'idTrunktrunkcode',
     labelYLine: '',
     labelXLine: '',
-    reference: 'networkchart',
     charts: ['pie'],
     defaultChart: 'pie',
     btnShowColumn: false,
@@ -66,7 +65,7 @@ Ext.define('MBilling.view.dashboard.TrunkChart', {
                 position: me.positionLegendPie,
                 renderer: me.rendererFieldDescription
             },
-            series: me.series.length || [{
+            series: me.series.length ? me.series : [{
                 donut: me.donut,
                 type: 'pie',
                 angleField: me.fieldValue,

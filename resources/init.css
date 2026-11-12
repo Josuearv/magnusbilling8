@@ -6241,3 +6241,126 @@ input[type="file"].x-form-file-input {
     font-size: 12px !important;
     font-weight: 500 !important;
 }
+
+/* Sencha ExtJS Charts package styles (draw surfaces, canvas layering, and chart legends) */
+.x-draw-container {
+    position: relative !important;
+    cursor: default;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.x-surface,
+.x-surface-canvas {
+    position: absolute !important;
+}
+
+.x-chart-image {
+    width: 100%;
+    height: auto;
+}
+
+.x-legend {
+    background: #ffffff;
+    outline: none;
+}
+
+.x-legend-inner {
+    display: table;
+    text-align: center;
+    padding: 5px;
+}
+
+.x-legend-horizontal {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.x-legend-horizontal .x-legend-inner {
+    min-width: 100%;
+}
+
+.x-legend-horizontal .x-legend-item {
+    display: inline-block;
+    border-right: 1px solid #cccccc;
+    border-top: 1px solid #cccccc;
+    border-bottom: 1px solid #cccccc;
+}
+
+.x-legend-horizontal .x-legend-item:first-child {
+    border-left: 1px solid #cccccc;
+    border-bottom-left-radius: 3px;
+    border-top-left-radius: 3px;
+}
+
+.x-legend-horizontal .x-legend-item:last-child {
+    border-bottom-right-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+.x-legend-vertical {
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.x-legend-vertical .x-legend-inner {
+    min-height: 100%;
+}
+
+.x-legend-vertical .x-legend-item {
+    border-left: 1px solid #cccccc;
+    border-right: 1px solid #cccccc;
+    border-bottom: 1px solid #cccccc;
+}
+
+.x-legend-vertical .x-legend-item:first-child {
+    border-top: 1px solid #cccccc;
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+.x-legend-vertical .x-legend-item:last-child {
+    border-bottom-left-radius: 3px;
+    border-bottom-right-radius: 3px;
+}
+
+.x-legend-container {
+    display: table-cell;
+    vertical-align: middle;
+    white-space: nowrap;
+    line-height: 0;
+    background: #ffffff;
+}
+
+.x-legend-item-inactive {
+    opacity: 0.3;
+}
+
+.x-legend-item {
+    padding: 0.65em 0.9em 0.65em 1.8em;
+    color: #334155;
+    background: transparent;
+    max-width: 16em;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    cursor: pointer;
+}
+
+.x-legend-item-marker {
+    position: absolute;
+    width: 0.8em;
+    height: 0.8em;
+    border-radius: 0.4em;
+    box-shadow: rgba(255, 255, 255, 0.3) 0 1px 0, rgba(0, 0, 0, 0.4) 0 1px 0 inset;
+    left: 0.7em;
+    top: 0.7em;
+}
+

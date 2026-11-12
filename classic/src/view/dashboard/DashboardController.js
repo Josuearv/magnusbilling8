@@ -54,7 +54,12 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             chartsRef = me.lookupReference('trunkChartsContainer'),
             fieldsRef = me.lookupReference('trunkDashboardFields');
 
-        if (!record || !record.length || !record[0] || !record[0].data || !(record[0].data.sumsessionbill > 0)) {
+        var firstData = (record && record.length && record[0] && record[0].data) ? record[0].data : null,
+            sumsessionbill = firstData ? (parseFloat(firstData.sumsessionbill) || 0) : 0,
+            sumnbcall = firstData ? (parseFloat(firstData.sumnbcall) || 0) : 0,
+            hasTrunkTraffic = firstData && (sumsessionbill > 0 || sumnbcall > 0 || (parseFloat(firstData.nbcall) || 0) > 0);
+
+        if (!hasTrunkTraffic) {
             if (emptyRef) emptyRef.show();
             if (chartsRef) chartsRef.hide();
             if (fieldsRef) fieldsRef.hide();
@@ -68,29 +73,45 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
         if (!fieldsRef || !fieldsRef.items || !fieldsRef.items.items) {
             return;
         }
-        var sumsessionbill = record[0].data.sumsessionbill || 0,
-            trunkDetails = '<div class="services-text">' + t('Trunk chart') + '</div><div class="services-legend">',
-            avarege = 0;
+        if (sumnbcall <= 0) {
+            for (var k = 0; k < record.length; k++) {
+                if (record[k] && record[k].data) {
+                    sumnbcall += (parseFloat(record[k].data.nbcall) || 0);
+                }
+            }
+        }
+        var trunkDetails = '<div class="services-text">' + t('Trunk chart') + '</div><div class="services-legend">',
+            avarege = 0,
+            computeShare = function(row) {
+                if (!row) return 0;
+                if (sumsessionbill > 0) {
+                    return ((parseFloat(row.sessionbill) || 0) * 100) / sumsessionbill;
+                }
+                if (sumnbcall > 0) {
+                    return ((parseFloat(row.nbcall) || 0) * 100) / sumnbcall;
+                }
+                return 0;
+            };
 
         if (record[0] && record[0].data && fieldsRef.items.items[0] && fieldsRef.items.items[1]) {
-            avarege = sumsessionbill > 0 ? (record[0].data.sessionbill * 100) / sumsessionbill : 0;
-            fieldsRef.items.items[0].update('<div class="left-aligned-div">' + (record[0].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            avarege = computeShare(record[0].data);
+            fieldsRef.items.items[0].update('<div class="left-aligned-div">' + (record[0].data.idTrunktrunkcode || '') + ' (' + (record[0].data.nbcall || 0) + ')</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
             if (typeof fieldsRef.items.items[1].setValue === 'function') {
                 fieldsRef.items.items[1].setValue(avarege / 100);
             }
             trunkDetails += '<span><div class="legend-trunk1"></div>' + (record[0].data.idTrunktrunkcode || '') + '</span>';
         }
         if (record[1] && record[1].data && fieldsRef.items.items[2] && fieldsRef.items.items[3]) {
-            avarege = sumsessionbill > 0 ? (record[1].data.sessionbill * 100) / sumsessionbill : 0;
-            fieldsRef.items.items[2].update('<div class="left-aligned-div">' + (record[1].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            avarege = computeShare(record[1].data);
+            fieldsRef.items.items[2].update('<div class="left-aligned-div">' + (record[1].data.idTrunktrunkcode || '') + ' (' + (record[1].data.nbcall || 0) + ')</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
             if (typeof fieldsRef.items.items[3].setValue === 'function') {
                 fieldsRef.items.items[3].setValue(avarege / 100);
             }
             trunkDetails += '<span><div class="legend-trunk2"></div>' + (record[1].data.idTrunktrunkcode || '') + '</span>';
         }
         if (record[2] && record[2].data && fieldsRef.items.items[4] && fieldsRef.items.items[5]) {
-            avarege = sumsessionbill > 0 ? (record[2].data.sessionbill * 100) / sumsessionbill : 0;
-            fieldsRef.items.items[4].update('<div class="left-aligned-div">' + (record[2].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            avarege = computeShare(record[2].data);
+            fieldsRef.items.items[4].update('<div class="left-aligned-div">' + (record[2].data.idTrunktrunkcode || '') + ' (' + (record[2].data.nbcall || 0) + ')</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
             if (typeof fieldsRef.items.items[5].setValue === 'function') {
                 fieldsRef.items.items[5].setValue(avarege / 100);
             }
