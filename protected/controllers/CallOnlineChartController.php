@@ -62,10 +62,71 @@ class CallOnlineChartController extends Controller
             return;
         }
 
-        $filter = 'date >= date_sub(NOW(), interval :hours hour)';
+        $sinceDate = date('Y-m-d H:i:s', time() - ($hours * 3600));
 
-        $dateFormat = 'DATE_FORMAT( date, \'%D %H:%i\' ) date';
-        $select     = 'id, ' . $dateFormat . ', MAX(total) total, MAX(answer) answer';
+        // Backfill minute buckets in pkg_call_online_chart from real CDR / CDR Failed activity
+        // if callchart was not running when calls were placed in the requested window.
+        try {
+            $hasNonZeroChart = (int) Yii::app()->db->createCommand("
+                SELECT COUNT(*) FROM pkg_call_online_chart
+                WHERE date >= :since AND total > 0
+            ")->bindValue(':since', $sinceDate, PDO::PARAM_STR)->queryScalar();
+
+            if ($hasNonZeroChart === 0) {
+                $cdrMinutes = Yii::app()->db->createCommand("
+                    SELECT
+                        minute_bucket,
+                        SUM(ans_cnt) AS answer_calls,
+                        SUM(tot_cnt) AS total_calls
+                    FROM (
+                        SELECT DATE_FORMAT(starttime, '%Y-%m-%d %H:%i:00') AS minute_bucket,
+                               COUNT(*) AS ans_cnt,
+                               COUNT(*) AS tot_cnt
+                        FROM pkg_cdr
+                        WHERE starttime >= :since
+                        GROUP BY DATE_FORMAT(starttime, '%Y-%m-%d %H:%i:00')
+                        UNION ALL
+                        SELECT DATE_FORMAT(starttime, '%Y-%m-%d %H:%i:00') AS minute_bucket,
+                               0 AS ans_cnt,
+                               COUNT(*) AS tot_cnt
+                        FROM pkg_cdr_failed
+                        WHERE starttime >= :since
+                        GROUP BY DATE_FORMAT(starttime, '%Y-%m-%d %H:%i:00')
+                    ) u
+                    GROUP BY minute_bucket
+                    ORDER BY minute_bucket ASC
+                ")->bindValue(':since', $sinceDate, PDO::PARAM_STR)->queryAll();
+
+                foreach ($cdrMinutes as $bucket) {
+                    $mDate = $bucket['minute_bucket'] ?? '';
+                    if ($mDate === '') {
+                        continue;
+                    }
+                    $tot = (int) ($bucket['total_calls'] ?? 0);
+                    $ans = (int) ($bucket['answer_calls'] ?? 0);
+                    $existingBucket = CallOnlineChart::model()->find('date = :d', [':d' => $mDate]);
+                    if ($existingBucket) {
+                        if ((int) $existingBucket->total < $tot || (int) $existingBucket->answer < $ans) {
+                            $existingBucket->total  = max((int) $existingBucket->total, $tot);
+                            $existingBucket->answer = max((int) $existingBucket->answer, $ans);
+                            $existingBucket->save();
+                        }
+                    } else {
+                        $newBucket         = new CallOnlineChart();
+                        $newBucket->date   = $mDate;
+                        $newBucket->total  = $tot;
+                        $newBucket->answer = $ans;
+                        $newBucket->save();
+                    }
+                }
+            }
+        } catch (Exception $e) {
+        }
+
+        $filter = 'date >= :sinceDate';
+
+        $dateFormat = 'MIN(DATE_FORMAT(date, \'%D %H:%i\')) AS date';
+        $select     = 'MAX(id) AS id, ' . $dateFormat . ', MAX(total) AS total, MAX(answer) AS answer';
 
         if ($hours == 6) {
             $group = "UNIX_TIMESTAMP(date) DIV 120";
@@ -77,26 +138,34 @@ class CallOnlineChartController extends Controller
             $group = "UNIX_TIMESTAMP(date) DIV 600";
         } elseif ($hours == 72) {
             $group = "UNIX_TIMESTAMP(date) DIV 900";
-        } else if ($hours > 12) {
+        } elseif ($hours > 12) {
             $group = "UNIX_TIMESTAMP(date) DIV 720";
         } else {
-            $dateFormat = 'DATE_FORMAT( date, \'%H:%i\' ) date';
+            $dateFormat = 'DATE_FORMAT(date, \'%H:%i\') AS date';
             $select     = 'id, ' . $dateFormat . ', total, answer';
-            $group      = 1;
+            $group      = '';
         }
 
-        $modelCallOnlineChart = CallOnlineChart::model()->findAll([
+        $criteria = [
             'select'    => $select,
-            'order'     => 'id DESC',
-            'group'     => $group,
+            'order'     => 'id ASC',
             'condition' => $filter,
-            'params'    => [':hours' => $hours],
-        ]);
+            'params'    => [':sinceDate' => $sinceDate],
+        ];
+        if ($group !== '') {
+            $criteria['group'] = $group;
+        }
 
-        # envia o json requisitado
+        $modelCallOnlineChart = CallOnlineChart::model()->findAll($criteria);
+
+        $rows = $this->getAttributesModels($modelCallOnlineChart, $this->extraValues);
+        if (!is_array($rows)) {
+            $rows = [];
+        }
+
         echo json_encode([
-            $this->nameRoot  => $this->getAttributesModels($modelCallOnlineChart, $this->extraValues),
-            $this->nameCount => 0,
+            $this->nameRoot  => $rows,
+            $this->nameCount => count($rows),
         ]);
 
     }

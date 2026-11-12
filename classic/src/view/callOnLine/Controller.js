@@ -49,27 +49,41 @@ Ext.define('MBilling.view.callOnLine.Controller', {
     onRenderModule: function() {
         var me = this;
         me.callParent(arguments);
-        if (App.user.isAdmin) {
-            me.store.on({
-                scope: me,
-                load: function(store) {
-                    me.onSetTotal();
-                }
-            });
-        }
+        me.onSetTotal();
+        me.store.on({
+            scope: me,
+            load: function(store) {
+                me.onSetTotal();
+            }
+        });
     },
     onSetTotal: function(win) {
-        var me = this;
-        if (!me.store.getData().items[0]) {
-            me.lookupReference('tbTextTotal') && me.lookupReference('tbTextTotal').setText();
+        var me = this,
+            tbText = me.lookupReference('tbTextTotal'),
+            totalCount = me.store ? me.store.getCount() : 0;
+        if (!tbText) {
+            return;
+        }
+        if (!totalCount || !me.store.getData().items[0]) {
+            if (App && App.user && App.user.isAdmin) {
+                tbText.setText('<b><font color="black">MASTER</font> <font color="blue">T:0</font> <font color="green">A:0</font>&ensp;|&ensp;<font color="blue">TOTAL: 0</font> &ensp;|&ensp; <font color="green">TOTAL UP: 0</font></b>');
+            } else {
+                tbText.setText('<b><font color="blue">TOTAL: 0</font> &ensp;|&ensp; <font color="green">TOTAL UP: 0</font></b>');
+            }
             return;
         }
         me.sumData = me.store.getData().items[0].getData();
-        if (!me.sumData) {
-            me.lookupReference('tbTextTotal') && me.lookupReference('tbTextTotal').setText();
+        if (!me.sumData || !me.sumData.serverSum || !(App && App.user && App.user.isAdmin)) {
+            var upCount = 0;
+            me.store.each(function(rec) {
+                if (String(rec.get('status') || '').toLowerCase().indexOf('up') !== -1) {
+                    upCount++;
+                }
+            });
+            tbText.setText('<b><font color="blue">TOTAL: ' + totalCount + '</font> &ensp;|&ensp; <font color="green">TOTAL UP: ' + upCount + '</font></b>');
             return;
         }
-        me.lookupReference('tbTextTotal') && me.lookupReference('tbTextTotal').setText('<b>' + me.sumData.serverSum + '</b>');
+        tbText.setText('<b>' + me.sumData.serverSum + '</b>');
     },
     onDelete: function(btn) {
         var me = this,

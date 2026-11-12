@@ -898,27 +898,28 @@ class AsteriskAccess
 
     public static function getCoreShowCdrChannels()
     {
-
-        $sql          = "SELECT * FROM pkg_servers WHERE type = 'asterisk' AND status IN (1,4) AND host != 'localhost'";
+        $sql          = "SELECT * FROM pkg_servers WHERE type = 'asterisk' AND status IN (1,4) AND host NOT IN ('localhost', '127.0.0.1')";
         $modelServers = Yii::app()->db->createCommand($sql)->queryAll();
+
+        $localServer = Yii::app()->db->createCommand(
+            "SELECT username, password FROM pkg_servers WHERE type IN ('asterisk', 'mbilling') AND host IN ('localhost', '127.0.0.1') ORDER BY (type = 'asterisk') DESC, id ASC LIMIT 1"
+        )->queryRow();
 
         array_push($modelServers, [
             'host'     => 'localhost',
-            'username' => 'magnus',
-            'password' => 'magnussolution',
+            'username' => !empty($localServer['username']) ? $localServer['username'] : 'magnus',
+            'password' => !empty($localServer['password']) ? $localServer['password'] : 'magnussolution',
         ]);
 
         $channels = [];
         foreach ($modelServers as $key => $server) {
             $seenChannels = [];
+            $ami          = AsteriskAccess::instance($server['host'], $server['username'], $server['password']);
 
-            $data = AsteriskAccess::instance($server['host'], $server['username'], $server['password'])->cdrShowActive();
+            $data       = $ami->cdrShowActive();
+            $hasCdrData = isset($data['data']) && is_string($data['data']) && strlen(trim($data['data'])) > 0;
 
-            if (! isset($data) || ! isset($data['data'])) {
-                if (isset($server['id'])) {
-                    Servers::model()->updateByPk($server['id'], ['status' => 2]);
-                }
-            } else {
+            if ($hasCdrData) {
                 $linesCallsResult = explode("\n", $data['data']);
 
                 foreach ($linesCallsResult as $rawLine) {
@@ -968,31 +969,50 @@ class AsteriskAccess
                 }
             }
 
-            // Supplement with core show channels concise so outbound campaign (.call) channels
-            // that are ringing/progressing or running AGI are always captured with their MC! token and uniqueid.
-            $conciseData = AsteriskAccess::instance($server['host'], $server['username'], $server['password'])->coreShowChannelsConcise();
-            if (isset($conciseData['data']) && is_string($conciseData['data']) && strlen($conciseData['data']) > 0) {
+            // Supplement with core show channels concise so both campaign (.call) channels and
+            // standard PJSIP/SIP/IAX calls are captured even when Asterisk CDR CLI modules are unloaded.
+            $conciseData    = $ami->coreShowChannelsConcise();
+            $hasConciseData = isset($conciseData['data']) && is_string($conciseData['data']) && strlen(trim($conciseData['data'])) > 0;
+
+            if (!$hasCdrData && !$hasConciseData) {
+                if (isset($server['id'])) {
+                    Servers::model()->updateByPk($server['id'], ['status' => 2]);
+                }
+                continue;
+            }
+
+            if ($hasConciseData) {
                 $conciseLines = explode("\n", $conciseData['data']);
                 foreach ($conciseLines as $cLine) {
                     $cLine = trim($cLine);
                     if ($cLine === '' || strpos($cLine, '!') === false) {
                         continue;
                     }
-                    $parts    = explode('!', $cLine);
+
+                    $mcToken   = null;
+                    $parseLine = $cLine;
+                    if (preg_match('/!(MC![^!]+![0-9]+(?:![0-9]+)?)!/i', $cLine, $mcMatch)) {
+                        $mcToken   = $mcMatch[1];
+                        $parseLine = str_replace($mcToken, '__MC_TOKEN__', $cLine);
+                    }
+
+                    $parts    = explode('!', $parseLine);
                     $chanName = trim($parts[0] ?? '');
                     if (!preg_match('/^(SIP|IAX|PJSIP)\//i', $chanName)) {
                         continue;
                     }
 
-                    $mcToken = null;
-                    if (preg_match('/!(MC![^!]+![0-9]+(?:![0-9]+)?)!/i', $cLine, $mcMatch)) {
-                        $mcToken = $mcMatch[1];
+                    $context     = trim($parts[1] ?? '');
+                    $exten       = trim($parts[2] ?? '');
+                    $state       = trim($parts[4] ?? '');
+                    $app         = trim($parts[5] ?? '');
+                    $appData     = trim($parts[6] ?? '');
+                    $callerId    = trim($parts[7] ?? '');
+                    $accountCode = isset($parts[8]) ? trim($parts[8]) : '';
+                    if ($accountCode === '__MC_TOKEN__' && $mcToken !== null) {
+                        $accountCode = $mcToken;
                     }
 
-                    $exten     = trim($parts[2] ?? '');
-                    $state     = trim($parts[4] ?? '');
-                    $app       = trim($parts[5] ?? '');
-                    $callerId  = trim($parts[7] ?? '');
                     $nParts    = count($parts);
                     $uniqueId  = $nParts >= 12 ? trim($parts[$nParts - 1]) : '';
                     $bridgedTo = $nParts >= 12 ? trim($parts[$nParts - 2]) : '<none>';
@@ -1000,11 +1020,22 @@ class AsteriskAccess
                         ? trim($parts[$nParts - 3])
                         : (isset($parts[10]) && is_numeric(trim($parts[10])) ? trim($parts[10]) : '0');
 
+                    $resolvedBridged = ($bridgedTo === '' || $bridgedTo === '(None)') ? '<none>' : $bridgedTo;
+                    if ($resolvedBridged === '<none>' && $appData !== '' && $appData !== '(Outgoing Line)') {
+                        if (preg_match('#^(?:PJSIP|SIP|IAX2?)/[^,\s@]+@([^,\s/]+)#i', $appData, $tm)) {
+                            $resolvedBridged = 'PJSIP/' . $tm[1] . '-00000000';
+                        } elseif (preg_match('#^(?:PJSIP|SIP|IAX2?)/([^,\s/]+)#i', $appData, $tm)) {
+                            $resolvedBridged = 'PJSIP/' . $tm[1] . '-00000000';
+                        }
+                    }
+
                     if (isset($seenChannels[$chanName])) {
                         $idx = $seenChannels[$chanName];
-                        if ($mcToken !== null && empty($channels[$idx]['mc_token'])) {
+                        if ($mcToken !== null && (empty($channels[$idx]['mc_token']) || strlen($mcToken) >= strlen((string) $channels[$idx]['mc_token']))) {
                             $channels[$idx]['mc_token'] = $mcToken;
                             $channels[$idx][1]          = $mcToken;
+                        } elseif ($accountCode !== '' && empty($channels[$idx][8])) {
+                            $channels[$idx][8] = $accountCode;
                         }
                         if ($uniqueId !== '' && empty($channels[$idx]['uniqueid'])) {
                             $channels[$idx]['uniqueid'] = $uniqueId;
@@ -1012,31 +1043,44 @@ class AsteriskAccess
                         if ($exten !== '' && $exten !== 's' && (empty($channels[$idx][2]) || $channels[$idx][2] === 's')) {
                             $channels[$idx][2] = $exten;
                         }
+                        if ($app !== '' && $app !== '(None)' && (empty($channels[$idx][3]) || $channels[$idx][3] === 'billing')) {
+                            $channels[$idx][3] = $app;
+                            $channels[$idx][7] = $app;
+                        }
+                        if ($resolvedBridged !== '<none>' && (empty($channels[$idx][9]) || $channels[$idx][9] === '<none>')) {
+                            $channels[$idx][9] = $resolvedBridged;
+                        }
                         continue;
                     }
 
-                    if ($mcToken !== null) {
-                        $normalizedState = ($state === 'Down' || $state === 'Rsrvd') ? 'Ringing' : $state;
-                        $normalizedApp   = ($app === '' || $app === '(None)') ? 'AGI' : $app;
-                        $channels[] = [
-                            0          => $chanName,
-                            1          => $mcToken,
-                            2          => $exten,
-                            3          => $normalizedApp,
-                            4          => $normalizedState,
-                            5          => '(ulaw)',
-                            6          => $callerId,
-                            7          => $normalizedApp,
-                            8          => $mcToken,
-                            9          => ($bridgedTo === '' || $bridgedTo === '(None)') ? '<none>' : $bridgedTo,
-                            10         => $duration,
-                            11         => $duration,
-                            'server'   => $server['host'],
-                            'mc_token' => $mcToken,
-                            'uniqueid' => $uniqueId,
-                        ];
-                        $seenChannels[$chanName] = count($channels) - 1;
+                    // Skip pure outbound B-legs created by Dial() when they are not campaign originations
+                    if ($mcToken === null && ($appData === '(Outgoing Line)' || $app === 'AppDial' || $app === 'AppDial2')) {
+                        continue;
                     }
+
+                    $normalizedState = ($state === 'Down' || $state === 'Rsrvd') ? 'Ringing' : $state;
+                    $normalizedApp   = ($app === '' || $app === '(None)') ? 'AGI' : $app;
+                    $slot1           = $mcToken !== null ? $mcToken : ($accountCode !== '' ? $accountCode : $context);
+                    $slot8           = $mcToken !== null ? $mcToken : $accountCode;
+
+                    $channels[] = [
+                        0          => $chanName,
+                        1          => $slot1,
+                        2          => $exten,
+                        3          => $normalizedApp,
+                        4          => $normalizedState,
+                        5          => '(ulaw)',
+                        6          => $callerId,
+                        7          => $normalizedApp,
+                        8          => $slot8,
+                        9          => $resolvedBridged,
+                        10         => $duration,
+                        11         => $duration,
+                        'server'   => $server['host'],
+                        'mc_token' => $mcToken,
+                        'uniqueid' => $uniqueId,
+                    ];
+                    $seenChannels[$chanName] = count($channels) - 1;
                 }
             }
         }

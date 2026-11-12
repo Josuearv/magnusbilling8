@@ -8657,27 +8657,41 @@ Ext.define('MBilling.view.callOnLine.Controller', {
     onRenderModule: function() {
         var me = this;
         me.callParent(arguments);
-        if (App.user.isAdmin) {
-            me.store.on({
-                scope: me,
-                load: function(store) {
-                    me.onSetTotal();
-                }
-            });
-        }
+        me.onSetTotal();
+        me.store.on({
+            scope: me,
+            load: function(store) {
+                me.onSetTotal();
+            }
+        });
     },
     onSetTotal: function(win) {
-        var me = this;
-        if (!me.store.getData().items[0]) {
-            me.lookupReference('tbTextTotal') && me.lookupReference('tbTextTotal').setText();
+        var me = this,
+            tbText = me.lookupReference('tbTextTotal'),
+            totalCount = me.store ? me.store.getCount() : 0;
+        if (!tbText) {
+            return;
+        }
+        if (!totalCount || !me.store.getData().items[0]) {
+            if (App && App.user && App.user.isAdmin) {
+                tbText.setText('<b><font color="black">MASTER</font> <font color="blue">T:0</font> <font color="green">A:0</font>&ensp;|&ensp;<font color="blue">TOTAL: 0</font> &ensp;|&ensp; <font color="green">TOTAL UP: 0</font></b>');
+            } else {
+                tbText.setText('<b><font color="blue">TOTAL: 0</font> &ensp;|&ensp; <font color="green">TOTAL UP: 0</font></b>');
+            }
             return;
         }
         me.sumData = me.store.getData().items[0].getData();
-        if (!me.sumData) {
-            me.lookupReference('tbTextTotal') && me.lookupReference('tbTextTotal').setText();
+        if (!me.sumData || !me.sumData.serverSum || !(App && App.user && App.user.isAdmin)) {
+            var upCount = 0;
+            me.store.each(function(rec) {
+                if (String(rec.get('status') || '').toLowerCase().indexOf('up') !== -1) {
+                    upCount++;
+                }
+            });
+            tbText.setText('<b><font color="blue">TOTAL: ' + totalCount + '</font> &ensp;|&ensp; <font color="green">TOTAL UP: ' + upCount + '</font></b>');
             return;
         }
-        me.lookupReference('tbTextTotal') && me.lookupReference('tbTextTotal').setText('<b>' + me.sumData.serverSum + '</b>');
+        tbText.setText('<b>' + me.sumData.serverSum + '</b>');
     },
     onDelete: function(btn) {
         var me = this,
@@ -16632,7 +16646,12 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
             chartsRef = me.lookupReference('trunkChartsContainer'),
             fieldsRef = me.lookupReference('trunkDashboardFields');
 
-        if (!record || !record.length || !record[0] || !record[0].data || !(record[0].data.sumsessionbill > 0)) {
+        var firstData = (record && record.length && record[0] && record[0].data) ? record[0].data : null,
+            sumsessionbill = firstData ? (parseFloat(firstData.sumsessionbill) || 0) : 0,
+            sumnbcall = firstData ? (parseFloat(firstData.sumnbcall) || 0) : 0,
+            hasTrunkTraffic = firstData && (sumsessionbill > 0 || sumnbcall > 0 || (parseFloat(firstData.nbcall) || 0) > 0);
+
+        if (!hasTrunkTraffic) {
             if (emptyRef) emptyRef.show();
             if (chartsRef) chartsRef.hide();
             if (fieldsRef) fieldsRef.hide();
@@ -16646,29 +16665,45 @@ Ext.define('MBilling.view.dashboard.DashboardController', {
         if (!fieldsRef || !fieldsRef.items || !fieldsRef.items.items) {
             return;
         }
-        var sumsessionbill = record[0].data.sumsessionbill || 0,
-            trunkDetails = '<div class="services-text">' + t('Trunk chart') + '</div><div class="services-legend">',
-            avarege = 0;
+        if (sumnbcall <= 0) {
+            for (var k = 0; k < record.length; k++) {
+                if (record[k] && record[k].data) {
+                    sumnbcall += (parseFloat(record[k].data.nbcall) || 0);
+                }
+            }
+        }
+        var trunkDetails = '<div class="services-text">' + t('Trunk chart') + '</div><div class="services-legend">',
+            avarege = 0,
+            computeShare = function(row) {
+                if (!row) return 0;
+                if (sumsessionbill > 0) {
+                    return ((parseFloat(row.sessionbill) || 0) * 100) / sumsessionbill;
+                }
+                if (sumnbcall > 0) {
+                    return ((parseFloat(row.nbcall) || 0) * 100) / sumnbcall;
+                }
+                return 0;
+            };
 
         if (record[0] && record[0].data && fieldsRef.items.items[0] && fieldsRef.items.items[1]) {
-            avarege = sumsessionbill > 0 ? (record[0].data.sessionbill * 100) / sumsessionbill : 0;
-            fieldsRef.items.items[0].update('<div class="left-aligned-div">' + (record[0].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            avarege = computeShare(record[0].data);
+            fieldsRef.items.items[0].update('<div class="left-aligned-div">' + (record[0].data.idTrunktrunkcode || '') + ' (' + (record[0].data.nbcall || 0) + ')</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
             if (typeof fieldsRef.items.items[1].setValue === 'function') {
                 fieldsRef.items.items[1].setValue(avarege / 100);
             }
             trunkDetails += '<span><div class="legend-trunk1"></div>' + (record[0].data.idTrunktrunkcode || '') + '</span>';
         }
         if (record[1] && record[1].data && fieldsRef.items.items[2] && fieldsRef.items.items[3]) {
-            avarege = sumsessionbill > 0 ? (record[1].data.sessionbill * 100) / sumsessionbill : 0;
-            fieldsRef.items.items[2].update('<div class="left-aligned-div">' + (record[1].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            avarege = computeShare(record[1].data);
+            fieldsRef.items.items[2].update('<div class="left-aligned-div">' + (record[1].data.idTrunktrunkcode || '') + ' (' + (record[1].data.nbcall || 0) + ')</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
             if (typeof fieldsRef.items.items[3].setValue === 'function') {
                 fieldsRef.items.items[3].setValue(avarege / 100);
             }
             trunkDetails += '<span><div class="legend-trunk2"></div>' + (record[1].data.idTrunktrunkcode || '') + '</span>';
         }
         if (record[2] && record[2].data && fieldsRef.items.items[4] && fieldsRef.items.items[5]) {
-            avarege = sumsessionbill > 0 ? (record[2].data.sessionbill * 100) / sumsessionbill : 0;
-            fieldsRef.items.items[4].update('<div class="left-aligned-div">' + (record[2].data.idTrunktrunkcode || '') + '</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
+            avarege = computeShare(record[2].data);
+            fieldsRef.items.items[4].update('<div class="left-aligned-div">' + (record[2].data.idTrunktrunkcode || '') + ' (' + (record[2].data.nbcall || 0) + ')</div><div class="right-aligned-div">' + avarege.toFixed(2) + '%</div>');
             if (typeof fieldsRef.items.items[5].setValue === 'function') {
                 fieldsRef.items.items[5].setValue(avarege / 100);
             }
@@ -17846,6 +17881,15 @@ Ext.define('MBilling.model.TrunkChart', {
     }, {
         name: 'lucro',
         type: 'float'
+    }, {
+        name: 'sumsessionbill',
+        type: 'float'
+    }, {
+        name: 'sumnbcall',
+        type: 'int'
+    }, {
+        name: 'nbcall_fail',
+        type: 'int'
     }, 'idTrunktrunkcode'],
     proxy: {
         type: 'uxproxy',
@@ -20979,7 +21023,7 @@ Ext.define('MBilling.model.CallOnLine', {
     }, {
         name: 'callerid',
         type: 'string'
-    }, 'idUserusername', 'idUsercredit'],
+    }, 'idUserusername', 'idUsercredit', 'serverSum'],
     proxy: {
         type: 'uxproxy',
         module: 'callOnLine'
@@ -78081,10 +78125,14 @@ Ext.define('Ext.ux.panel.Chart', {
     sprites: [],
     series: [],
     donut: 0,
-    constructor: function() {
+    constructor: function(config) {
         var me = this;
+        Ext.apply(me, config);
         if (Ext.isString(me.store)) {
-            me.store = Ext.data.StoreManager.lookup(me.store);
+            var storeName = me.store;
+            me.store = Ext.data.StoreManager.lookup(storeName) || Ext.create('MBilling.store.' + storeName, {
+                storeId: storeName
+            });
             me.store.load({
                 scope: me,
                 callback: function() {
@@ -78101,8 +78149,15 @@ Ext.define('Ext.ux.panel.Chart', {
             charts = [],
             buttonsChart = [],
             seriesLine = [],
+            hasCustomBbarItems = false,
             store,
             rawData;
+        me.bbarChart = Ext.isArray(me.bbarChart) ? Ext.Array.clone(me.bbarChart) : [];
+        me.tbarChart = Ext.isArray(me.tbarChart) ? Ext.Array.clone(me.tbarChart) : [];
+        me.seriesLine = Ext.isArray(me.seriesLine) ? Ext.Array.clone(me.seriesLine) : [];
+        me.sprites = Ext.isArray(me.sprites) ? Ext.Array.clone(me.sprites) : [];
+        me.series = Ext.isArray(me.series) ? Ext.Array.clone(me.series) : [];
+        hasCustomBbarItems = me.bbarChart.length > 0;
         if (me.charts.length === 1) {
             me.defaultChart = me.charts[0];
         }
@@ -78377,21 +78432,23 @@ Ext.define('Ext.ux.panel.Chart', {
             charts.push(me.chartPie);
             buttonsChart.push(btnPie);
         }
-        me.bbarChart.push('->', {
-            xtype: 'buttongroup',
-            toggleGroup: 'typeChart',
-            hidden: me.hiddenButtonsCharts,
-            defaults: {
-                enableToggle: true,
-                allowDepress: false,
+        if (!me.hiddenButtonsCharts) {
+            me.bbarChart.push('->', {
+                xtype: 'buttongroup',
                 toggleGroup: 'typeChart',
-                listeners: {
-                    scope: me,
-                    toggle: me.activeChart
-                }
-            },
-            items: buttonsChart
-        });
+                hidden: me.hiddenButtonsCharts,
+                defaults: {
+                    enableToggle: true,
+                    allowDepress: false,
+                    toggleGroup: 'typeChart',
+                    listeners: {
+                        scope: me,
+                        toggle: me.activeChart
+                    }
+                },
+                items: buttonsChart
+            });
+        }
         me.items = charts;
         if (me.showDownload) {
             me.tbarChart.push('->', {
@@ -78401,8 +78458,12 @@ Ext.define('Ext.ux.panel.Chart', {
                 handler: me.onDownload
             });
         }
-        me.tbar = me.tbarChart;
-        me.bbar = me.bbarChart;
+        if (me.tbarChart && me.tbarChart.length) {
+            me.tbar = me.tbarChart;
+        }
+        if ((hasCustomBbarItems || !me.hiddenButtonsCharts) && me.bbarChart && me.bbarChart.length) {
+            me.bbar = me.bbarChart;
+        }
         me.callParent(arguments);
         if (me.getLayout() && typeof me.getLayout().setActiveItem === 'function') {
             var targetChart = me.down('#' + me.defaultChart);
@@ -78923,10 +78984,9 @@ Ext.define('MBilling.view.dashboard.TrunkChart', {
     alias: 'widget.trunkchart',
     controller: 'main',
     store: 'TrunkChart',
-    fieldDescription: '',
+    fieldDescription: 'idTrunktrunkcode',
     labelYLine: '',
     labelXLine: '',
-    reference: 'networkchart',
     charts: ['pie'],
     defaultChart: 'pie',
     btnShowColumn: false,
@@ -78966,7 +79026,7 @@ Ext.define('MBilling.view.dashboard.TrunkChart', {
                 position: me.positionLegendPie,
                 renderer: me.rendererFieldDescription
             },
-            series: me.series.length || [{
+            series: me.series.length ? me.series : [{
                 donut: me.donut,
                 type: 'pie',
                 angleField: me.fieldValue,

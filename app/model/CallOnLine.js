@@ -65,7 +65,7 @@ Ext.define('MBilling.model.CallOnLine', {
     }, {
         name: 'callerid',
         type: 'string'
-    }, 'idUserusername', 'idUsercredit'],
+    }, 'idUserusername', 'idUsercredit', 'serverSum'],
     proxy: {
         type: 'uxproxy',
         module: 'callOnLine'

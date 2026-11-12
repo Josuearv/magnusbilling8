@@ -17,6 +17,7 @@ class SummaryTablesCdrCommand extends CConsoleCommand
 
     public function run($args)
     {
+        LoadConfig::syncSystemTimezone();
         $this->isBackfill = isset($args[0]);
         $this->day = $this->isBackfill ? $args[0] : date('Y-m-d');
         if (!$this->validateDate($this->day)) {

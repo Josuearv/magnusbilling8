@@ -142,13 +142,128 @@ class CallController extends Controller
         return $arrPost;
     }
 
+    private function findLocalRecordingFile($username, $uniqueid)
+    {
+        $uniqueid = trim((string) $uniqueid);
+        if ($uniqueid === '') {
+            return null;
+        }
+
+        $baseDirs = [
+            '/var/spool/asterisk/monitor/' . $username,
+            '/var/spool/asterisk/monitor',
+            '/usr/local/src/magnus/monitor/' . $username,
+            '/usr/local/src/magnus/monitor',
+            '/var/www/html/mbilling/tmp',
+        ];
+
+        // 1. Direct glob across common patterns and subdirectories
+        $patterns = [
+            "/var/spool/asterisk/monitor/{$username}/*{$uniqueid}*",
+            "/var/spool/asterisk/monitor/{$username}/*/*{$uniqueid}*",
+            "/var/spool/asterisk/monitor/*{$uniqueid}*",
+            "/var/spool/asterisk/monitor/*/*{$uniqueid}*",
+            "/usr/local/src/magnus/monitor/{$username}/*{$uniqueid}*",
+            "/usr/local/src/magnus/monitor/*{$uniqueid}*",
+            "/var/www/html/mbilling/tmp/*{$uniqueid}*",
+        ];
+
+        foreach ($patterns as $pattern) {
+            $matches = @glob($pattern);
+            if (!empty($matches)) {
+                foreach ($matches as $match) {
+                    if (is_file($match) && is_readable($match) && filesize($match) > 0) {
+                        return $match;
+                    }
+                }
+            }
+        }
+
+        // 2. Directory traversal fallback
+        foreach ($baseDirs as $dir) {
+            if (!is_dir($dir) || !is_readable($dir)) {
+                continue;
+            }
+            $dirHandle = @opendir($dir);
+            if (!$dirHandle) {
+                continue;
+            }
+            while (false !== ($file = readdir($dirHandle))) {
+                if ($file === '.' || $file === '..') {
+                    continue;
+                }
+                $fullPath = $dir . '/' . $file;
+                if (is_file($fullPath) && strpos($file, $uniqueid) !== false && is_readable($fullPath) && filesize($fullPath) > 0) {
+                    closedir($dirHandle);
+                    return $fullPath;
+                }
+                if (is_dir($fullPath)) {
+                    $subHandle = @opendir($fullPath);
+                    if ($subHandle) {
+                        while (false !== ($subFile = readdir($subHandle))) {
+                            if ($subFile === '.' || $subFile === '..') {
+                                continue;
+                            }
+                            $subFullPath = $fullPath . '/' . $subFile;
+                            if (is_file($subFullPath) && strpos($subFile, $uniqueid) !== false && is_readable($subFullPath) && filesize($subFullPath) > 0) {
+                                closedir($subHandle);
+                                closedir($dirHandle);
+                                return $subFullPath;
+                            }
+                        }
+                        closedir($subHandle);
+                    }
+                }
+            }
+            closedir($dirHandle);
+        }
+
+        return null;
+    }
+
+    private function streamRecordingFile($filePath, $downloadName = null)
+    {
+        if (!is_file($filePath) || !is_readable($filePath)) {
+            $this->sendError('Requested file is not accessible.');
+            exit;
+        }
+
+        $filename = $downloadName ? $downloadName : basename($filePath);
+        $ext      = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        $mimeMap = [
+            'gsm'  => 'audio/x-gsm',
+            'wav'  => 'audio/wav',
+            'wave' => 'audio/wav',
+            'mp3'  => 'audio/mpeg',
+            'ogg'  => 'audio/ogg',
+        ];
+        $contentType = $mimeMap[$ext] ?? 'application/octet-stream';
+        $fileSize    = filesize($filePath);
+
+        while (ob_get_level() > 0) {
+            @ob_end_clean();
+        }
+
+        header('Content-Description: File Transfer');
+        header('Content-Type: ' . $contentType);
+        header('Content-Disposition: attachment; filename="' . $filename . '"');
+        header('Content-Transfer-Encoding: binary');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+        header('Pragma: public');
+        header('Content-Length: ' . $fileSize);
+        readfile($filePath);
+        exit;
+    }
+
     public function actionDownloadRecord()
     {
 
         $filter = isset($_GET['filter']) ? json_decode($_GET['filter']) : [];
         $ids    = isset($_GET['ids']) ? json_decode($_GET['ids']) : [];
 
-        //if try download only one audio  via button Download RED.
+        //if try download only one audio via button Download REC.
         if (count($filter) == 0 && count($ids) == 1) {
             $_GET['id'] = $ids[0];
         }
@@ -173,88 +288,82 @@ class CallController extends Controller
             ]));
 
             if (! isset($modelCall->id)) {
-                $this->sendError('Requested file not found.');
+                $this->sendError('Call record not found or access denied.');
                 exit;
             }
 
-            $day      = $modelCall->starttime;
-            $uniqueid = $modelCall->uniqueid;
-            $day      = explode(' ', $day);
-            $day      = explode('-', $day[0]);
+            $uniqueid = trim((string) $modelCall->uniqueid);
+            $username = isset($modelCall->idUser->username) ? trim($modelCall->idUser->username) : '';
 
-            $day = $day[2] . $day[1] . $day[0];
-
-            if ($modelCall->id_server > 0 && $modelCall->idServer->type == 'asterisk') {
-
-                $host = $modelCall->idServer->public_ip > 0 ? $modelCall->idServer->public_ip : $modelCall->idServer->host;
-                $url  = 'http://' . $host . '/mbilling/record.php?id=' . $uniqueid . '&u=' . $modelCall->idUser->username;
-
-                $fileContent = @file_get_contents($url);
-
-                if ($fileContent === false) {
-                    $this->sendError('Unable to download the requested file.');
-                }
-                // Save the content in the specified directory
-                $savedSuccessfully = @file_put_contents("/var/www/html/mbilling/tmp/" . trim($uniqueid) . ".gsm", $fileContent);
-
-                // Check if the file was saved correctly
-                if ($savedSuccessfully === false) {
-                    $this->sendError('Unable to save the requested file.');
-                }
-
-                header("Cache-Control: public");
-                header("Content-Description: File Transfer");
-                header("Content-Disposition: attachment; filename=" . $uniqueid . '.gsm');
-                header("Content-Type: audio/x-gsm");
-                header("Content-Transfer-Encoding: binary");
-                readfile('/var/www/html/mbilling/tmp/' . $uniqueid . '.gsm');
-                unlink('/var/www/html/mbilling/tmp/' . $uniqueid . '.gsm');
-                exit;
+            // 1. Check local storage first
+            $localFile = $this->findLocalRecordingFile($username, $uniqueid);
+            if ($localFile !== null) {
+                $this->streamRecordingFile($localFile);
             }
 
-            $directory       = "/var/spool/asterisk/monitor/" . $modelCall->idUser->username;
-            $uniqueidPattern = trim($uniqueid);
+            // 2. If call was handled on a remote asterisk server, attempt to fetch from remote host
+            $isRemoteServer = false;
+            $srvHost        = '';
+            if ($modelCall->id_server > 0 && isset($modelCall->idServer) && $modelCall->idServer->type === 'asterisk') {
+                $srvHost = trim((string) $modelCall->idServer->host);
+                if ($srvHost !== '' && !in_array($srvHost, ['localhost', '127.0.0.1'], true)) {
+                    $isRemoteServer = true;
+                    $host = $modelCall->idServer->public_ip > 0 ? $modelCall->idServer->public_ip : $srvHost;
+                    $url  = 'http://' . $host . '/mbilling/record.php?id=' . urlencode($uniqueid) . '&u=' . urlencode($username);
 
-            if ($handle = opendir($directory)) {
-                while (false !== ($file = readdir($handle))) {
-
-                    if ($file != "." && $file != "..") {
-
-                        if (preg_match("/\." . $uniqueidPattern . "\./", $file)) {
-
-                            $filePath = $directory . "/" . $file;
-
-                            if (file_exists($filePath)) {
-                                $filefound = true;
-                                header('Content-Description: File Transfer');
-                                header('Content-Type: application/octet-stream');
-                                header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
-                                header('Expires: 0');
-                                header('Cache-Control: must-revalidate');
-                                header('Pragma: public');
-                                header('Content-Length: ' . filesize($filePath));
-                                readfile($filePath);
-                                exit;
-                            }
+                    $fileContent = @file_get_contents($url);
+                    if ($fileContent !== false && strlen($fileContent) > 0) {
+                        $tmpPath = "/var/www/html/mbilling/tmp/" . $uniqueid . ".gsm";
+                        if (@file_put_contents($tmpPath, $fileContent) !== false) {
+                            $this->streamRecordingFile($tmpPath, $uniqueid . '.gsm');
+                            @unlink($tmpPath);
+                            exit;
                         }
                     }
                 }
-                closedir($handle);
             }
-            if (! isset($filefound)) {
 
-                if (strlen($this->config['global']['external_record_link']) > 20) {
-                    $url = $this->config['global']['external_record_link'];
+            // 3. External record link redirect
+            if (isset($this->config['global']['external_record_link']) && strlen($this->config['global']['external_record_link']) > 20) {
+                $url = $this->config['global']['external_record_link'];
+                $url = preg_replace("/%user%/", $username, $url);
+                $url = preg_replace("/%number%/", $modelCall->calledstation, $url);
+                $url = preg_replace("/%uniqueid%/", $uniqueid, $url);
+                $extFormat = preg_replace('/49/', '', $this->config['global']['MixMonitor_format'] ?? 'gsm');
+                $url = preg_replace("/%audio_exten%/", $extFormat, $url);
 
-                    $url = preg_replace("/\%user\%/", $modelCall->idUser->username, $url);
-                    $url = preg_replace("/\%number\%/", $modelCall->calledstation, $url);
-                    $url = preg_replace("/\%uniqueid\%/", $uniqueid, $url);
-                    $url = preg_replace("/\%audio_exten\%/", preg_replace('/49/', '', $this->config['global']['MixMonitor_format']), $url);
+                header('Location: ' . $url);
+                exit;
+            }
 
-                    header('Location: ' . $url);
-                } else {
-                    $this->sendError('Requested file not found.');
+            // 4. Detailed diagnostic explanation instead of a generic error
+            $globalRecord   = (int) ($this->config['global']['global_record_calls'] ?? 0);
+            $userRecord     = isset($modelCall->idUser->record_call) ? (int) $modelCall->idUser->record_call : 0;
+            $campaignRecord = 0;
+            $campaignName   = '';
+            if ($modelCall->id_campaign > 0) {
+                $camp = Campaign::model()->findByPk((int) $modelCall->id_campaign);
+                if ($camp) {
+                    $campaignRecord = (int) $camp->record_call;
+                    $campaignName   = $camp->name;
                 }
+            }
+
+            $recordingWasEnabled = ($globalRecord === 1 || $userRecord === 1 || $campaignRecord === 1);
+            if (!$recordingWasEnabled) {
+                $details = [];
+                if ($modelCall->id_campaign > 0) {
+                    $details[] = 'Campaign "' . ($campaignName ?: $modelCall->id_campaign) . '" (record_call: 0)';
+                }
+                $details[] = 'User "' . $username . '" (record_call: ' . $userRecord . ')';
+                $details[] = 'Global recording (global_record_calls: ' . $globalRecord . ')';
+                $this->sendError('Recording was not enabled for this call (' . implode(', ', $details) . ').');
+            } else {
+                $msg = 'Recording file for uniqueid ' . $uniqueid . ' was not found on server storage (/var/spool/asterisk/monitor/' . $username . '/).';
+                if ($isRemoteServer) {
+                    $msg .= ' Remote host ' . $srvHost . ' also did not return the file.';
+                }
+                $this->sendError($msg);
             }
             exit;
         } else {
@@ -275,47 +384,48 @@ class CallController extends Controller
 
             $folder = $this->magnusFilesDirectory . 'monitor';
 
-
             array_map('unlink', glob("$folder/*"));
 
             if (isset($modelCdr[0]->id)) {
 
                 $tarFile = '/var/www/html/mbilling/tmp/records_' . Yii::app()->session['username'] . '.tar';
-                unlink($tarFile . '.gz');
-                // Cria um arquivo tar
-                $tar = new PharData($tarFile);
+                @unlink($tarFile);
+                @unlink($tarFile . '.gz');
+
+                $tar        = new PharData($tarFile);
+                $addedCount = 0;
 
                 foreach ($modelCdr as $records) {
-                    $number   = $records->calledstation;
-                    $day      = $records->starttime;
-                    $uniqueid = $records->uniqueid;
-                    $username = $records->idUser->username;
-
-                    $file = glob('/var/spool/asterisk/monitor/' . $username . '/*.' . trim($uniqueid) . '* ');
-                    if (isset($file[0])) {
-
-                        $tar->addFile($file[0], basename($file[0]));
+                    $uniqueid = trim($records->uniqueid);
+                    $username = isset($records->idUser->username) ? $records->idUser->username : '';
+                    $file     = $this->findLocalRecordingFile($username, $uniqueid);
+                    if ($file !== null && is_file($file)) {
+                        $tar->addFile($file, basename($file));
+                        $addedCount++;
                     }
                 }
 
-                $tar->compress(Phar::GZ);
-                unlink($tarFile);
+                if ($addedCount > 0) {
+                    $tar->compress(Phar::GZ);
+                    @unlink($tarFile);
 
-                echo json_encode([
-                    $this->nameSuccess => true,
-                    $this->nameMsg     => 'success',
-                ]);
+                    while (ob_get_level() > 0) {
+                        @ob_end_clean();
+                    }
 
-                header('Content-Description: File Transfer');
-                header("Content-Type: application/x-tar");
-                header('Content-Disposition: attachment; filename=' . basename($tarFile . '.gz'));
-                header("Content-Transfer-Encoding: binary");
-                header('Accept-Ranges: bytes');
-                header('Content-type: application/force-download');
-                ob_clean();
-                flush();
-                readfile($tarFile . '.gz');
-                unlink($tarFile . '.gz');
+                    header('Content-Description: File Transfer');
+                    header("Content-Type: application/x-gzip");
+                    header('Content-Disposition: attachment; filename=' . basename($tarFile . '.gz'));
+                    header("Content-Transfer-Encoding: binary");
+                    header('Accept-Ranges: bytes');
+                    header('Content-Length: ' . filesize($tarFile . '.gz'));
+                    readfile($tarFile . '.gz');
+                    @unlink($tarFile . '.gz');
+                    exit;
+                } else {
+                    $this->sendError('No recording files found on server storage for the selected calls.');
+                    exit;
+                }
             } else {
                 echo json_encode([
                     $this->nameSuccess => false,

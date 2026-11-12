@@ -266,34 +266,38 @@ class CallOnLineController extends Controller
 
     public function setAttributesModels($attributes, $models)
     {
-
         if (isset($attributes[0])) {
-            $modelSip     = Sip::model()->findAll();
-            $modelServers = Servers::model()->findAll('type != :key1 AND status IN (1,4) AND host != :key', [':key' => 'localhost', ':key1' => 'sipproxy']);
+            $modelServers = Servers::model()->findAll(
+                'type != :key1 AND status IN (1,4) AND host NOT IN (:key, :key2)',
+                [':key' => 'localhost', ':key2' => '127.0.0.1', ':key1' => 'sipproxy']
+            );
 
-            if (! isset($modelServers[0])) {
-                array_push($modelServers, [
-                    'name'     => 'Master',
-                    'host'     => 'localhost',
-                    'type'     => 'mbilling',
-                    'username' => 'magnus',
-                    'password' => 'magnussolution',
-                ]);
+            $serverList = [[
+                'name' => 'Master',
+                'host' => 'localhost',
+                'type' => 'mbilling',
+            ]];
+            foreach ($modelServers as $srv) {
+                $serverList[] = [
+                    'name' => $srv->name,
+                    'host' => $srv->host,
+                    'type' => $srv->type,
+                ];
             }
 
-            $array   = '';
-            $totalUP = 0;
-            $i       = 1;
-            foreach ($modelServers as $key => $server) {
-                if ($server['type'] == 'mbilling') {
-                    $server['host'] = 'localhost';
-                }
+            $array      = '';
+            $totalCalls = 0;
+            $totalUP    = 0;
+            $i          = 1;
+            foreach ($serverList as $server) {
+                $host = ($server['type'] === 'mbilling' || $server['host'] === '127.0.0.1') ? 'localhost' : $server['host'];
 
-                $modelCallOnLine = CallOnLine::model()->count('server = :key', ['key' => $server['host']]);
+                $modelCallOnLine   = (int) CallOnLine::model()->count('server = :key', [':key' => $host]);
+                $modelCallOnLineUp = (int) CallOnLine::model()->count('server = :key AND status = :key1', [':key' => $host, ':key1' => 'Up']);
 
-                $modelCallOnLineUp = CallOnLine::model()->count('server = :key AND status = :key1', ['key' => $server['host'], ':key1' => 'Up']);
-                $totalUP += $modelCallOnLineUp;
-                $array .= '<font color="black">' . strtoupper($server['name']) . '</font> <font color="blue">T:' . $modelCallOnLine . '</font> <font color="green">A:' . $modelCallOnLineUp . '</font>&ensp;|&ensp;';
+                $totalCalls += $modelCallOnLine;
+                $totalUP    += $modelCallOnLineUp;
+                $array      .= '<font color="black">' . strtoupper($server['name']) . '</font> <font color="blue">T:' . $modelCallOnLine . '</font> <font color="green">A:' . $modelCallOnLineUp . '</font>&ensp;|&ensp;';
 
                 if ($i % 13 == 0) {
                     $array .= "<br>";
@@ -301,11 +305,8 @@ class CallOnLineController extends Controller
                 $i++;
             }
 
+            $array .= '<font color="blue">TOTAL: ' . $totalCalls . '</font> &ensp;|&ensp; <font color="green">TOTAL UP: ' . $totalUP . '</font>';
             $attributes[0]['serverSum'] = $array;
-
-            if ($totalUP > 0) {
-                $attributes[0]['serverSum'] .= "<font color=green> TOTAL UP: " . $totalUP . "</font>";
-            }
         }
 
         return $attributes;
