@@ -50,7 +50,7 @@
                 var keysToPurge = [];
                 for (var i = 0; i < localStorage.length; i++) {
                     var k = localStorage.key(i);
-                    if (k && (k.indexOf('_ext') === 0 || k.indexOf('manifest') !== -1 || k.indexOf('MBilling') !== -1 || k.indexOf('black-') !== -1 || k.indexOf('blue-') !== -1)) {
+                    if (k && (k.indexOf('_ext') === 0 || k.indexOf('manifest') !== -1 || k.indexOf('MBilling') !== -1 || k.indexOf('black-') !== -1 || k.indexOf('blue-') !== -1 || k.indexOf('bootstrap') !== -1)) {
                         keysToPurge.push(k);
                     }
                 }

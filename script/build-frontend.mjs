@@ -26,7 +26,7 @@ const revision = createHash('sha256').update(bundle).update(app).digest('hex').s
 const js = [{path:'ext/build/ext-all.js'}, {path:`resources/mbilling-bundle.js?v=${revision}`}, {path:`app.js?v=${revision}`}];
 const outputs = new Map([['resources/mbilling-bundle.js', bundle]]);
 for (const path of await readdir(root)) {
-    if (!/^[a-z]+-[a-z]+\.json$/.test(path)) continue;
+    if (!/^[a-z]+-[a-z]+\.json$/.test(path) && path !== 'bootstrap.json') continue;
     const manifest = JSON.parse(await readFile(resolve(root, path), 'utf8'));
     if (manifest.name !== 'MBilling' || !Array.isArray(manifest.js)) continue;
     manifest.js = js;
