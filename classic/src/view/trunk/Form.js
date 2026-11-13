@@ -32,14 +32,15 @@ Ext.define('MBilling.view.trunk.Form', {
                 border: false,
                 defaultType: 'textfield',
                 layout: 'anchor',
-                bodyPadding: 5,
+                bodyPadding: '10 16 10 10',
                 defaults: {
                     labelAlign: 'right',
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     enableKeyEvents: true,
-                    labelWidth: 142
+                    labelWidth: 132
                 }
             },
             items: [{
@@ -75,7 +76,7 @@ Ext.define('MBilling.view.trunk.Form', {
                     xtype: 'checkboxgroup',
                     name: 'allow',
                     fieldLabel: t('Codec'),
-                    columns: 3,
+                    columns: 2,
                     items: [{
                         boxLabel: 'g729',
                         name: 'allow',
@@ -162,8 +163,9 @@ Ext.define('MBilling.view.trunk.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     enableKeyEvents: true,
-                    labelWidth: 142
+                    labelWidth: 132
                 },
                 items: [{
                     name: 'fromuser',

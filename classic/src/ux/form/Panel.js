@@ -8,7 +8,8 @@ Ext.define('Ext.ux.form.Panel', {
     extend: 'Ext.form.Panel',
     requires: ['Ext.form.field.Date', 'Ext.form.field.Checkbox', 'Ext.form.field.Number', 'Ext.form.field.Date', 'Ext.form.field.Time', 'Ext.form.field.Tag', 'Ext.ux.form.field.DateTime', 'Ext.ux.form.field.Float', 'Ext.ux.form.field.Money'],
     bodyPadding: 12,
-    autoScroll: true,
+    scrollable: 'y',
+    reserveScrollbar: true,
     border: false,
     allowCreate: true,
     allowUpdate: true,
@@ -153,6 +154,7 @@ Ext.define('Ext.ux.form.Panel', {
             cls: 'mb-btn-primary' + (window.isMac ? ' mb-mac-primary-button' : ''),
             text: me.textSave,
             width: 90,
+            height: 30,
             glyph: me.glyphSave,
             handler: 'onSave',
             hidden: !me.allowCreate && !me.allowUpdate
@@ -160,6 +162,7 @@ Ext.define('Ext.ux.form.Panel', {
             cls: 'mb-btn-secondary' + (window.isMac ? ' mb-mac-secondary-button' : ''),
             text: me.textCancel,
             width: 100,
+            height: 30,
             glyph: me.glyphCancel,
             handler: 'onCancel'
         }];
@@ -173,7 +176,9 @@ Ext.define('Ext.ux.form.Panel', {
         me.hideBbar = me.dockedItems = [{
             xtype: 'toolbar',
             dock: 'bottom',
-            minHeight: 42,
+            height: 46,
+            minHeight: 46,
+            padding: '7 14',
             items: itemsTbar
         }];
         me.callParent(arguments);

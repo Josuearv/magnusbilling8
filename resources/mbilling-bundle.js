@@ -977,10 +977,11 @@ Ext.define('Ext.ux.form.field.MarkAllowBlank', {
         var me = this,
             cmp = me.component || me,
             style = allowBlank ? {
-                'border-right': '0px'
+                'border-right': '0px',
+                'padding-right': '6px'
             } : {
-                'border-right': '1px solid red',
-                'padding-right': '1px'
+                'border-right': '2px solid #ef4444',
+                'padding-right': '6px'
             };
         cmp.allowBlank = allowBlank;
         if (!Ext.isEmpty(cmp.labelEl)) {
@@ -14313,7 +14314,6 @@ Ext.define('Ext.ux.form.field.Lookup', {
     mixins: {
         field: 'Ext.form.field.Field'
     },
-    layout: 'fit',
     blankText: t('This field is required'),
     displayField: undefined,
     valueField: 'id',
@@ -14335,6 +14335,7 @@ Ext.define('Ext.ux.form.field.Lookup', {
             isMobileLayout = me.isMobileLayout();
         me.rawField = Ext.widget('textfield', {
             readOnly: true,
+            hideLabel: true,
             flex: 1,
             onClearButtonClick: me.reset,
             clearButtonScope: me,
@@ -41831,7 +41832,8 @@ Ext.define('Ext.ux.form.Panel', {
     extend: 'Ext.form.Panel',
     requires: ['Ext.form.field.Date', 'Ext.form.field.Checkbox', 'Ext.form.field.Number', 'Ext.form.field.Date', 'Ext.form.field.Time', 'Ext.form.field.Tag', 'Ext.ux.form.field.DateTime', 'Ext.ux.form.field.Float', 'Ext.ux.form.field.Money'],
     bodyPadding: 12,
-    autoScroll: true,
+    scrollable: 'y',
+    reserveScrollbar: true,
     border: false,
     allowCreate: true,
     allowUpdate: true,
@@ -41976,6 +41978,7 @@ Ext.define('Ext.ux.form.Panel', {
             cls: 'mb-btn-primary' + (window.isMac ? ' mb-mac-primary-button' : ''),
             text: me.textSave,
             width: 90,
+            height: 30,
             glyph: me.glyphSave,
             handler: 'onSave',
             hidden: !me.allowCreate && !me.allowUpdate
@@ -41983,6 +41986,7 @@ Ext.define('Ext.ux.form.Panel', {
             cls: 'mb-btn-secondary' + (window.isMac ? ' mb-mac-secondary-button' : ''),
             text: me.textCancel,
             width: 100,
+            height: 30,
             glyph: me.glyphCancel,
             handler: 'onCancel'
         }];
@@ -41996,7 +42000,9 @@ Ext.define('Ext.ux.form.Panel', {
         me.hideBbar = me.dockedItems = [{
             xtype: 'toolbar',
             dock: 'bottom',
-            minHeight: 42,
+            height: 46,
+            minHeight: 46,
+            padding: '7 14',
             items: itemsTbar
         }];
         me.callParent(arguments);
@@ -43147,14 +43153,15 @@ Ext.define('MBilling.view.trunk.Form', {
                 border: false,
                 defaultType: 'textfield',
                 layout: 'anchor',
-                bodyPadding: 5,
+                bodyPadding: '10 16 10 10',
                 defaults: {
                     labelAlign: 'right',
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     enableKeyEvents: true,
-                    labelWidth: 142
+                    labelWidth: 132
                 }
             },
             items: [{
@@ -43190,7 +43197,7 @@ Ext.define('MBilling.view.trunk.Form', {
                     xtype: 'checkboxgroup',
                     name: 'allow',
                     fieldLabel: t('Codec'),
-                    columns: 3,
+                    columns: 2,
                     items: [{
                         boxLabel: 'g729',
                         name: 'allow',
@@ -43277,8 +43284,9 @@ Ext.define('MBilling.view.trunk.Form', {
                     plugins: 'markallowblank',
                     allowBlank: false,
                     anchor: '100%',
+                    margin: '0 0 6 0',
                     enableKeyEvents: true,
-                    labelWidth: 142
+                    labelWidth: 132
                 },
                 items: [{
                     name: 'fromuser',

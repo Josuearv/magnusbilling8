@@ -19,10 +19,11 @@ Ext.define('Ext.ux.form.field.MarkAllowBlank', {
         var me = this,
             cmp = me.component || me,
             style = allowBlank ? {
-                'border-right': '0px'
+                'border-right': '0px',
+                'padding-right': '6px'
             } : {
-                'border-right': '1px solid red',
-                'padding-right': '1px'
+                'border-right': '2px solid #ef4444',
+                'padding-right': '6px'
             };
         cmp.allowBlank = allowBlank;
         if (!Ext.isEmpty(cmp.labelEl)) {

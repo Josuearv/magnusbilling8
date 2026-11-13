@@ -3,7 +3,6 @@ Ext.define('Ext.ux.form.field.Lookup', {
     mixins: {
         field: 'Ext.form.field.Field'
     },
-    layout: 'fit',
     blankText: t('This field is required'),
     displayField: undefined,
     valueField: 'id',
@@ -25,6 +24,7 @@ Ext.define('Ext.ux.form.field.Lookup', {
             isMobileLayout = me.isMobileLayout();
         me.rawField = Ext.widget('textfield', {
             readOnly: true,
+            hideLabel: true,
             flex: 1,
             onClearButtonClick: me.reset,
             clearButtonScope: me,
