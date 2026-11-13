@@ -276,6 +276,39 @@ class NumberQualityService
     }
 
     /**
+     * Runs incremental sync & score only if the last completed sync is older than $intervalSeconds.
+     * Safe to invoke frequently from existing crons (SummaryTablesCdr / CampaignOptimizer).
+     *
+     * @param int $intervalSeconds
+     * @param int $windowDays
+     * @param int $minAttempts
+     * @return array
+     */
+    public static function syncIfDue($intervalSeconds = 300, $windowDays = self::DEFAULT_WINDOW_DAYS, $minAttempts = self::DEFAULT_MIN_ATTEMPTS)
+    {
+        $intervalSeconds = max(30, (int) $intervalSeconds);
+        $row = Yii::app()->db->createCommand(
+            "SELECT updated_at, TIMESTAMPDIFF(SECOND, updated_at, NOW()) AS age_sec
+             FROM pkg_cdr_summary_ids
+             WHERE summary_name = :name
+             LIMIT 1"
+        )->bindValue(':name', self::SUMMARY_NAME, PDO::PARAM_STR)->queryRow();
+
+        if (is_array($row) && !empty($row['updated_at'])) {
+            $ageSec = (int) ($row['age_sec'] ?? 0);
+            if ($ageSec >= 0 && $ageSec < $intervalSeconds) {
+                return array(
+                    'success' => true,
+                    'skipped' => true,
+                    'reason'  => "Sync fresh ({$ageSec}s < {$intervalSeconds}s).",
+                );
+            }
+        }
+
+        return self::syncAndScore($windowDays, $minAttempts, false);
+    }
+
+    /**
      * Rebuilds the rolling N-day daily aggregates directly with the sync lock held.
      *
      * @param int $days
@@ -628,6 +661,10 @@ class NumberQualityService
             self::upsertDailyBuckets($buckets, true);
             $failProcessed += count($rows);
             $lastFail = $batchEnd;
+            self::saveWatermark($lastCdr, $lastFail);
+        }
+
+        if ($cdrProcessed === 0 && $failProcessed === 0) {
             self::saveWatermark($lastCdr, $lastFail);
         }
 

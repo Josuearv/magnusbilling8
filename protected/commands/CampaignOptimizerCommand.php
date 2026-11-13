@@ -80,6 +80,17 @@ class CampaignOptimizerCommand extends CConsoleCommand
                 }
                 $metrics['attempts_reconciled'] = $reconciledCount;
                 echo "  - Pending attempts reconciled: $reconciledCount\n";
+
+                if (class_exists('NumberQualityService') && method_exists('NumberQualityService', 'syncIfDue')) {
+                    try {
+                        $nqRes = NumberQualityService::syncIfDue(300);
+                        if (!empty($nqRes['success']) && empty($nqRes['skipped'])) {
+                            echo "  - NumberQuality synced ({$nqRes['scores_updated']} scores, {$nqRes['cdr_processed']} cdr, {$nqRes['fail_processed']} fail)\n";
+                        }
+                    } catch (Throwable $nqErr) {
+                        Yii::log('CampaignOptimizer NumberQuality syncIfDue error: ' . $nqErr->getMessage(), CLogger::LEVEL_WARNING);
+                    }
+                }
             }
 
             // 5. Cleanup old records according to retention policy

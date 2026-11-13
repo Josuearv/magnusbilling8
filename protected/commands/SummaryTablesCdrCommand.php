@@ -40,6 +40,14 @@ class SummaryTablesCdrCommand extends CConsoleCommand
         $this->perUser();
         $this->perTrunk();
         $this->perMonthDid();
+
+        if (!$this->isBackfill && class_exists('NumberQualityService') && method_exists('NumberQualityService', 'syncIfDue')) {
+            try {
+                NumberQualityService::syncIfDue(300);
+            } catch (Throwable $e) {
+                Yii::log('SummaryTablesCdr NumberQuality syncIfDue error: ' . $e->getMessage(), CLogger::LEVEL_WARNING);
+            }
+        }
     }
 
     public function perDayUser()

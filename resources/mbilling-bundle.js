@@ -80775,10 +80775,25 @@ Ext.define('MBilling.view.numberquality.Controller', {
 
         me.onFilterChange();
         me.loadSummary();
+
+        me.autoRefreshTimer = setInterval(function () {
+            var view = me.getView();
+            if (!view || view.destroyed || !view.isVisible(true) || me.isRecalculating) {
+                return;
+            }
+            if (me.store && !me.store.isLoading()) {
+                me.loadSummary();
+                me.store.reload();
+            }
+        }, 60000);
     },
 
     onDestroyModule: function () {
         var me = this;
+        if (me.autoRefreshTimer) {
+            clearInterval(me.autoRefreshTimer);
+            me.autoRefreshTimer = null;
+        }
         if (me.summaryReq) {
             Ext.Ajax.abort(me.summaryReq);
         }
@@ -80863,7 +80878,7 @@ Ext.define('MBilling.view.numberquality.Controller', {
                 (k.total_attempts || 0) + ' intentos analizados'
             ) +
             me.kpiCard('Costo en Malos', '$' + parseFloat(k.bad_buycost || 0).toFixed(2), '#334155',
-                k.last_updated_at ? 'Act: ' + Ext.util.Format.htmlEncode(k.last_updated_at) : 'Sin sincronizar') +
+                k.last_updated_at ? 'Auto 5m · ' + Ext.util.Format.htmlEncode(k.last_updated_at) : 'Sin sincronizar') +
             '</div>';
 
         if (trunks && trunks.length > 0) {
@@ -80959,12 +80974,14 @@ Ext.define('MBilling.view.numberquality.Controller', {
                 if (btn !== 'yes') {
                     return;
                 }
+                me.isRecalculating = true;
                 me.getView().setLoading(t('Calculating CDR analytics...'));
                 Ext.Ajax.request({
                     url: 'index.php/numberquality/recalculate',
                     method: 'POST',
                     timeout: 120000,
                     callback: function (opts, ok, res) {
+                        me.isRecalculating = false;
                         me.getView().setLoading(false);
                         var json = ok ? Ext.decode(res.responseText, true) : null;
                         if (json && json.success) {
