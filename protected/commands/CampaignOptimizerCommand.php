@@ -72,6 +72,12 @@ class CampaignOptimizerCommand extends CConsoleCommand
                 if (class_exists('CampaignAnalyticsService')) {
                     CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(0);
                 }
+                if (class_exists('CampaignAttemptService') && method_exists('CampaignAttemptService', 'reprocessEligibleCampaigns')) {
+                    $reprocessed = CampaignAttemptService::reprocessEligibleCampaigns();
+                    if ($reprocessed > 0) {
+                        echo "  - Phone numbers reprocessed: $reprocessed\n";
+                    }
+                }
                 $metrics['attempts_reconciled'] = $reconciledCount;
                 echo "  - Pending attempts reconciled: $reconciledCount\n";
             }

@@ -106,6 +106,10 @@ class CampaignoptimizerconfigController extends Controller
             if (class_exists('CampaignAnalyticsService')) {
                 CampaignAnalyticsService::syncAllAnalyticsAndFailedCdr(0);
             }
+            $reprocessedCount = 0;
+            if (class_exists('CampaignAttemptService') && method_exists('CampaignAttemptService', 'reprocessEligibleCampaigns')) {
+                $reprocessedCount = CampaignAttemptService::reprocessEligibleCampaigns();
+            }
 
             $duration = round(microtime(true) - $startTime, 3);
 
@@ -129,10 +133,12 @@ class CampaignoptimizerconfigController extends Controller
                 'suspensions_applied' => 0,
                 'schedules_updated' => count($scheduleUpdated),
                 'audios_rotated' => count($audiosRotated),
+                'numbers_reprocessed' => (int) $reprocessedCount,
                 'stats' => [
                     'duration' => $duration,
                     'schedules_updated' => count($scheduleUpdated),
                     'audios_rotated' => count($audiosRotated),
+                    'numbers_reprocessed' => (int) $reprocessedCount,
                     'reconciled' => $reconcileStats,
                 ],
             ]);

@@ -27,7 +27,8 @@ Ext.define('MBilling.view.campaignoptimizerconfig.Controller', {
                                     '• Intentos conciliados: ' + (json.attempts_reconciled || 0) + '<br>' +
                                     '• Suspensiones aplicadas: ' + (json.suspensions_applied || 0) + '<br>' +
                                     '• Horarios actualizados: ' + (json.schedules_updated || 0) + '<br>' +
-                                    '• Audios rotados: ' + (json.audios_rotated || 0);
+                                    '• Audios rotados: ' + (json.audios_rotated || 0) + '<br>' +
+                                    '• Números reprocesados: ' + (json.numbers_reprocessed || 0);
                                 Ext.Msg.alert(t('Éxito'), msg);
                                 if (me.store) me.store.load();
                             } else {

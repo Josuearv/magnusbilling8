@@ -307,4 +307,139 @@ class CampaignAttemptService
             return false;
         }
     }
+
+    /**
+     * Reprocesses used (status = 2) phone numbers back to active (status = 1, try = 0)
+     * for active campaigns with auto_reprocess = 1 when no eligible status = 1 numbers remain.
+     *
+     * Respects active Campaign Optimizer policies (TEMP_SUSPENDED / ADMIN_RESTRICTED and daily quota)
+     * without using unsafe Yii `t.` table aliases in UPDATE statements.
+     *
+     * @param int|null $onlyCampaignId Optional campaign ID filter
+     * @return int Total phone number rows reactivated
+     */
+    public static function reprocessEligibleCampaigns($onlyCampaignId = null)
+    {
+        $totalReprocessed = 0;
+
+        try {
+            $db = Yii::app()->db;
+            $campSql = "SELECT id, id_user FROM pkg_campaign WHERE status = 1 AND auto_reprocess = 1";
+            $campParams = [];
+            if ($onlyCampaignId !== null && (int) $onlyCampaignId > 0) {
+                $campSql .= " AND id = :onlyCamp";
+                $campParams[':onlyCamp'] = (int) $onlyCampaignId;
+            }
+            $campCmd = $db->createCommand($campSql);
+            foreach ($campParams as $k => $v) {
+                $campCmd->bindValue($k, $v, PDO::PARAM_INT);
+            }
+            $campaigns = $campCmd->queryAll();
+
+            if (empty($campaigns)) {
+                return 0;
+            }
+
+            foreach ($campaigns as $camp) {
+                $campaignId = (int) $camp['id'];
+                $userId     = (int) $camp['id_user'];
+
+                $pbRows = $db->createCommand(
+                    "SELECT id_phonebook FROM pkg_campaign_phonebook WHERE id_campaign = :cid"
+                )->bindValue(':cid', $campaignId, PDO::PARAM_INT)->queryColumn();
+
+                $pbIds = array_values(array_unique(array_filter(array_map('intval', (array) $pbRows), function ($v) {
+                    return $v > 0;
+                })));
+                if (empty($pbIds)) {
+                    continue;
+                }
+                $pbListSql = implode(',', $pbIds);
+
+                $optConfig = null;
+                if (class_exists('CampaignOptimizerConfig')) {
+                    $optConfig = CampaignOptimizerConfig::model()->find(
+                        'id_campaign = :c AND activated = 1',
+                        [':c' => $campaignId]
+                    );
+                }
+
+                $enforceOptimizer = ($optConfig && in_array($optConfig->mode, ['ACTIVE', 'ENFORCING'], true));
+
+                if (! $enforceOptimizer) {
+                    $hasPending = $db->createCommand(
+                        "SELECT 1 FROM pkg_phonenumber WHERE status = 1 AND id_phonebook IN ({$pbListSql}) LIMIT 1"
+                    )->queryScalar();
+                    if ($hasPending) {
+                        continue;
+                    }
+
+                    $affected = (int) $db->createCommand(
+                        "UPDATE pkg_phonenumber SET status = 1, try = 0 WHERE status = 2 AND id_phonebook IN ({$pbListSql})"
+                    )->execute();
+                    $totalReprocessed += $affected;
+                    continue;
+                }
+
+                // Sync timezone for local_date comparison matching CampaignAttemptService
+                if (class_exists('LoadConfig')) {
+                    LoadConfig::syncSystemTimezone($optConfig->timezone ?: null);
+                } elseif (! empty($optConfig->timezone) && @in_array($optConfig->timezone, timezone_identifiers_list(), true)) {
+                    @date_default_timezone_set($optConfig->timezone);
+                }
+                $localDate = date('Y-m-d');
+                $maxDaily  = max(1, (int) $optConfig->max_daily_attempts);
+
+                $exclusionSql = "
+                    AND NOT EXISTS (
+                        SELECT 1 FROM pkg_campaign_optimizer_state s
+                        WHERE s.id_campaign = :cid
+                          AND s.id_phonenumber = p.id
+                          AND s.policy_status != 'ELIGIBLE'
+                          AND (s.suspension_expires_at IS NULL OR s.suspension_expires_at > NOW())
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM pkg_campaign_optimizer_daily d
+                        WHERE d.id_user_owner = :uid
+                          AND d.local_date = :localDate
+                          AND d.canonical_number = REPLACE(REPLACE(REPLACE(REPLACE(p.number, '+', ''), '-', ''), ' ', ''), '.', '')
+                          AND (d.reserved_count + d.initiated_count) >= :maxDaily
+                    )";
+
+                // Only skip reprocess if there is at least one TRULY dialable status=1 number
+                $pendingCmd = $db->createCommand(
+                    "SELECT 1 FROM pkg_phonenumber p
+                     WHERE p.status = 1
+                       AND p.id_phonebook IN ({$pbListSql})
+                       {$exclusionSql}
+                     LIMIT 1"
+                );
+                $pendingCmd->bindValue(':cid', $campaignId, PDO::PARAM_INT);
+                $pendingCmd->bindValue(':uid', $userId, PDO::PARAM_INT);
+                $pendingCmd->bindValue(':localDate', $localDate, PDO::PARAM_STR);
+                $pendingCmd->bindValue(':maxDaily', $maxDaily, PDO::PARAM_INT);
+                if ($pendingCmd->queryScalar()) {
+                    continue;
+                }
+
+                $updateCmd = $db->createCommand(
+                    "UPDATE pkg_phonenumber p
+                     SET p.status = 1, p.try = 0
+                     WHERE p.status = 2
+                       AND p.id_phonebook IN ({$pbListSql})
+                       {$exclusionSql}"
+                );
+                $updateCmd->bindValue(':cid', $campaignId, PDO::PARAM_INT);
+                $updateCmd->bindValue(':uid', $userId, PDO::PARAM_INT);
+                $updateCmd->bindValue(':localDate', $localDate, PDO::PARAM_STR);
+                $updateCmd->bindValue(':maxDaily', $maxDaily, PDO::PARAM_INT);
+                $affected = (int) $updateCmd->execute();
+                $totalReprocessed += $affected;
+            }
+        } catch (Exception $e) {
+            Yii::log('Error in reprocessEligibleCampaigns: ' . $e->getMessage(), CLogger::LEVEL_ERROR);
+        }
+
+        return $totalReprocessed;
+    }
 }
