@@ -435,18 +435,33 @@ class NumberQualityService
             ->bindValue(':trunk', $idTrunk, PDO::PARAM_INT)
             ->queryRow();
 
-        $plusNum = '+' . $canonical;
+        $candidates = array($canonical, '+' . $canonical);
+        if ($idTrunk > 0) {
+            $trunkPrefixes = self::getTrunkPrefixMap();
+            $tp            = $trunkPrefixes[$idTrunk] ?? '';
+            if ($tp !== '') {
+                $candidates[] = $tp . $canonical;
+                $candidates[] = '+' . $tp . $canonical;
+            }
+        }
+        $candidates   = array_values(array_unique($candidates));
+        $inPlaceholders = array();
+        $inParams       = array();
+        foreach ($candidates as $idx => $cand) {
+            $ph                 = ':cs' . $idx;
+            $inPlaceholders[]   = $ph;
+            $inParams[$ph]      = $cand;
+        }
+        $calledInSql = 'IN (' . implode(', ', $inPlaceholders) . ')';
 
         // Answered calls (use index on calledstation + filter starttime)
         $cdrWhere = array(
-            'c.calledstation IN (:numExact, :numPlus)',
+            "c.calledstation {$calledInSql}",
             'c.starttime >= :since',
         );
-        $cdrParams = array(
-            ':numExact' => $canonical,
-            ':numPlus'  => $plusNum,
-            ':since'    => $since,
-        );
+        $cdrParams = array_merge($inParams, array(
+            ':since' => $since,
+        ));
         if ($idCampaign > 0) {
             $cdrWhere[]               = 'COALESCE(c.id_campaign, 0) = :idCamp';
             $cdrParams[':idCamp']     = $idCampaign;
@@ -478,14 +493,12 @@ class NumberQualityService
 
         // Failed calls
         $failWhere = array(
-            'f.calledstation IN (:numExact, :numPlus)',
+            "f.calledstation {$calledInSql}",
             'f.starttime >= :since',
         );
-        $failParams = array(
-            ':numExact' => $canonical,
-            ':numPlus'  => $plusNum,
-            ':since'    => $since,
-        );
+        $failParams = array_merge($inParams, array(
+            ':since' => $since,
+        ));
         if ($idCampaign > 0) {
             $failWhere[]             = "f.sessionid = :mcSess";
             $failParams[':mcSess']   = 'MC-' . $idCampaign;
@@ -569,13 +582,15 @@ class NumberQualityService
 
         $cdrProcessed  = 0;
         $failProcessed = 0;
+        $trunkPrefixes = self::getTrunkPrefixMap();
 
         while ($lastCdr < $maxCdr) {
             $batchEnd = min($maxCdr, $lastCdr + self::BATCH_SIZE);
             $rows = $db->createCommand(
                 "SELECT id, id_user, COALESCE(id_campaign, 0) AS id_campaign, COALESCE(id_trunk, 0) AS id_trunk,
                         starttime, calledstation, COALESCE(real_sessiontime, sessiontime, 0) AS duration_sec,
-                        COALESCE(buycost, 0) AS buycost, COALESCE(terminatecauseid, 1) AS terminatecauseid
+                        COALESCE(buycost, 0) AS buycost, COALESCE(terminatecauseid, 1) AS terminatecauseid,
+                        COALESCE(sipiax, 0) AS sipiax
                  FROM pkg_cdr
                  WHERE id > :startId AND id <= :endId
                  ORDER BY id ASC"
@@ -584,7 +599,7 @@ class NumberQualityService
                 ->bindValue(':endId', $batchEnd, PDO::PARAM_INT)
                 ->queryAll();
 
-            $buckets = self::aggregateCdrRows($rows);
+            $buckets = self::aggregateCdrRows($rows, $trunkPrefixes);
             self::upsertDailyBuckets($buckets, true);
             $cdrProcessed += count($rows);
             $lastCdr = $batchEnd;
@@ -597,7 +612,8 @@ class NumberQualityService
                 "SELECT id, id_user,
                         CASE WHEN sessionid LIKE 'MC-%' THEN CAST(SUBSTRING(sessionid, 4) AS UNSIGNED) ELSE 0 END AS id_campaign,
                         COALESCE(id_trunk, 0) AS id_trunk,
-                        starttime, calledstation,
+                        starttime, calledstation, sessionid,
+                        COALESCE(sipiax, 0) AS sipiax,
                         COALESCE(terminatecauseid, 0) AS terminatecauseid,
                         COALESCE(hangupcause, 0) AS hangupcause
                  FROM pkg_cdr_failed
@@ -608,7 +624,7 @@ class NumberQualityService
                 ->bindValue(':endId', $batchEnd, PDO::PARAM_INT)
                 ->queryAll();
 
-            $buckets = self::aggregateFailedRows($rows);
+            $buckets = self::aggregateFailedRows($rows, $trunkPrefixes);
             self::upsertDailyBuckets($buckets, true);
             $failProcessed += count($rows);
             $lastFail = $batchEnd;
@@ -640,6 +656,7 @@ class NumberQualityService
 
         $cdrProcessed  = 0;
         $failProcessed = 0;
+        $trunkPrefixes = self::getTrunkPrefixMap();
 
         $lastCdrId = (int) $db->createCommand(
             "SELECT COALESCE(MIN(id) - 1, 0) FROM pkg_cdr WHERE starttime >= :cutoff"
@@ -653,7 +670,8 @@ class NumberQualityService
             $rows = $db->createCommand(
                 "SELECT id, id_user, COALESCE(id_campaign, 0) AS id_campaign, COALESCE(id_trunk, 0) AS id_trunk,
                         starttime, calledstation, COALESCE(real_sessiontime, sessiontime, 0) AS duration_sec,
-                        COALESCE(buycost, 0) AS buycost, COALESCE(terminatecauseid, 1) AS terminatecauseid
+                        COALESCE(buycost, 0) AS buycost, COALESCE(terminatecauseid, 1) AS terminatecauseid,
+                        COALESCE(sipiax, 0) AS sipiax
                  FROM pkg_cdr
                  WHERE id > :lastId AND id <= :maxId AND starttime >= :cutoff
                  ORDER BY id ASC
@@ -669,7 +687,7 @@ class NumberQualityService
             }
             $lastRow   = end($rows);
             $lastCdrId = (int) $lastRow['id'];
-            $buckets   = self::aggregateCdrRows($rows);
+            $buckets   = self::aggregateCdrRows($rows, $trunkPrefixes);
             self::upsertDailyBuckets($buckets, true);
             $cdrProcessed += count($rows);
         }
@@ -687,7 +705,8 @@ class NumberQualityService
                 "SELECT id, id_user,
                         CASE WHEN sessionid LIKE 'MC-%' THEN CAST(SUBSTRING(sessionid, 4) AS UNSIGNED) ELSE 0 END AS id_campaign,
                         COALESCE(id_trunk, 0) AS id_trunk,
-                        starttime, calledstation,
+                        starttime, calledstation, sessionid,
+                        COALESCE(sipiax, 0) AS sipiax,
                         COALESCE(terminatecauseid, 0) AS terminatecauseid,
                         COALESCE(hangupcause, 0) AS hangupcause
                  FROM pkg_cdr_failed
@@ -705,7 +724,7 @@ class NumberQualityService
             }
             $lastRow    = end($rows);
             $lastFailId = (int) $lastRow['id'];
-            $buckets    = self::aggregateFailedRows($rows);
+            $buckets    = self::aggregateFailedRows($rows, $trunkPrefixes);
             self::upsertDailyBuckets($buckets, true);
             $failProcessed += count($rows);
         }
@@ -837,13 +856,18 @@ class NumberQualityService
      * Groups raw pkg_cdr rows into daily bucket arrays keyed cleanly for batch upsert.
      *
      * @param array $rows
+     * @param array $trunkPrefixes Map of id_trunk => numeric trunkprefix
      * @return array
      */
-    private static function aggregateCdrRows(array $rows)
+    private static function aggregateCdrRows(array $rows, array $trunkPrefixes = array())
     {
         $buckets = array();
         foreach ($rows as $r) {
-            $canonical = self::normalizeNumber($r['calledstation'] ?? '');
+            $trunkId     = (int) ($r['id_trunk'] ?? 0);
+            $trunkPrefix = $trunkPrefixes[$trunkId] ?? '';
+            $sipiax      = (int) ($r['sipiax'] ?? 0);
+            // MassiveCall answered CDRs (sipiax=5) originate from .call Extension/dnid without trunkprefix.
+            $canonical   = self::normalizeNumberForTrunk($r['calledstation'] ?? '', $trunkPrefix, $sipiax !== 5);
             if ($canonical === '') {
                 continue;
             }
@@ -897,13 +921,16 @@ class NumberQualityService
      * Groups raw pkg_cdr_failed rows into daily bucket arrays.
      *
      * @param array $rows
+     * @param array $trunkPrefixes Map of id_trunk => numeric trunkprefix
      * @return array
      */
-    private static function aggregateFailedRows(array $rows)
+    private static function aggregateFailedRows(array $rows, array $trunkPrefixes = array())
     {
         $buckets = array();
         foreach ($rows as $r) {
-            $canonical = self::normalizeNumber($r['calledstation'] ?? '');
+            $trunkId     = (int) ($r['id_trunk'] ?? 0);
+            $trunkPrefix = $trunkPrefixes[$trunkId] ?? '';
+            $canonical   = self::normalizeNumberForTrunk($r['calledstation'] ?? '', $trunkPrefix, true);
             if ($canonical === '') {
                 continue;
             }
@@ -1303,6 +1330,50 @@ class NumberQualityService
             'sum_buycost'           => 0.0,
             'last_call_at'          => null,
         );
+    }
+
+    /**
+     * Loads numeric trunkprefix values keyed by pkg_trunk.id.
+     *
+     * @return array
+     */
+    private static function getTrunkPrefixMap()
+    {
+        $map  = array();
+        $rows = Yii::app()->db->createCommand("SELECT id, trunkprefix FROM pkg_trunk WHERE trunkprefix IS NOT NULL AND trunkprefix <> ''")->queryAll();
+        foreach ($rows as $row) {
+            $id     = (int) ($row['id'] ?? 0);
+            $digits = preg_replace('/[^0-9]/', '', (string) ($row['trunkprefix'] ?? ''));
+            if ($id > 0 && $digits !== '') {
+                $map[$id] = $digits;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * Normalizes a dialled destination and optionally strips the trunk's outgoing technical prefix.
+     *
+     * @param string $raw
+     * @param string $trunkPrefix
+     * @param bool $allowStripTrunkPrefix
+     * @return string
+     */
+    public static function normalizeNumberForTrunk($raw, $trunkPrefix = '', $allowStripTrunkPrefix = true)
+    {
+        $canonical = self::normalizeNumber($raw);
+        if ($canonical === '' || !$allowStripTrunkPrefix) {
+            return $canonical;
+        }
+        $prefixDigits = preg_replace('/[^0-9]/', '', (string) $trunkPrefix);
+        if (
+            $prefixDigits !== ''
+            && strpos($canonical, $prefixDigits) === 0
+            && (strlen($canonical) - strlen($prefixDigits)) >= 8
+        ) {
+            $canonical = substr($canonical, strlen($prefixDigits));
+        }
+        return $canonical;
     }
 
     private static function normalizeNumber($raw)

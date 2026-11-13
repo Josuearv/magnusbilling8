@@ -430,7 +430,7 @@ class MassiveCallCommand extends ConsoleCommand
                             (int) $campaign->id,
                             (int) $phone->id,
                             (int) $id_user,
-                            (string) $destination,
+                            (string) $extension,
                             (int) $idTrunk,
                             $audioVersionId
                         );

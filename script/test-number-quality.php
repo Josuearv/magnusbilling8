@@ -116,4 +116,18 @@ assertTrue($separated[0]['quality_label'] === 'TRUNK_SUSPECT', 'Bad on trunk #1 
 assertTrue((int) $separated[0]['is_trunk_suspect'] === 1, 'is_trunk_suspect flagged = 1');
 assertTrue($separated[1]['quality_label'] === 'HEALTHY', 'Healthy trunk remains HEALTHY');
 
+// 8. Trunk prefix stripping normalization
+assertTrue(
+    NumberQualityService::normalizeNumberForTrunk('916718889993091', '9167', true) === '18889993091',
+    'Strips outgoing trunkprefix when allowed and >= 8 digits remain'
+);
+assertTrue(
+    NumberQualityService::normalizeNumberForTrunk('916718889993091', '9167', false) === '916718889993091',
+    'Keeps number untouched when allowStripTrunkPrefix=false (MassiveCall sipiax=5)'
+);
+assertTrue(
+    NumberQualityService::normalizeNumberForTrunk('9167123456', '9167', true) === '9167123456',
+    'Does not strip if fewer than 8 digits would remain'
+);
+
 echo "All NumberQuality unit assertions passed.\n";
